@@ -216,7 +216,9 @@ const docCache = new Map();
 
 async function fetchDoc(path) {
 	if (docCache.has(path)) return docCache.get(path);
-	const candidates = ["/docs/" + path + ".md", "/docs/" + path + "/README.md"];
+	// Relative paths work both in dev and when served from a subpath,
+	// as on GitHub Pages.
+	const candidates = ["docs/" + path + ".md", "docs/" + path + "/README.md"];
 	let text = null;
 	for (const c of candidates) {
 		try {

@@ -29,6 +29,17 @@ npm run preview   # serves dist/ locally
 Every page has a stable URL: share links directly. The sidebar, mobile menu, code-block
 copy buttons and full-text search are included.
 
+## Deploy to GitHub Pages
+
+A workflow at `.github/workflows/deploy-pages.yml` builds `web/` and deploys it to
+GitHub Pages on every push to `main`. Enable it once:
+
+1. Repo → **Settings → Pages** → **Source: GitHub Actions**.
+2. Push to `main`; the first deploy takes a minute or two.
+3. The site appears at `https://<user>.github.io/giode/`.
+
+The build uses relative URLs, so it works from the repo subpath.
+
 ## Adding a page
 
 1. Create the Markdown file in `../docs`.

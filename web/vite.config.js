@@ -57,5 +57,8 @@ function copyMd(src, dst) {
 }
 
 export default defineConfig({
+	// Relative asset URLs so the build works when served from a
+	// subpath, as on GitHub Pages.
+	base: "./",
 	plugins: [docsPlugin()],
 });
