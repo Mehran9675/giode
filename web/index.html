@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Giode — a UI library built on Gio. Documentation.">
+<title>Giode</title>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <a href="#/">Giode</a>
+      <span class="tagline">UI on Gio</span>
+    </div>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search the docs… (/)"
+             autocomplete="off" spellcheck="false">
+      <div id="results"></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="footer">
+      <a href="https://github.com/Mehran9675/giode" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </aside>
+  <div id="overlay"></div>
+  <main id="content"></main>
+</div>
+<button id="menu-btn" aria-label="Toggle navigation">☰</button>
+<script type="module" src="/src/app.js"></script>
+</body>
+</html>
