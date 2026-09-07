@@ -1,0 +1,78 @@
+// Package dropdown provides a stateful dropdown.
+package dropdown
+
+import (
+	"image/color"
+
+	"gioui.org/widget"
+
+	"github.com/mehran9675/giode/styles"
+)
+
+var (
+	defaultBackground = color.NRGBA{R: 0x1e, G: 0x29, B: 0x3b, A: 0xff}
+	defaultText       = color.NRGBA{R: 0xe2, G: 0xe8, B: 0xf0, A: 0xff}
+	defaultBorder     = color.NRGBA{R: 0x47, G: 0x55, B: 0x69, A: 0xff}
+	defaultHover      = color.NRGBA{R: 0x33, G: 0x41, B: 0x55, A: 0xff}
+)
+
+// Select is a stateful dropdown. Create it once with New and lay it
+// out every frame.
+type Select struct {
+	options   []string
+	selected  int
+	open      bool
+	field     widget.Clickable
+	itemClick []*widget.Clickable
+	onChange  func(index int)
+	st        styles.Styles
+}
+
+// New returns a Select with the given options.
+func New(options ...string) *Select {
+	s := &Select{options: options}
+	for range options {
+		s.itemClick = append(s.itemClick, new(widget.Clickable))
+	}
+	return s
+}
+
+// Selected returns the index of the selected option.
+func (s *Select) Selected() int {
+	return s.selected
+}
+
+// Value returns the selected option's text.
+func (s *Select) Value() string {
+	if s.selected >= len(s.options) {
+		return ""
+	}
+	return s.options[s.selected]
+}
+
+// SetSelected changes the selection without invoking OnChange.
+func (s *Select) SetSelected(i int) {
+	if i >= 0 && i < len(s.options) {
+		s.selected = i
+	}
+}
+
+// OnChange sets the handler invoked when the selection changes. It
+// returns s for chaining.
+func (s *Select) OnChange(fn func(index int)) *Select {
+	s.onChange = fn
+	return s
+}
+
+// Styles replaces the select styles: Background is the dropdown
+// background, Color the text, BorderColor the field border,
+// BorderRadius the corners. It returns s for chaining.
+func (s *Select) Styles(st styles.Styles) *Select {
+	s.st = st
+	return s
+}
+
+// Opened reports whether the dropdown is open.
+func (s *Select) Opened() bool {
+	return s.open
+}

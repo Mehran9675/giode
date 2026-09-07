@@ -1,0 +1,32 @@
+# Button
+
+Clickable button.
+
+```go
+btn := giode.NewButton("Click me").
+	OnClick(func() { count++ }).
+	Styles(giode.Styles{Background: giode.HexColor("#3b82f6"), BorderRadius: 8})
+
+// in the view:
+giode.Box(giode.Styles{}, btn)
+```
+
+## API
+
+| Member | Description |
+| --- | --- |
+| `NewButton(label string) *Button` | Creates the button. |
+| `OnClick(fn func()) *Button` | Click handler. |
+| `Styles(st Styles) *Button` | Replaces the styles. |
+| `Label(label string) *Button` | Replaces the label. |
+| `Click()` | Simulates a click. |
+
+## Styles
+
+| Property | Role |
+| --- | --- |
+| `Background` | Face color; pressed and hovered shades are derived automatically. |
+| `Color` | Label color. |
+| `FontSize` | Label size. |
+| `Padding` | Face padding; defaults to 16x8. |
+| `BorderRadius`, `BorderWidth`, `BorderColor`, `Opacity`, `Cursor` | As usual. |
