@@ -4,7 +4,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 
-	"github.com/mehran9675/giode/components/internal/overlay"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -25,8 +25,8 @@ func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
 
 	// Bound the panel to the window.
 	win := gtx.Constraints.Max
-	gtx.Constraints.Max.X = win.X - 2*overlay.Margin
-	gtx.Constraints.Max.Y = win.Y - 2*overlay.Margin
+	gtx.Constraints.Max.X = win.X - 2*kit.Margin
+	gtx.Constraints.Max.Y = win.Y - 2*kit.Margin
 
 	width := m.measureWidth(gtx, st)
 

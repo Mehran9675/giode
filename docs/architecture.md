@@ -14,13 +14,13 @@ elements/
     Stateless building blocks (Box, Flex, Text, Divider, Raw, Responsive)
 components/
     One directory per component, one file per function or struct
-    internal/        Shared helpers (overlay clamping, color math)
+    kit/               Public helpers for custom components
 router/
     Navigation
 fonts/
     Font and shaper registry
 examples/
-    hello, showcase
+    hello, showcase, custom
 ```
 
 ## The rule of one
@@ -44,7 +44,11 @@ examples/
    and are created once with a `New` constructor.
 3. Build visuals out of `elements` (dogfooding) and raw Gio where needed.
 4. Accept `styles.Styles` where sensible, using `styles.Merge` for defaults.
-5. Re-export from `reexport.go`.
+5. Use the `components/kit` helpers (color shading, overlay clamping) — the same
+   helpers the built-in components use.
+6. Re-export from `reexport.go`.
+
+See [extending.md](extending.md) for the full recipe for custom components.
 
 ## State model
 

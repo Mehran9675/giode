@@ -6,7 +6,7 @@ import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 
-	"github.com/mehran9675/giode/components/internal/colorutil"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -26,9 +26,9 @@ func (b *Button) layoutVisual(gtx layout.Context) layout.Dimensions {
 	}
 	switch {
 	case b.clickable.Pressed():
-		bg = colorutil.Pressed(bg)
+		bg = kit.Pressed(bg)
 	case b.clickable.Hovered():
-		bg = colorutil.Hovered(bg)
+		bg = kit.Hovered(bg)
 		pointer.CursorPointer.Add(gtx.Ops)
 	}
 	st.Background = bg

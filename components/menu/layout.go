@@ -6,7 +6,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 
-	"github.com/mehran9675/giode/components/internal/overlay"
+	"github.com/mehran9675/giode/components/kit"
 )
 
 // Layout renders the open menu: a window-wide dismissal layer with
@@ -45,7 +45,7 @@ func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
 	panel := macro.Stop()
 
 	win := f32.Pt(float32(gtx.Constraints.Max.X), float32(gtx.Constraints.Max.Y))
-	pos := overlay.ClampPos(win, f32.Pt(float32(dims.Size.X), float32(dims.Size.Y)), m.pos, overlay.Margin)
+	pos := kit.ClampPos(win, f32.Pt(float32(dims.Size.X), float32(dims.Size.Y)), m.pos, kit.Margin)
 
 	off := op.Offset(pos.Round()).Push(gtx.Ops)
 	panel.Add(gtx.Ops)

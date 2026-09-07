@@ -17,6 +17,7 @@ stays reachable everywhere.
 - **Routing** — `NewRouter`, `Push`/`Navigate`/`Back`, `Link`.
 - **Breakpoints** — `Responsive` switches views when the available width crosses a threshold.
 - **Icons** — Material set, SVG path data, IconVG, plain images.
+- **Component kit** — create your own components with the same helpers the built-ins use.
 - **Low-level escape hatches** — `Raw`, `RunRaw`, `App.Window()`.
 
 ## Documentation
@@ -27,6 +28,7 @@ stays reachable everywhere.
 - [Style properties](styles.md)
 - [Components](components/)
 - [Routing](routing.md)
+- [Extending the library](extending.md)
 - [Architecture](architecture.md)
 - [Low-level access](low-level.md)
 
@@ -41,5 +43,12 @@ underlying packages stay importable directly:
 | `styles` | The `Styles` aggregate, `Merge`, `Hex` |
 | `elements` | Stateless building blocks |
 | `components/*` | Stateful components, one directory each |
+| `components/kit` | Helpers for custom components |
 | `router` | Navigation |
 | `fonts` | Font/shaper registry |
+
+## About this documentation
+
+The pages you are reading are Markdown files in this folder, rendered by a Vite site in
+the `web/` directory. See [README.md](README.md) for the structure and how to add pages.
+

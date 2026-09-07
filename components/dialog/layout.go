@@ -9,7 +9,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
-	"github.com/mehran9675/giode/components/internal/overlay"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -46,8 +46,8 @@ func (d *Dialog) Layout(gtx layout.Context, content elements.Element) layout.Dim
 	// Measure the panel, then center it.
 	macro := op.Record(gtx.Ops)
 	panelGtx := gtx
-	panelGtx.Constraints.Max.X = win.X - 2*overlay.Margin
-	panelGtx.Constraints.Max.Y = win.Y - 2*overlay.Margin
+	panelGtx.Constraints.Max.X = win.X - 2*kit.Margin
+	panelGtx.Constraints.Max.Y = win.Y - 2*kit.Margin
 	dims := elements.Box(st, content).Layout(panelGtx)
 	panel := macro.Stop()
 

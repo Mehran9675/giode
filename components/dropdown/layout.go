@@ -7,7 +7,7 @@ import (
 	"gioui.org/op"
 
 	"github.com/mehran9675/giode/components/icon"
-	"github.com/mehran9675/giode/components/internal/overlay"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -59,11 +59,11 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	fieldOps.Add(gtx.Ops)
 	if s.open && len(s.options) > 0 {
 		panelSize := f32.Pt(float32(dropdownDims.Size.X), float32(dropdownDims.Size.Y))
-		pos := overlay.ClampPos(
+		pos := kit.ClampPos(
 			f32.Pt(float32(gtx.Constraints.Max.X), float32(gtx.Constraints.Max.Y)),
 			panelSize,
 			f32.Pt(0, float32(fieldDims.Size.Y)+4),
-			overlay.Margin,
+			kit.Margin,
 		)
 		off := op.Offset(pos.Round()).Push(gtx.Ops)
 		dropdownOps.Add(gtx.Ops)

@@ -9,6 +9,7 @@ import (
 	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/imageutil"
 	"github.com/mehran9675/giode/components/input"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/components/menu"
 	"github.com/mehran9675/giode/components/progress"
 	"github.com/mehran9675/giode/components/scroll"
@@ -120,6 +121,20 @@ var (
 // --- Routing ---------------------------------------------------------------
 
 var NewRouter = router.New
+
+// --- Component kit -----------------------------------------------------------
+
+var (
+	Scale    = kit.Scale
+	Hovered  = kit.Hovered
+	Pressed  = kit.Pressed
+	Alpha    = kit.Alpha
+	ClampPos = kit.ClampPos
+)
+
+// OverlayMargin is the default distance kept between an overlay and
+// the window edges.
+const OverlayMargin = kit.Margin
 
 // --- Style constants ---------------------------------------------------------
 

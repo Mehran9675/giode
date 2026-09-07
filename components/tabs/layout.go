@@ -10,7 +10,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
-	"github.com/mehran9675/giode/components/internal/colorutil"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -73,7 +73,7 @@ func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element
 			if sel {
 				textColor = activeText
 			} else if click.Hovered() {
-				textColor = colorutil.Hovered(defaultText)
+				textColor = kit.Hovered(defaultText)
 			}
 			if click.Hovered() {
 				pointer.CursorPointer.Add(gtx.Ops)

@@ -9,6 +9,7 @@ import (
 	"gioui.org/op/paint"
 
 	"github.com/mehran9675/giode/components/icon"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -33,9 +34,9 @@ func (c *Checkbox) box() elements.Element {
 		border := stOrDefault(c.st.BorderColor, defaultBox)
 		switch {
 		case !checked && c.bool.Hovered():
-			border = hovered(border)
+			border = kit.Hovered(border)
 		case checked && c.bool.Hovered():
-			fill = hovered(fill)
+			fill = kit.Hovered(fill)
 		}
 		if !checked {
 			fill = color.NRGBA{}
@@ -56,8 +57,4 @@ func stOrDefault(c, def color.NRGBA) color.NRGBA {
 		return def
 	}
 	return c
-}
-
-func hovered(c color.NRGBA) color.NRGBA {
-	return color.NRGBA{R: uint8(min(int(c.R)+20, 0xff)), G: uint8(min(int(c.G)+20, 0xff)), B: uint8(min(int(c.B)+20, 0xff)), A: c.A}
 }
