@@ -7,7 +7,9 @@ import (
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
+	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/styles"
 )
@@ -21,9 +23,14 @@ type Slider struct {
 	st       styles.Styles
 }
 
-// New returns a Slider.
-func New() *Slider {
-	return &Slider{value: 0}
+// New returns a Slider. The styles argument is optional: Color is
+// the fill, Background is the track, BorderColor is the thumb.
+func New(st ...styles.Styles) *Slider {
+	s := &Slider{value: 0}
+	if len(st) > 0 {
+		s.st = st[0]
+	}
+	return s
 }
 
 // Value returns the current value in the range [0, 1].
@@ -40,13 +47,6 @@ func (s *Slider) SetValue(v float32) {
 // chaining.
 func (s *Slider) OnChange(fn func(v float32)) *Slider {
 	s.onChange = fn
-	return s
-}
-
-// Styles replaces the slider styles: Color is the fill, Background
-// is the track, BorderColor is the thumb. It returns s for chaining.
-func (s *Slider) Styles(st styles.Styles) *Slider {
-	s.st = st
 	return s
 }
 
@@ -80,11 +80,12 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	if changed && s.onChange != nil {
 		s.onChange(s.value)
+		gtx.Execute(op.InvalidateCmd{})
 	}
 
-	paintTrack(gtx, size, s.st.Background)
-	paintFill(gtx, size, s.value, s.st.Color)
-	paintThumb(gtx, size, s.value, s.st.BorderColor)
+	paintTrack(gtx, size, properties.CalcColor(s.st.Background))
+	paintFill(gtx, size, s.value, properties.CalcColor(s.st.Color))
+	paintThumb(gtx, size, s.value, properties.CalcColor(s.st.BorderColor))
 	return layout.Dimensions{Size: size}
 }
 

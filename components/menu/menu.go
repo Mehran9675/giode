@@ -36,15 +36,14 @@ type Menu struct {
 	scrim widget.Clickable
 }
 
-// New returns an empty menu.
-func New() *Menu {
-	return &Menu{}
-}
-
-// Styles replaces the panel styles. Background, BorderRadius, Padding
-// and Color (item text) are honored; the rest fall back to defaults.
-func (m *Menu) Styles(st styles.Styles) *Menu {
-	m.styles = st
+// New returns an empty menu. The styles argument is optional:
+// Background, BorderRadius, Padding and Color (item text) are
+// honored; the rest fall back to defaults.
+func New(st ...styles.Styles) *Menu {
+	m := &Menu{}
+	if len(st) > 0 {
+		m.styles = st[0]
+	}
 	return m
 }
 

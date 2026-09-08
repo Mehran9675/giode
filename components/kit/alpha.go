@@ -1,8 +1,10 @@
 package kit
 
-import "image/color"
+import "github.com/mehran9675/giode/styles/properties"
 
 // Alpha returns c with its alpha multiplied by a.
-func Alpha(c color.NRGBA, a float32) color.NRGBA {
-	return color.NRGBA{R: c.R, G: c.G, B: c.B, A: uint8(float32(c.A) * a)}
+func Alpha(c properties.Color, a float32) properties.Color {
+	nc := properties.CalcColor(c)
+	nc.A = uint8(float32(nc.A) * a)
+	return properties.CalcColorReverse(nc)
 }

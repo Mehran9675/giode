@@ -9,7 +9,7 @@ type Element interface {
 ```
 
 Any type with a `Layout` method is a first-class Giode component — it can be returned
-from a view, placed inside a `Box`/`Flex` and re-exported next to the built-ins. On top of
+from a view, placed inside a `Box`/`Row`/`Stack` and re-exported next to the built-ins. On top of
 that interface, Giode offers a small kit of helpers that the built-in components
 themselves are made of.
 
@@ -18,7 +18,7 @@ themselves are made of.
 | Need | Use |
 | --- | --- |
 | One-off raw Gio code | `giode.Raw(func(gtx layout.Context) layout.Dimensions { ... })` |
-| Stateless visual | A struct with a `Layout` method built from `Box`/`Flex`/`Text`/icons |
+| Stateless visual | A struct with a `Layout` method built from `Box`/`Row`/`Stack`/`Text`/icons |
 | Stateful interactive component | A handle type holding Gio state (`widget.Clickable`, `widget.Editor`, `gesture.*`), created once with a `New` constructor |
 
 ## The component recipe
@@ -30,10 +30,11 @@ themselves are made of.
    and `gesture.*` types are the building blocks of interactivity. They carry their own
    event queues; just call their `Clicked`/`Update`/`Layout` methods each frame.
 
-3. **Build the visuals out of elements** (`Box`, `Flex`, `Text`, icons) and drop to raw
+3. **Build the visuals out of elements** (`Box`, `Row`, `Stack`, `Text`, icons) and drop to raw
    Gio ops where needed. This is exactly how the built-in components are written.
 
-4. **Take `styles.Styles`** and merge defaults with
+4. **Take `styles.Styles` as a constructor argument** (optionally variadic, as `Text`
+   and the built-in components do), not a chained setter, and merge defaults with
    `styles.Merge(styles.Styles{...defaults...}, userStyles)` so users can override the
    relevant properties.
 
@@ -59,8 +60,6 @@ component authors need:
 package main
 
 import (
-	"image/color"
-
 	"gioui.org/layout"
 	"gioui.org/widget"
 
@@ -71,7 +70,7 @@ import (
 	"github.com/mehran9675/giode/styles"
 )
 
-var gold = color.NRGBA{R: 0xfa, G: 0xc8, B: 0x15, A: 0xff}
+var gold = "#fac815"
 
 // Rating is a custom stateful component: five clickable stars.
 type Rating struct {
@@ -107,7 +106,7 @@ func (r *Rating) Layout(gtx layout.Context) layout.Dimensions {
 	for i := range r.stars {
 		kids = append(kids, &starEl{rating: r, index: i, st: st})
 	}
-	return elements.Flex(st, kids...).Layout(gtx)
+	return elements.Row(st, kids...).Layout(gtx)
 }
 
 // starEl is a stateless element for one star; the rating owns the
@@ -142,7 +141,7 @@ Usage:
 rating := NewRating().OnChange(func(v int) { log.Printf("rated %d", v) })
 
 app.Run(func() giode.Element {
-	return giode.Box(giode.Styles{Display: giode.DisplayFlex, Justify: giode.JustifyCenter, Width: -1, Height: -1}, rating)
+	return giode.Box(giode.Styles{Justify: giode.JustifyCenter, Width: -1, Height: -1}, rating)
 })
 ```
 

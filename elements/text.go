@@ -47,7 +47,7 @@ func (t *textEl) zIndex() int {
 
 // Layout shapes and paints the text with its decoration.
 func (t *textEl) Layout(gtx layout.Context) layout.Dimensions {
-	if t.st.Display == properties.None || fonts.Shaper() == nil {
+	if fonts.Shaper() == nil {
 		return layout.Dimensions{}
 	}
 	col := properties.ResolveColor(t.st.Color)

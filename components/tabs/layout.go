@@ -21,17 +21,17 @@ func (t *Tabs) Layout(gtx layout.Context) layout.Dimensions {
 	if len(t.tabs) == 0 {
 		return layout.Dimensions{}
 	}
-	active := t.st.Color
+	active := properties.CalcColor(t.st.Color)
 	if active.A == 0 {
 		active = defaultActive
 	}
-	activeText := t.st.BorderColor
+	activeText := properties.CalcColor(t.st.BorderColor)
 	if activeText.A == 0 {
 		activeText = defaultActiveText
 	}
 
 	var size image.Point
-	dims := elements.Flex(styles.Styles{Gap: 4}, t.tabButtons(active, activeText)...).Layout(gtx)
+	dims := elements.Row(styles.Styles{Gap: 4}, t.tabButtons(active, activeText)...).Layout(gtx)
 	size.Y += dims.Size.Y
 
 	if t.selected < len(t.tabs) {
@@ -66,6 +66,7 @@ func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element
 			if t.onChange != nil {
 				t.onChange(i)
 			}
+			gtx.Execute(op.InvalidateCmd{})
 		}
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			sel := i == t.selected
@@ -81,7 +82,7 @@ func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element
 			st := styles.Styles{
 				Padding: properties.SymmetricInset(12, 8),
 			}
-			content := elements.Text(t.tabs[i].Label, styles.Styles{Color: textColor, FontSize: 14})
+			content := elements.Text(t.tabs[i].Label, styles.Styles{Color: properties.CalcColorReverse(textColor), FontSize: 14})
 			if !sel {
 				return elements.Box(st, content).Layout(gtx)
 			}

@@ -5,28 +5,65 @@ function every frame.
 
 ## Box
 
-The container. `Display` selects the layout mode:
+The container. Every `Box` lays its children out as a flex container along
+`FlexDirection` (row by default), with `Align`, `Justify` and `Gap` distribution:
 
 ```go
-// Block: children stack vertically, filling the width.
-giode.Box(giode.Styles{Padding: giode.UniformInset(12)}, child1, child2)
-
-// Flex: children laid along an axis.
 giode.Box(giode.Styles{
-	Display:   giode.DisplayFlex,
-	Direction: giode.DirRow,          // or DirColumn
-	Align:     giode.AlignCenter,
-	Justify:   giode.JustifySpaceBetween,
-	Gap:       8,
+	FlexDirection: giode.FlexDirectionRow, // or FlexDirectionColumn
+	Align:         giode.AlignCenter,
+	Justify:       giode.JustifySpaceBetween,
+	Gap:           8,
 }, child1, child2)
 ```
 
 Box also paints the background stack (color, image, border, shadow) and acts as the
 containing block for absolutely positioned children.
 
-## Flex
+## Row and Stack
 
-Shorthand for `Box` with `Display` forced to flex.
+Shorthand containers with the flex direction preset:
+
+```go
+giode.Row(giode.Styles{Gap: 8, Align: giode.AlignCenter}, a, b, c)     // horizontal
+giode.Stack(giode.Styles{Gap: 8}, a, b, c)                            // vertical
+```
+
+`Row` sets `FlexDirection` to row, `Stack` to column. Both behave exactly like a
+plain `Box`.
+
+### Wrapping
+
+`Wrap` controls whether children continue onto a new line when they overflow the main
+axis (CSS flex-wrap). It is **on by default for `Row`** (and any `Box` with
+`FlexDirection: FlexDirectionRow`) and off by default for `Stack`/column containers;
+either can be overridden explicitly:
+
+```go
+giode.Row(giode.Styles{Gap: 8}, tag1, tag2, tag3, /* ...many more... */)
+// narrower than the tags need? they wrap onto additional lines automatically.
+
+giode.Row(giode.Styles{Gap: 8, Wrap: giode.WrapNoWrap}, a, b, c) // force single line
+giode.Stack(giode.Styles{Wrap: giode.WrapWrap}, a, b, c)         // wrap a column too
+```
+
+Each child is measured once, so wrapping is safe with stateful children (buttons,
+inputs, ...). The one limitation this implies: `FlexGrow` has no effect on children of
+a wrapping container — a line's leftover space can't be redistributed after a child
+has already been laid out, so `Justify`/`Align` still space and align items, they just
+don't grow them.
+
+If a wrapped `Row` ends up taller than its container (vertical overflow), it does not
+scroll on its own — wrap it in [`Scroll`](components/scroll.md), which is a stateful
+component (create it once, like `Button`) and has a fully customizable scrollbar:
+
+```go
+list := giode.Scroll(func() giode.Element {
+	return giode.Row(giode.Styles{Gap: 8}, tag1, tag2, tag3 /* ... */)
+}) // once
+
+giode.Box(giode.Styles{Height: 200}, list) // in the view
+```
 
 ## Text
 

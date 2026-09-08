@@ -1,8 +1,6 @@
 package button
 
 import (
-	"image/color"
-
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 
@@ -12,17 +10,18 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-var defaultBackground = color.NRGBA{R: 0x4b, G: 0x55, B: 0x63, A: 0xff}
+var defaultBackground = "#000000"
 
 // layoutVisual renders the button face inside the clickable region.
 func (b *Button) layoutVisual(gtx layout.Context) layout.Dimensions {
-	st := b.st
-	if st.Padding == (properties.Inset{}) {
-		st.Padding = properties.SymmetricInset(16, 8)
-	}
-	bg := st.Background
+	st := styles.Merge(styles.Styles{
+		Padding: properties.SymmetricInset(16, 8),
+		Justify: properties.JustifyCenter,
+		Align:   properties.AlignCenter,
+	}, b.st)
+	bg := properties.CalcColor(st.Background)
 	if bg.A == 0 {
-		bg = defaultBackground
+		bg = properties.CalcColor(defaultBackground)
 	}
 	switch {
 	case b.clickable.Pressed():
@@ -31,10 +30,11 @@ func (b *Button) layoutVisual(gtx layout.Context) layout.Dimensions {
 		bg = kit.Hovered(bg)
 		pointer.CursorPointer.Add(gtx.Ops)
 	}
-	st.Background = bg
+	st.Background = properties.CalcColorReverse(bg)
 	label := elements.Text(b.label, styles.Styles{
-		Color:    st.Color,
-		FontSize: st.FontSize,
+		Color:     st.Color,
+		FontSize:  st.FontSize,
+		TextAlign: st.TextAlign,
 	})
 	return elements.Box(st, label).Layout(gtx)
 }

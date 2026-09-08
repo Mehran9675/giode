@@ -3,7 +3,7 @@
 Single-line text field.
 
 ```go
-name := giode.NewInput("Your name").
+name := giode.Input.Text("Your name").
 	Submit(func(text string) { save(text) })
 
 // in the view:
@@ -14,11 +14,10 @@ giode.Box(giode.Styles{}, name)
 
 | Member | Description |
 | --- | --- |
-| `NewInput(placeholder string) *Input` | Creates the field. |
+| `Input.Text(placeholder string, st ...Styles) *Input` | Creates the field. The styles argument is optional. |
 | `Text() string` | Current content. |
 | `SetText(s string)` | Replaces the content. |
 | `Submit(fn func(text string)) *Input` | Handler for Enter. |
-| `Styles(st Styles) *Input` | Field styles. |
 | `Focus()` | Requests keyboard focus. |
 
 ## Styles

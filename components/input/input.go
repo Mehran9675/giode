@@ -3,6 +3,7 @@ package input
 import (
 	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/elements"
@@ -20,9 +21,13 @@ type Input struct {
 	requestFocus bool
 }
 
-// New returns an Input with the given placeholder.
-func New(placeholder string) *Input {
+// New returns an Input with the given placeholder. The styles
+// argument is optional.
+func New(placeholder string, st ...styles.Styles) *Input {
 	i := &Input{placeholder: placeholder}
+	if len(st) > 0 {
+		i.st = st[0]
+	}
 	i.editor.SingleLine = true
 	i.editor.Submit = true
 	return i
@@ -45,12 +50,6 @@ func (i *Input) Submit(fn func(text string)) *Input {
 	return i
 }
 
-// Styles replaces the field styles. It returns i for chaining.
-func (i *Input) Styles(st styles.Styles) *Input {
-	i.st = st
-	return i
-}
-
 // Focus requests keyboard focus.
 func (i *Input) Focus() {
 	i.requestFocus = true
@@ -69,6 +68,7 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 		}
 		if e, ok := ev.(widget.SubmitEvent); ok && i.onSubmit != nil {
 			i.onSubmit(e.Text)
+			gtx.Execute(op.InvalidateCmd{})
 		}
 	}
 

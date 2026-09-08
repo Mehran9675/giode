@@ -2,7 +2,6 @@ package properties
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -15,11 +14,11 @@ type BorderWidth int
 
 // BorderColor is the color of the border. A zero alpha color means no
 // border is drawn.
-type BorderColor = color.NRGBA
+type BorderColor = string
 
 // PaintBorder strokes a border around an element of the given size.
 func PaintBorder(ops *op.Ops, size image.Point, w BorderWidth, c BorderColor, radius BorderRadius) {
-	if w <= 0 || c.A == 0 || size.X <= 0 || size.Y <= 0 {
+	if w <= 0 || CalcColor(c).A == 0 || size.X <= 0 || size.Y <= 0 {
 		return
 	}
 	half := int(w) / 2
@@ -29,7 +28,7 @@ func PaintBorder(ops *op.Ops, size image.Point, w BorderWidth, c BorderColor, ra
 	}
 	rr := clip.UniformRRect(rect, int(radius))
 	st := clip.Stroke{Path: rr.Path(ops), Width: float32(w)}.Op().Push(ops)
-	paint.ColorOp{Color: c}.Add(ops)
+	paint.ColorOp{Color: CalcColor(c)}.Add(ops)
 	paint.PaintOp{}.Add(ops)
 	st.Pop()
 }

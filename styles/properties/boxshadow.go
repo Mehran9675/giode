@@ -17,19 +17,19 @@ type BoxShadow struct {
 	// Blur is the shadow radius in pixels. Zero gives a crisp edge.
 	Blur int
 	// Color is the shadow color; its alpha scales the shadow.
-	Color color.NRGBA
+	Color string
 }
 
 // PaintBoxShadow paints the shadow for an element whose painted box
 // is rect with the given corner radius.
 func PaintBoxShadow(ops *op.Ops, rect image.Rectangle, radius BorderRadius, s BoxShadow) {
-	if s.Color.A == 0 || rect.Dx() <= 0 || rect.Dy() <= 0 {
+	if CalcColor(s.Color).A == 0 || rect.Dx() <= 0 || rect.Dy() <= 0 {
 		return
 	}
 	r := rect.Add(image.Pt(s.X, s.Y))
 	blur := s.Blur
 	if blur <= 0 {
-		strokeRoundedRect(ops, r.Inset(-1), int(radius), s.Color)
+		strokeRoundedRect(ops, r.Inset(-1), int(radius), CalcColor(s.Color))
 		return
 	}
 	if blur > 16 {
@@ -39,7 +39,7 @@ func PaintBoxShadow(ops *op.Ops, rect image.Rectangle, radius BorderRadius, s Bo
 	// for a soft edge.
 	for i := blur; i > 0; i-- {
 		f := float32(i) / float32(blur+1)
-		c := s.Color
+		c := CalcColor(s.Color)
 		c.A = uint8(float32(c.A) * (1 - f) * (1 - f))
 		strokeRoundedRect(ops, r.Inset(-i/2), int(radius)+i, c)
 	}

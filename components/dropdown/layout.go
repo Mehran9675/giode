@@ -16,10 +16,10 @@ import (
 // Layout lays out the field and, when open, the dropdown below it.
 func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	st := styles.Merge(styles.Styles{
-		Background:   defaultBackground,
-		Color:        defaultText,
+		Background:   properties.CalcColorReverse(defaultBackground),
+		Color:        properties.CalcColorReverse(defaultText),
 		BorderWidth:  1,
-		BorderColor:  defaultBorder,
+		BorderColor:  properties.CalcColorReverse(defaultBorder),
 		BorderRadius: 6,
 		Padding:      properties.SymmetricInset(12, 8),
 	}, s.st)
@@ -38,7 +38,7 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 		if s.field.Hovered() {
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
-		row := elements.Flex(styles.Styles{Align: properties.AlignCenter},
+		row := elements.Row(styles.Styles{Align: properties.AlignCenter},
 			elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(s.Value())),
 			elements.Box(styles.Styles{Width: 4}),
 			icon.Material("chevron-down", styles.Styles{Color: st.Color, Width: 16, Height: 16}),

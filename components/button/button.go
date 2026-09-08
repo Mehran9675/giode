@@ -4,6 +4,7 @@ package button
 
 import (
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/styles"
@@ -19,21 +20,20 @@ type Button struct {
 	clickable widget.Clickable
 }
 
-// New returns a Button with the given label.
-func New(label string) *Button {
-	return &Button{label: label}
+// New returns a Button with the given label. The styles argument is
+// optional.
+func New(label string, st ...styles.Styles) *Button {
+	b := &Button{label: label}
+	if len(st) > 0 {
+		b.st = st[0]
+	}
+	return b
 }
 
 // OnClick sets the handler invoked on every click. It returns b for
 // chaining.
 func (b *Button) OnClick(fn func()) *Button {
 	b.onClick = fn
-	return b
-}
-
-// Styles replaces the button styles. It returns b for chaining.
-func (b *Button) Styles(st styles.Styles) *Button {
-	b.st = st
 	return b
 }
 
@@ -52,6 +52,12 @@ func (b *Button) Click() {
 func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 	if b.clickable.Clicked(gtx) && b.onClick != nil {
 		b.onClick()
+		// The handler may have changed state that this frame's view
+		// already read before this click was processed (e.g. a
+		// counter formatted into a Text earlier in the tree); request
+		// another frame so the change shows up right away instead of
+		// waiting for an unrelated event to trigger a repaint.
+		gtx.Execute(op.InvalidateCmd{})
 	}
 	return b.clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return b.layoutVisual(gtx)

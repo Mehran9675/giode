@@ -3,6 +3,7 @@ package dropdown
 import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
@@ -13,8 +14,7 @@ import (
 func (s *Select) dropdown(gtx layout.Context, st styles.Styles, width int) layout.Dimensions {
 	gtx.Constraints.Min.X = width
 	gtx.Constraints.Max.X = width
-	st.Display = properties.Flex
-	st.Direction = properties.Column
+	st.FlexDirection = properties.FlexDirectionColumn
 	st.Padding = properties.UniformInset(4)
 
 	children := make([]elements.Element, 0, len(s.options))
@@ -34,6 +34,7 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 			if s.onChange != nil {
 				s.onChange(i)
 			}
+			gtx.Execute(op.InvalidateCmd{})
 		}
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			rowSt := styles.Styles{
@@ -41,7 +42,7 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 				BorderRadius: 4,
 			}
 			if click.Hovered() {
-				rowSt.Background = defaultHover
+				rowSt.Background = properties.CalcColorReverse(defaultHover)
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
 			return elements.Box(rowSt, elements.Text(s.options[i], styles.Styles{Color: st.Color})).Layout(gtx)

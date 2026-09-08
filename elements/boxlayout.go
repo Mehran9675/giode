@@ -16,9 +16,6 @@ import (
 // (shadow, fill, image, border) with the content replayed on top.
 func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
 	st := b.st
-	if st.Display == properties.None {
-		return layout.Dimensions{}
-	}
 
 	// Margin carves space out of the constraints; the painted content
 	// is then offset inside it.
@@ -48,12 +45,7 @@ func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
 	padding := st.Padding
 	cgtx := gtx
 	cgtx.Constraints = insetConstraints(gtx.Constraints, padding)
-	var dims layout.Dimensions
-	if st.Display.Mode() == properties.Flex {
-		dims = b.layoutFlex(cgtx, flow)
-	} else {
-		dims = b.layoutBlock(cgtx, flow)
-	}
+	dims := b.layoutFlex(cgtx, flow)
 	if len(absolute) > 0 {
 		b.layoutAbsolute(cgtx, absolute, dims.Size)
 	}
@@ -63,28 +55,37 @@ func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
 	size.X += padding.Left + padding.Right
 	size.Y += padding.Top + padding.Bottom
 
-	if st.Opacity > 0 && st.Opacity < 1 {
-		opStack := paint.PushOpacity(gtx.Ops, float32(st.Opacity))
+	// Opacity and Visibility both mean unset at 0 (fully visible); it
+	// applies to the background and the content.
+	opacity := float32(st.Opacity)
+	if opacity == 0 {
+		opacity = 1
+	}
+	visibility := float32(st.Visibility)
+	if visibility == 0 {
+		visibility = 1
+	}
+	opacity *= visibility
+	if opacity < 1 {
+		opStack := paint.PushOpacity(gtx.Ops, opacity)
 		defer opStack.Pop()
 	}
 
-	if st.Opacity > 0 {
-		// Background stack, offset into the margin area. The shadow
-		// paints first so it stays behind the box.
-		bgOff := op.Offset(image.Pt(margin.Left, margin.Top)).Push(gtx.Ops)
-		properties.PaintBoxShadow(gtx.Ops, image.Rectangle{Max: size}, st.BorderRadius, st.BoxShadow)
-		var clipStack clip.Stack
-		if st.Overflow.Mode() == properties.OverflowHidden {
-			clipStack = clip.Rect{Max: size}.Push(gtx.Ops)
-		}
-		properties.PaintBackground(gtx.Ops, size, st.Background, st.BorderRadius)
-		properties.PaintBackgroundImage(gtx.Ops, image.Rectangle{Max: size}, st.BackgroundImage, st.BackgroundFit)
-		properties.PaintBorder(gtx.Ops, size, st.BorderWidth, st.BorderColor, st.BorderRadius)
-		if st.Overflow.Mode() == properties.OverflowHidden {
-			clipStack.Pop()
-		}
-		bgOff.Pop()
+	// Background stack, offset into the margin area. The shadow
+	// paints first so it stays behind the box.
+	bgOff := op.Offset(image.Pt(margin.Left, margin.Top)).Push(gtx.Ops)
+	properties.PaintBoxShadow(gtx.Ops, image.Rectangle{Max: size}, st.BorderRadius, st.BoxShadow)
+	var clipStack clip.Stack
+	if st.Overflow.Mode() == properties.OverflowHidden {
+		clipStack = clip.Rect{Max: size}.Push(gtx.Ops)
 	}
+	properties.PaintBackground(gtx.Ops, size, st.Background, st.BorderRadius)
+	properties.PaintBackgroundImage(gtx.Ops, image.Rectangle{Max: size}, st.BackgroundImage, st.BackgroundFit)
+	properties.PaintBorder(gtx.Ops, size, st.BorderWidth, st.BorderColor, st.BorderRadius)
+	if st.Overflow.Mode() == properties.OverflowHidden {
+		clipStack.Pop()
+	}
+	bgOff.Pop()
 
 	// Replay the content at its padded position.
 	off := op.Offset(image.Pt(margin.Left+padding.Left, margin.Top+padding.Top)).Push(gtx.Ops)

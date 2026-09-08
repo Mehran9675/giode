@@ -32,9 +32,10 @@ type Tabs struct {
 	st       styles.Styles
 }
 
-// New returns a Tabs with the given tabs.
-func New(tabs ...Tab) *Tabs {
-	t := &Tabs{tabs: tabs}
+// New returns a Tabs with the given styles and tabs: Color is the
+// active indicator and BorderColor is the active text.
+func New(st styles.Styles, tabs ...Tab) *Tabs {
+	t := &Tabs{tabs: tabs, st: st}
 	for range tabs {
 		t.clicks = append(t.clicks, new(widget.Clickable))
 	}
@@ -57,12 +58,5 @@ func (t *Tabs) SetSelected(i int) {
 // returns t for chaining.
 func (t *Tabs) OnChange(fn func(index int)) *Tabs {
 	t.onChange = fn
-	return t
-}
-
-// Styles replaces the tab styles: Color is the active indicator and
-// BorderColor is the active text. It returns t for chaining.
-func (t *Tabs) Styles(st styles.Styles) *Tabs {
-	t.st = st
 	return t
 }

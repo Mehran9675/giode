@@ -6,17 +6,17 @@ import "github.com/mehran9675/giode/styles/properties"
 // returns the result. It is used by components to apply defaults
 // before user styles.
 func Merge(base, over Styles) Styles {
-	if over.Display != "" {
-		base.Display = over.Display
-	}
-	if over.Direction != "" {
-		base.Direction = over.Direction
+	if over.FlexDirection != "" {
+		base.FlexDirection = over.FlexDirection
 	}
 	if over.Align != "" {
 		base.Align = over.Align
 	}
 	if over.Justify != "" {
 		base.Justify = over.Justify
+	}
+	if over.Wrap != "" {
+		base.Wrap = over.Wrap
 	}
 	if over.Gap != 0 {
 		base.Gap = over.Gap
@@ -42,7 +42,7 @@ func Merge(base, over Styles) Styles {
 	if over.Margin != (properties.Inset{}) {
 		base.Margin = over.Margin
 	}
-	if over.Background.A != 0 {
+	if properties.CalcColor(over.Background).A != 0 {
 		base.Background = over.Background
 	}
 	if over.BackgroundImage != nil {
@@ -54,7 +54,7 @@ func Merge(base, over Styles) Styles {
 	if over.BorderWidth != 0 {
 		base.BorderWidth = over.BorderWidth
 	}
-	if over.BorderColor.A != 0 {
+	if properties.CalcColor(over.BorderColor).A != 0 {
 		base.BorderColor = over.BorderColor
 	}
 	if over.BorderRadius != 0 {
@@ -63,7 +63,10 @@ func Merge(base, over Styles) Styles {
 	if over.Opacity != 0 {
 		base.Opacity = over.Opacity
 	}
-	if over.Color.A != 0 {
+	if over.Visibility != 0 {
+		base.Visibility = over.Visibility
+	}
+	if properties.CalcColor(over.Color).A != 0 {
 		base.Color = over.Color
 	}
 	if over.FontSize != 0 {
@@ -117,8 +120,11 @@ func Merge(base, over Styles) Styles {
 	if over.MaxHeight != 0 {
 		base.MaxHeight = over.MaxHeight
 	}
-	if over.BoxShadow.Color.A != 0 {
+	if properties.CalcColor(over.BoxShadow.Color).A != 0 {
 		base.BoxShadow = over.BoxShadow
+	}
+	if over.ScrollBar != (properties.ScrollBar{}) {
+		base.ScrollBar = over.ScrollBar
 	}
 	if over.AspectRatio != 0 {
 		base.AspectRatio = over.AspectRatio

@@ -32,7 +32,7 @@ func (r *Router) Link(path, text string, st ...styles.Styles) elements.Element {
 			r.Navigate(path)
 		}
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			col := s.Color
+			col := properties.CalcColor(s.Color)
 			if col.A == 0 {
 				col = defaultLinkColor
 			}
@@ -40,7 +40,7 @@ func (r *Router) Link(path, text string, st ...styles.Styles) elements.Element {
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
 			return elements.Box(styles.Styles{
-				Color:      col,
+				Color:      properties.CalcColorReverse(col),
 				FontSize:   s.FontSize,
 				FontWeight: properties.FontWeightMedium,
 			}, elements.Text(text)).Layout(gtx)

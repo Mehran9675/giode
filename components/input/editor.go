@@ -41,7 +41,7 @@ func (e *editorEl) Layout(gtx layout.Context) layout.Dimensions {
 	if e.input.editor.Text() == "" && e.input.placeholder != "" {
 		hintColor := properties.ResolveColor(st.Color)
 		hintColor.A = uint8(float32(hintColor.A) * 0.5)
-		elements.Text(e.input.placeholder, styles.Styles{Color: hintColor, FontSize: st.FontSize}).Layout(gtx)
+		elements.Text(e.input.placeholder, styles.Styles{Color: properties.CalcColorReverse(hintColor), FontSize: st.FontSize}).Layout(gtx)
 	}
 
 	return e.input.editor.Layout(gtx, fonts.Shaper(), font.Font{}, size, textColor, selColor)

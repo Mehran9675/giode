@@ -6,6 +6,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/styles"
 )
@@ -23,18 +24,18 @@ func (p *progressEl) Layout(gtx layout.Context) layout.Dimensions {
 		height = 8
 	}
 	track := p.st.Background
-	if track.A == 0 {
-		track = defaultTrack
+	if properties.CalcColor(track).A == 0 {
+		track = properties.CalcColorReverse(defaultTrack)
 	}
 	fill := p.st.Color
-	if fill.A == 0 {
-		fill = defaultFill
+	if properties.CalcColor(fill).A == 0 {
+		fill = properties.CalcColorReverse(defaultFill)
 	}
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
 	size := image.Pt(gtx.Constraints.Min.X, height)
 
 	defer clip.UniformRRect(image.Rectangle{Max: size}, height/2).Push(gtx.Ops).Pop()
-	paint.Fill(gtx.Ops, track)
+	paint.Fill(gtx.Ops, properties.CalcColor(track))
 
 	v := p.value
 	if v < 0 {
@@ -46,7 +47,7 @@ func (p *progressEl) Layout(gtx layout.Context) layout.Dimensions {
 	fillW := int(v * float32(size.X))
 	if fillW > height/2 {
 		defer clip.UniformRRect(image.Rect(0, 0, fillW, height), height/2).Push(gtx.Ops).Pop()
-		paint.Fill(gtx.Ops, fill)
+		paint.Fill(gtx.Ops, properties.CalcColor(fill))
 	}
 	return layout.Dimensions{Size: size}
 }

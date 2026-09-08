@@ -7,6 +7,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/styles"
 )
@@ -37,7 +38,7 @@ func (d *dividerEl) Layout(gtx layout.Context) layout.Dimensions {
 		width = gtx.Constraints.Min.X
 	}
 	size := image.Pt(width, height)
-	c := d.st.Color
+	c := properties.CalcColor(d.st.Color)
 	if c.A == 0 {
 		c = defaultDividerColor
 	}

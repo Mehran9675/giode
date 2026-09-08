@@ -2,7 +2,6 @@ package checkbox
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -16,44 +15,81 @@ import (
 )
 
 var (
-	defaultBox     = color.NRGBA{R: 0x47, G: 0x55, B: 0x69, A: 0xff}
-	defaultChecked = color.NRGBA{R: 0x3b, G: 0x82, B: 0xf6, A: 0xff}
-	defaultText    = color.NRGBA{R: 0xe2, G: 0xe8, B: 0xf0, A: 0xff}
+	defaultBox     = "#475569"
+	defaultChecked = "#3b82f6"
+	defaultText    = "#e2e8f0"
+	defaultIcon    = "#ffffff"
 )
 
-const boxSize = 18
+const (
+	defaultBoxSize     = 18
+	defaultBorderWidth = 2
+	defaultRadius      = 4
+)
 
-// box renders the square indicator.
+// box renders the square indicator: filled with an icon when checked,
+// outlined when not.
 func (c *Checkbox) box() elements.Element {
 	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
-		size := image.Pt(boxSize, boxSize)
+		size := c.boxSize()
 		gtx.Constraints.Min = size
 		gtx.Constraints.Max = size
+
+		radius := int(c.st.BorderRadius)
+		if radius == 0 {
+			radius = defaultRadius
+		}
+		borderWidth := c.st.BorderWidth
+		if borderWidth == 0 {
+			borderWidth = defaultBorderWidth
+		}
+
 		checked := c.bool.Value
 		fill := stOrDefault(c.st.Background, defaultChecked)
 		border := stOrDefault(c.st.BorderColor, defaultBox)
+		fillColor := properties.CalcColor(fill)
+		borderColor := properties.CalcColor(border)
 		switch {
 		case !checked && c.bool.Hovered():
-			border = kit.Hovered(border)
+			borderColor = kit.Hovered(borderColor)
 		case checked && c.bool.Hovered():
-			fill = kit.Hovered(fill)
+			fillColor = kit.Hovered(fillColor)
 		}
-		if !checked {
-			fill = color.NRGBA{}
-		}
-		defer clip.UniformRRect(image.Rectangle{Max: size}, 4).Push(gtx.Ops).Pop()
-		paint.Fill(gtx.Ops, fill)
-		if !checked {
-			properties.PaintBorder(gtx.Ops, size, 2, border, 4)
+
+		defer clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops).Pop()
+		if checked {
+			paint.Fill(gtx.Ops, fillColor)
+			iconSt := styles.Merge(styles.Styles{
+				Color:  defaultIcon,
+				Width:  properties.Width(size.X),
+				Height: properties.Height(size.Y),
+			}, c.iconSt)
+			icon.Material(c.iconName, iconSt).Layout(gtx)
 		} else {
-			icon.Material("check", styles.Styles{Color: color.NRGBA{A: 0xff}, Width: boxSize, Height: boxSize}).Layout(gtx)
+			properties.PaintBorder(gtx.Ops, size, properties.BorderWidth(borderWidth), properties.CalcColorReverse(borderColor), properties.BorderRadius(radius))
 		}
 		return layout.Dimensions{Size: size}
 	})
 }
 
-func stOrDefault(c, def color.NRGBA) color.NRGBA {
-	if c.A == 0 {
+// boxSize resolves the indicator size from Width/Height, defaulting
+// to a square 18x18 box.
+func (c *Checkbox) boxSize() image.Point {
+	w := int(c.st.Width)
+	h := int(c.st.Height)
+	if w <= 0 {
+		w = defaultBoxSize
+	}
+	if h <= 0 {
+		h = defaultBoxSize
+	}
+	return image.Pt(w, h)
+}
+
+// stOrDefault returns c unless it is unset, in which case it returns
+// def.
+func stOrDefault(c, def properties.Color) properties.Color {
+	if c == "" {
 		return def
 	}
 	return c

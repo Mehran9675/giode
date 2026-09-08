@@ -13,15 +13,13 @@ import (
 // panel lays out the menu body and processes item clicks.
 func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
 	st := styles.Merge(styles.Styles{
-		Display:      properties.Flex,
-		Direction:    properties.Column,
-		Background:   defaultBackground,
-		BorderRadius: 8,
-		Padding:      properties.UniformInset(6),
-		Color:        defaultText,
+		FlexDirection: properties.FlexDirectionColumn,
+		Background:    properties.CalcColorReverse(defaultBackground),
+		BorderRadius:  8,
+		Padding:       properties.UniformInset(6),
+		Color:         properties.CalcColorReverse(defaultText),
 	}, m.styles)
-	st.Display = properties.Flex
-	st.Direction = properties.Column
+	st.FlexDirection = properties.FlexDirectionColumn
 
 	// Bound the panel to the window.
 	win := gtx.Constraints.Max

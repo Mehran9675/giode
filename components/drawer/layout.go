@@ -17,14 +17,23 @@ const animDuration = 200 * time.Millisecond
 
 // Layout renders the drawer: a fading scrim with the panel sliding
 // from its side. content is rebuilt every frame while visible.
-func (d *Drawer) Layout(gtx layout.Context, content elements.Element) layout.Dimensions {
-	if !d.open && d.closeT.IsZero() {
+func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
+	isOpen := d.Opened()
+	if isOpen != d.wasOpen {
+		d.wasOpen = isOpen
+		if isOpen {
+			d.openT = gtx.Now
+		} else {
+			d.closeT = gtx.Now
+		}
+	}
+	if !isOpen && d.closeT.IsZero() {
 		return layout.Dimensions{}
 	}
 
 	// Progress: 0 closed, 1 open.
 	var progress float32
-	if d.open {
+	if isOpen {
 		elapsed := gtx.Now.Sub(d.openT)
 		if elapsed >= animDuration {
 			progress = 1
@@ -50,7 +59,10 @@ func (d *Drawer) Layout(gtx layout.Context, content elements.Element) layout.Dim
 
 	// Scrim.
 	if d.scrim.Clicked(gtx) {
-		d.Close()
+		if d.open != nil {
+			*d.open = false
+		}
+		gtx.Execute(op.InvalidateCmd{})
 	}
 	d.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		scrimColor := color.NRGBA{A: uint8(0.4 * 0xff * progress)}
@@ -69,13 +81,13 @@ func (d *Drawer) Layout(gtx layout.Context, content elements.Element) layout.Dim
 	off := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
 	defer clip.Rect{Max: image.Pt(width, win.Y)}.Push(gtx.Ops).Pop()
 	st := d.st
-	if st.Background.A == 0 {
+	if st.Background == "" {
 		st.Background = defaultBackground
 	}
 	panelGtx := gtx
 	panelGtx.Constraints.Min.X = width
 	panelGtx.Constraints.Max.X = width
-	elements.Box(st, content).Layout(panelGtx)
+	elements.Box(st, d.content()).Layout(panelGtx)
 	off.Pop()
 
 	return layout.Dimensions{Size: win}

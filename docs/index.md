@@ -9,10 +9,10 @@ stays reachable everywhere.
 
 - **Window config** — size, min/max, resizable, frameless, draggable, fullscreen, centered,
   always-on-top, plus runtime actions (minimize, maximize, center, raise, close).
-- **Elements** — `Box`, `Flex`, `Text`, `Divider`, `Raw`, `Responsive`.
-- **Components** — Button, Input, Checkbox, Slider, Progress, Spinner, Tabs, Dropdown,
-  Drawer, Dialog, Scroll, Title, Image, and a right-click context Menu with window-bounds
-  clamping.
+- **Elements** — `Box`, `Row`, `Stack`, `Text`, `Divider`, `Raw`, `Responsive`.
+- **Components** — Button, Progress, Spinner, Tabs, Drawer, Dialog, Scroll, Title, Image,
+  a right-click context Menu with window-bounds clamping, and the form controls grouped
+  under `Input`: Text, Checkbox, Slider, Select.
 - **CSS-like styling** — 40+ properties, each defined in its own file, extensible by design.
 - **Routing** — `NewRouter`, `Push`/`Navigate`/`Back`, `Link`.
 - **Breakpoints** — `Responsive` switches views when the available width crosses a threshold.

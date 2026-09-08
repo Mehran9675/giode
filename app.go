@@ -5,6 +5,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
+	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
 	"github.com/mehran9675/giode/elements"
@@ -39,13 +40,14 @@ func (a *App) RunRaw(view func(gtx layout.Context) layout.Dimensions) error {
 
 func (a *App) runLoop(view func() Element) error {
 	var ops op.Ops
+	color := properties.CalcColor(a.cfg.Background)
 	for {
 		switch e := a.window.Event().(type) {
 		case app.DestroyEvent:
 			return e.Err
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
-			paint.Fill(gtx.Ops, a.cfg.Background)
+			paint.Fill(gtx.Ops, color)
 			if a.cfg.Frameless && a.cfg.Draggable {
 				a.drag.layout(gtx)
 			}

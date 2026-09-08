@@ -30,21 +30,11 @@ type Element = elements.Element
 type Styles = styles.Styles
 type Inset = properties.Inset
 type BoxShadow = properties.BoxShadow
+type ScrollBar = properties.ScrollBar
 
 type Breakpoint = elements.Breakpoint
 type Tab = tabs.Tab
 type Side = drawer.Side
-
-type Button = button.Button
-type Input = input.Input
-type Checkbox = checkbox.Checkbox
-type Slider = slider.Slider
-type Tabs = tabs.Tabs
-type Select = dropdown.Select
-type Scroll = scroll.Scroll
-type Drawer = drawer.Drawer
-type Dialog = dialog.Dialog
-type Menu = menu.Menu
 
 type Router = router.Router
 type Route = router.Route
@@ -52,10 +42,11 @@ type Route = router.Route
 // --- Elements ------------------------------------------------------------
 
 var (
-	Box  = elements.Box
-	Flex = elements.Flex
-	Text = elements.Text
-	Raw  = elements.Raw
+	Box   = elements.Box
+	Row   = elements.Row
+	Stack = elements.Stack
+	Text  = elements.Text
+	Raw   = elements.Raw
 
 	Divider    = elements.Divider
 	Responsive = elements.Responsive
@@ -64,16 +55,12 @@ var (
 // --- Components -----------------------------------------------------------
 
 var (
-	NewButton   = button.New
-	NewInput    = input.New
-	NewCheckbox = checkbox.New
-	NewSlider   = slider.New
-	NewTabs     = tabs.New
-	NewSelect   = dropdown.New
-	NewScroll   = scroll.New
-	NewDrawer   = drawer.New
-	NewDialog   = dialog.New
-	NewMenu     = menu.New
+	Button = button.New
+	Tabs   = tabs.New
+	Scroll = scroll.New
+	Drawer = drawer.New
+	Dialog = dialog.New
+	Menu   = menu.New
 
 	Progress = progress.Progress
 	Spinner  = spinner.Spinner
@@ -86,6 +73,29 @@ var (
 	H5 = title.H5
 	H6 = title.H6
 )
+
+// InputAPI groups the constructors for components whose purpose is
+// collecting a value from the user.
+type InputAPI struct {
+	// Text creates a single-line text field.
+	Text func(placeholder string, st ...Styles) *input.Input
+	// Checkbox creates a checkbox. label is optional: pass "" for a
+	// bare checkbox with no label.
+	Checkbox func(label string, st ...Styles) *checkbox.Checkbox
+	// Slider creates a horizontal slider in the range [0, 1].
+	Slider func(st ...Styles) *slider.Slider
+	// Select creates a dropdown choosing among options.
+	Select func(st Styles, options ...string) *dropdown.Select
+}
+
+// Input groups the form-control constructors that collect user
+// input: Input.Text, Input.Checkbox, Input.Slider and Input.Select.
+var Input = InputAPI{
+	Text:     input.New,
+	Checkbox: checkbox.New,
+	Slider:   slider.New,
+	Select:   dropdown.New,
+}
 
 const (
 	SideLeft  = drawer.Left
@@ -112,7 +122,7 @@ var (
 // --- Colors and insets -----------------------------------------------------
 
 var (
-	HexColor = styles.Hex
+	HexColor = properties.HexColor
 
 	UniformInset   = properties.UniformInset
 	SymmetricInset = properties.SymmetricInset
@@ -139,12 +149,11 @@ const OverlayMargin = kit.Margin
 // --- Style constants ---------------------------------------------------------
 
 const (
-	DisplayBlock = properties.Block
-	DisplayFlex  = properties.Flex
-	DisplayNone  = properties.None
+	FlexDirectionRow    = properties.FlexDirectionRow
+	FlexDirectionColumn = properties.FlexDirectionColumn
 
-	DirRow    = properties.Row
-	DirColumn = properties.Column
+	WrapNoWrap = properties.WrapNoWrap
+	WrapWrap   = properties.WrapWrap
 
 	AlignStart  = properties.AlignStart
 	AlignCenter = properties.AlignCenter

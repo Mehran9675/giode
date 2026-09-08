@@ -6,8 +6,7 @@ falls back to its default. Each property is defined in its own file under
 
 ```go
 card := giode.Styles{
-	Display:      giode.DisplayFlex,
-	Direction:    giode.DirColumn,
+	FlexDirection: giode.FlexDirectionColumn,
 	Gap:          12,
 	Padding:      giode.UniformInset(16),
 	Background:   giode.HexColor("#1e293b"),
@@ -18,13 +17,15 @@ card := giode.Styles{
 
 ## Layout
 
+Every element is a flex container; there is no block layout mode.
+
 | Property | Type | Values | Notes |
 | --- | --- | --- | --- |
-| `Display` | string | `DisplayBlock` (default), `DisplayFlex`, `DisplayNone` | `none` removes the element entirely. |
-| `Direction` | string | `DirRow` (default), `DirColumn` | Flex main axis. |
+| `FlexDirection` | string | `FlexDirectionRow` (default), `FlexDirectionColumn` | Flex main axis (CSS flex-direction). |
 | `Align` | string | `AlignStart`, `AlignCenter`, `AlignEnd` | Flex cross-axis (align-items). |
 | `Justify` | string | `JustifyStart` (default), `JustifyCenter`, `JustifyEnd`, `JustifySpaceBetween`, `JustifySpaceAround`, `JustifySpaceEvenly` | Flex main-axis distribution. |
-| `Gap` | int | px | Space between flex children. |
+| `Wrap` | string | `WrapWrap`, `WrapNoWrap` | Whether children continue onto a new line when they overflow the main axis. Unset defaults to wrapping on `Row` and not wrapping on `Stack`. `FlexGrow` has no effect on wrapped children — see [elements.md](elements.md). |
+| `Gap` | int | px | Space between flex children, and between wrapped lines. |
 | `FlexGrow` | int | ≥0 | Share of spare main-axis space. |
 | `Width` / `Height` | int | `0` hug, `-1` expand, `>0` fixed px | |
 | `WidthPct` / `HeightPct` | int | 1–100 | Percent of available space; takes precedence over `Width`/`Height`. |
@@ -46,7 +47,9 @@ card := giode.Styles{
 | `BorderWidth` / `BorderColor` | int / color | — | Border around the box. |
 | `BorderRadius` | int | px | Rounds the box corners. |
 | `BoxShadow` | struct | `{X, Y, Blur int; Color color.NRGBA}` | Drop shadow behind the box. |
+| `ScrollBar` | struct | `{Width, Radius, MinThumbLength int; TrackColor, ThumbColor color}` | Customizes the bar a `Scroll` container draws; see [scroll.md](components/scroll.md). |
 | `Opacity` | float | 0–1 | Transparency of the element and its children. |
+| `Visibility` | float | 0–1 | Fades the element and its children; combines with `Opacity`. Zero means unset (fully visible). |
 
 ## Text
 

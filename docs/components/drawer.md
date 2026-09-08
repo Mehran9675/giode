@@ -1,26 +1,34 @@
 # Drawer
 
-Slide-out side panel with a dimmed scrim, animated over 200ms.
+Slide-out side panel with a dimmed scrim, animated over 200ms. It implements
+`Element`, so it drops directly into the tree like any other element — no raw Gio
+required.
+
+Visibility is bound to a `*bool` you own (external state): set it to open the drawer
+from anywhere, and the drawer itself clears it when the scrim is clicked.
 
 ```go
-drawer := giode.NewDrawer(giode.SideLeft, 260, giode.Styles{Background: giode.HexColor("#1e293b")})
+drawerOpen := false // owned by you, alongside your other app state
 
-// in the view, last so it renders above the UI:
-giode.Raw(func(gtx layout.Context) layout.Dimensions {
-	return drawer.Layout(gtx, giode.Box(
-		giode.Styles{Padding: giode.UniformInset(16)},
-		giode.Text("Drawer content"),
-	))
-})
+drawer := giode.Drawer(&drawerOpen, giode.SideLeft, 260, func() giode.Element {
+	return giode.Text("Drawer content")
+}, giode.Styles{Background: giode.HexColor("#1e293b")})
+
+open := giode.Button("Menu", giode.Styles{}).OnClick(func() { drawerOpen = true })
+
+// in the view, drawer last so it renders above the UI (a no-op while closed):
+giode.Stack(giode.Styles{Width: -1, Height: -1},
+	mainContent,
+	open,
+	drawer,
+)
 ```
 
 ## API
 
 | Member | Description |
 | --- | --- |
-| `NewDrawer(side Side, width int, st Styles) *Drawer` | Creates the drawer; `side` is `SideLeft` or `SideRight`. |
-| `Open()` / `Close()` / `Toggle()` | State control. |
-| `Opened() bool` | State. |
-| `Layout(gtx, content Element)` | Renders scrim and panel; content is rebuilt every frame while visible. |
+| `Drawer(open *bool, side Side, width int, content func() Element, st ...Styles) *Drawer` | Creates the drawer, open whenever `*open` is true; `side` is `SideLeft` or `SideRight`. `content` is rebuilt every frame it is shown. The styles argument is optional. |
+| `Opened() bool` | Reports whether `*open` is currently true. |
 
-Clicking the scrim closes the drawer.
+Clicking the scrim sets `*open` back to `false`.

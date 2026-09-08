@@ -3,7 +3,7 @@
 Select one option from a list.
 
 ```go
-size := giode.NewSelect("Small", "Medium", "Large").
+size := giode.Input.Select(giode.Styles{}, "Small", "Medium", "Large").
 	OnChange(func(i int) { ... })
 
 // in the view:
@@ -14,12 +14,11 @@ giode.Box(giode.Styles{}, size)
 
 | Member | Description |
 | --- | --- |
-| `NewSelect(options ...string) *Select` | Creates the dropdown. |
+| `Input.Select(st Styles, options ...string) *Select` | Creates the dropdown. |
 | `Selected() int` | Selected index. |
 | `Value() string` | Selected option text. |
 | `SetSelected(i int)` | Changes the selection without invoking OnChange. |
 | `OnChange(fn func(index int)) *Select` | Change handler. |
-| `Styles(st Styles) *Select` | Styles. |
 | `Opened() bool` | Whether the panel is open. |
 
 ## Styles

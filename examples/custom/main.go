@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"log"
 
 	"gioui.org/layout"
@@ -19,7 +18,7 @@ import (
 	"github.com/mehran9675/giode/styles"
 )
 
-var gold = color.NRGBA{R: 0xfa, G: 0xc8, B: 0x15, A: 0xff}
+var gold = "#fac815"
 
 // Rating is a custom stateful component: five clickable stars.
 type Rating struct {
@@ -59,7 +58,7 @@ func (r *Rating) Layout(gtx layout.Context) layout.Dimensions {
 	for i := range r.stars {
 		kids = append(kids, &starEl{rating: r, index: i, st: st})
 	}
-	return elements.Flex(st, kids...).Layout(gtx)
+	return elements.Row(st, kids...).Layout(gtx)
 }
 
 // starEl is a stateless element for one star; the rating owns the
@@ -104,14 +103,13 @@ func main() {
 	if err := app.Run(func() giode.Element {
 		return giode.Box(
 			giode.Styles{
-				Display:   giode.DisplayFlex,
-				Direction: giode.DirColumn,
-				Align:     giode.AlignCenter,
-				Justify:   giode.JustifyCenter,
-				Gap:       12,
-				Width:     -1,
-				Height:    -1,
-				Color:     giode.HexColor("#f8fafc"),
+				FlexDirection: giode.FlexDirectionColumn,
+				Align:         giode.AlignCenter,
+				Justify:       giode.JustifyCenter,
+				Gap:           12,
+				Width:         -1,
+				Height:        -1,
+				Color:         giode.HexColor("#f8fafc"),
 			},
 			giode.H3("Rate this app", giode.Styles{Color: giode.HexColor("#f8fafc")}),
 			rating,

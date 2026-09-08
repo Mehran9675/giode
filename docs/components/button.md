@@ -3,9 +3,8 @@
 Clickable button.
 
 ```go
-btn := giode.NewButton("Click me").
-	OnClick(func() { count++ }).
-	Styles(giode.Styles{Background: giode.HexColor("#3b82f6"), BorderRadius: 8})
+btn := giode.Button("Click me", giode.Styles{Background: giode.HexColor("#3b82f6"), BorderRadius: 8}).
+	OnClick(func() { count++ })
 
 // in the view:
 giode.Box(giode.Styles{}, btn)
@@ -15,9 +14,8 @@ giode.Box(giode.Styles{}, btn)
 
 | Member | Description |
 | --- | --- |
-| `NewButton(label string) *Button` | Creates the button. |
+| `Button(label string, st ...Styles) *Button` | Creates the button. The styles argument is optional. |
 | `OnClick(fn func()) *Button` | Click handler. |
-| `Styles(st Styles) *Button` | Replaces the styles. |
 | `Label(label string) *Button` | Replaces the label. |
 | `Click()` | Simulates a click. |
 

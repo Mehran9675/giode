@@ -11,7 +11,7 @@ styles/
     hex.go           HexColor
     properties/      One file per CSS property
 elements/
-    Stateless building blocks (Box, Flex, Text, Divider, Raw, Responsive)
+    Stateless building blocks (Box, Row, Stack, Text, Divider, Raw, Responsive)
 components/
     One directory per component, one file per function or struct
     kit/               Public helpers for custom components
@@ -23,11 +23,6 @@ examples/
     hello, showcase, custom
 ```
 
-## The rule of one
-
-- Every CSS property is defined in exactly one file under `styles/properties/`.
-- Every component lives in its own directory; each function and struct in its own file.
-- Complex properties or components may spread across several files in their directory.
 
 ## Adding a property
 

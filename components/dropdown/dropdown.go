@@ -28,9 +28,11 @@ type Select struct {
 	st        styles.Styles
 }
 
-// New returns a Select with the given options.
-func New(options ...string) *Select {
-	s := &Select{options: options}
+// New returns a Select with the given styles and options: Background
+// is the dropdown background, Color the text, BorderColor the field
+// border, BorderRadius the corners.
+func New(st styles.Styles, options ...string) *Select {
+	s := &Select{options: options, st: st}
 	for range options {
 		s.itemClick = append(s.itemClick, new(widget.Clickable))
 	}
@@ -61,14 +63,6 @@ func (s *Select) SetSelected(i int) {
 // returns s for chaining.
 func (s *Select) OnChange(fn func(index int)) *Select {
 	s.onChange = fn
-	return s
-}
-
-// Styles replaces the select styles: Background is the dropdown
-// background, Color the text, BorderColor the field border,
-// BorderRadius the corners. It returns s for chaining.
-func (s *Select) Styles(st styles.Styles) *Select {
-	s.st = st
 	return s
 }
 

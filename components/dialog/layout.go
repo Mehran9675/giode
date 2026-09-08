@@ -16,14 +16,15 @@ import (
 
 // Layout renders the dialog: a dimmed full-window scrim with the
 // centered panel. A click on the scrim closes it.
-func (d *Dialog) Layout(gtx layout.Context, content elements.Element) layout.Dimensions {
-	if !d.open {
+func (d *Dialog) Layout(gtx layout.Context) layout.Dimensions {
+	if !d.Opened() {
 		return layout.Dimensions{}
 	}
 	win := gtx.Constraints.Max
 
 	if d.scrim.Clicked(gtx) {
-		d.open = false
+		*d.open = false
+		gtx.Execute(op.InvalidateCmd{})
 		return layout.Dimensions{}
 	}
 	d.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -33,7 +34,7 @@ func (d *Dialog) Layout(gtx layout.Context, content elements.Element) layout.Dim
 	})
 
 	st := d.st
-	if st.Background.A == 0 {
+	if st.Background == "" {
 		st.Background = defaultBackground
 	}
 	if st.BorderRadius == 0 {
@@ -48,7 +49,7 @@ func (d *Dialog) Layout(gtx layout.Context, content elements.Element) layout.Dim
 	panelGtx := gtx
 	panelGtx.Constraints.Max.X = win.X - 2*kit.Margin
 	panelGtx.Constraints.Max.Y = win.Y - 2*kit.Margin
-	dims := elements.Box(st, content).Layout(panelGtx)
+	dims := elements.Box(st, d.content()).Layout(panelGtx)
 	panel := macro.Stop()
 
 	x := (win.X - dims.Size.X) / 2

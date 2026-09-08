@@ -7,6 +7,7 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/styles"
 )
@@ -34,7 +35,7 @@ func (s *spinnerEl) Layout(gtx layout.Context) layout.Dimensions {
 	if float32(size.Y)/2 < radius {
 		radius = float32(size.Y) / 2
 	}
-	c := s.st.Color
+	c := properties.CalcColor(s.st.Color)
 	if c.A == 0 {
 		c = defaultColor
 	}

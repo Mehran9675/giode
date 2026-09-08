@@ -3,6 +3,7 @@ package menu
 import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
 
 	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/elements"
@@ -13,12 +14,12 @@ import (
 // row returns the element for one menu row.
 func (m *Menu) row(item *Item, width int, st styles.Styles) elements.Element {
 	if item.separator {
-		return elements.Divider(styles.Styles{Color: defaultSeparator, Height: 1})
+		return elements.Divider(styles.Styles{Color: properties.CalcColorReverse(defaultSeparator), Height: 1})
 	}
 	if item.disabled {
 		return elements.Box(styles.Styles{
 			Padding: properties.SymmetricInset(28, 8),
-			Color:   defaultDisabled,
+			Color:   properties.CalcColorReverse(defaultDisabled),
 		}, elements.Text(item.label))
 	}
 	return &menuRow{
@@ -45,6 +46,7 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			item.action()
 		}
 		r.menu.open = false
+		gtx.Execute(op.InvalidateCmd{})
 	}
 	return item.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		if r.width > 0 {
@@ -56,7 +58,7 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			BorderRadius: 6,
 		}
 		if item.click.Hovered() {
-			st.Background = defaultHover
+			st.Background = properties.CalcColorReverse(defaultHover)
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		var children []elements.Element
@@ -67,6 +69,6 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			)
 		}
 		children = append(children, elements.Text(item.label, styles.Styles{Color: r.st.Color}))
-		return elements.Box(st, elements.Flex(styles.Styles{Align: properties.AlignCenter}, children...)).Layout(gtx)
+		return elements.Box(st, elements.Row(styles.Styles{Align: properties.AlignCenter}, children...)).Layout(gtx)
 	})
 }

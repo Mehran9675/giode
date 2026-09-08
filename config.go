@@ -2,11 +2,11 @@ package giode
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/app"
 	"gioui.org/io/system"
 	"gioui.org/unit"
+	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
 )
@@ -31,7 +31,7 @@ type Config struct {
 	// (non-widget) space. It only applies to frameless windows.
 	Draggable bool
 	// Background is the window background color.
-	Background color.NRGBA
+	Background string
 	// Fullscreen starts the window in fullscreen mode.
 	Fullscreen bool
 	// Maximized starts the window maximized.
@@ -58,8 +58,8 @@ func New(cfg Config) *App {
 	if cfg.Size == (image.Point{}) {
 		cfg.Size = image.Pt(800, 600)
 	}
-	if cfg.Background.A == 0 {
-		cfg.Background = color.NRGBA{A: 0xff}
+	if properties.CalcColor(cfg.Background).A == 0 {
+		cfg.Background = "#000000"
 	}
 	opts := []app.Option{
 		app.Title(cfg.Title),
