@@ -27,6 +27,20 @@ func main() {
 		Resizable: true,
 		Frameless: false,
 		Draggable: true,
+		Logger:    log.Default(),
+		LogLevel:  giode.LogLevelDebug,
+		OnStartup: func() { log.Println("lifecycle: startup") },
+		OnReady:   func() { log.Println("lifecycle: ready (first frame)") },
+		OnShutdown: func() {
+			log.Println("lifecycle: shutdown")
+		},
+		OnBeforeClose: func() { log.Println("lifecycle: close requested") },
+		SingleInstanceLock: &giode.SingleInstanceLock{
+			UniqueID: "giode-showcase",
+			OnSecondInstanceLaunch: func() {
+				log.Println("single instance: already running")
+			},
+		},
 	})
 
 	buttonPg := NewButtonPage()

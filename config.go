@@ -19,9 +19,17 @@ type Config struct {
 	Title string
 	// Size is the initial window size. Defaults to 800x600.
 	Size image.Point
-	// MinSize and MaxSize bound the window size when Resizable.
+	// MinSize and MaxSize bound the window size when Resizable. They
+	// combine with MinWidth/MinHeight/MaxWidth/MaxHeight below; the
+	// tighter bound wins.
 	MinSize image.Point
 	MaxSize image.Point
+	// MinWidth, MinHeight, MaxWidth and MaxHeight bound the window
+	// size per axis, like the Wails options of the same name.
+	MinWidth  int
+	MinHeight int
+	MaxWidth  int
+	MaxHeight int
 	// Resizable controls whether the user can resize the window. When
 	// false the size is locked to Size.
 	Resizable bool
@@ -32,6 +40,9 @@ type Config struct {
 	Draggable bool
 	// Background is the window background color.
 	Background string
+	// WindowStartState selects the initial window state. It takes
+	// precedence over the Fullscreen, Maximized and Minimized flags.
+	WindowStartState WindowStartState
 	// Fullscreen starts the window in fullscreen mode.
 	Fullscreen bool
 	// Maximized starts the window maximized.
@@ -42,6 +53,65 @@ type Config struct {
 	Center bool
 	// AlwaysOnTop keeps the window above other windows.
 	AlwaysOnTop bool
+	// Logger receives Giode diagnostics at or above LogLevel.
+	Logger Logger
+	// LogLevel filters Logger output. Defaults to LogLevelDebug.
+	LogLevel LogLevel
+	// OnStartup runs before the event loop starts.
+	OnStartup func()
+	// OnReady runs after the first frame is presented to the screen
+	// (the Wails OnDomReady equivalent).
+	OnReady func()
+	// OnShutdown runs after the window closes.
+	OnShutdown func()
+	// OnBeforeClose runs when a window close is requested. Unlike
+	// Wails it cannot veto the close.
+	OnBeforeClose func()
+	// SingleInstanceLock, when set, ensures only one instance of the
+	// application runs.
+	SingleInstanceLock *SingleInstanceLock
+}
+
+// WindowStartState selects the initial state of the window, like the
+// Wails option of the same name.
+type WindowStartState int
+
+const (
+	// WindowStartNormal starts the window in its normal state.
+	WindowStartNormal WindowStartState = iota
+	// WindowStartMinimized starts the window minimized.
+	WindowStartMinimized
+	// WindowStartMaximized starts the window maximized.
+	WindowStartMaximized
+	// WindowStartFullscreen starts the window fullscreen.
+	WindowStartFullscreen
+)
+
+// LogLevel filters the messages passed to Logger.
+type LogLevel int
+
+const (
+	LogLevelDebug LogLevel = iota
+	LogLevelInfo
+	LogLevelWarning
+	LogLevelError
+)
+
+// Logger receives Giode diagnostics. Any *log.Logger satisfies it.
+type Logger interface {
+	Printf(format string, v ...any)
+}
+
+// SingleInstanceLock prevents a second instance of the application
+// from running. When a second instance launches, its
+// OnSecondInstanceLaunch callback runs and the instance exits without
+// showing a window.
+type SingleInstanceLock struct {
+	// UniqueID identifies the application; it must be unique per app.
+	UniqueID string
+	// OnSecondInstanceLaunch runs in the second instance in place of
+	// the UI.
+	OnSecondInstanceLaunch func()
 }
 
 // App owns a window and its render loop.
@@ -50,6 +120,10 @@ type App struct {
 	window  *app.Window
 	drag    dragState
 	ctxMenu *menu.Menu
+
+	instanceLockPath  string
+	instanceLockOwner bool
+	secondInstance    bool
 }
 
 // New creates an App from cfg. The window is created and shown the
@@ -60,6 +134,20 @@ func New(cfg Config) *App {
 	}
 	if properties.CalcColor(cfg.Background).A == 0 {
 		cfg.Background = "#000000"
+	}
+	// Per-axis size bounds combine with the point bounds; the tighter
+	// bound wins.
+	if cfg.MinWidth > 0 && (cfg.MinSize.X == 0 || cfg.MinSize.X < cfg.MinWidth) {
+		cfg.MinSize.X = cfg.MinWidth
+	}
+	if cfg.MinHeight > 0 && (cfg.MinSize.Y == 0 || cfg.MinSize.Y < cfg.MinHeight) {
+		cfg.MinSize.Y = cfg.MinHeight
+	}
+	if cfg.MaxWidth > 0 && (cfg.MaxSize.X == 0 || cfg.MaxSize.X > cfg.MaxWidth) {
+		cfg.MaxSize.X = cfg.MaxWidth
+	}
+	if cfg.MaxHeight > 0 && (cfg.MaxSize.Y == 0 || cfg.MaxSize.Y > cfg.MaxHeight) {
+		cfg.MaxSize.Y = cfg.MaxHeight
 	}
 	opts := []app.Option{
 		app.Title(cfg.Title),
@@ -79,17 +167,30 @@ func New(cfg Config) *App {
 		)
 	}
 	opts = append(opts, app.Decorated(!cfg.Frameless))
-	if cfg.Fullscreen {
-		opts = append(opts, app.Fullscreen.Option())
-	} else if cfg.Maximized {
-		opts = append(opts, app.Maximized.Option())
-	} else if cfg.Minimized {
+	switch cfg.WindowStartState {
+	case WindowStartMinimized:
 		opts = append(opts, app.Minimized.Option())
+	case WindowStartMaximized:
+		opts = append(opts, app.Maximized.Option())
+	case WindowStartFullscreen:
+		opts = append(opts, app.Fullscreen.Option())
+	default:
+		// Fall back to the individual flags.
+		if cfg.Fullscreen {
+			opts = append(opts, app.Fullscreen.Option())
+		} else if cfg.Maximized {
+			opts = append(opts, app.Maximized.Option())
+		} else if cfg.Minimized {
+			opts = append(opts, app.Minimized.Option())
+		}
 	}
 	if cfg.AlwaysOnTop {
 		opts = append(opts, app.TopMost(true))
 	}
 	a := &App{cfg: cfg}
+	if cfg.SingleInstanceLock != nil {
+		a.secondInstance, a.instanceLockPath, a.instanceLockOwner = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
+	}
 	a.window = new(app.Window)
 	a.window.Option(opts...)
 	if cfg.Center {

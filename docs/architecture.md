@@ -5,6 +5,7 @@
 ```
 giode.go / app.go / config.go / drag.go / reexport.go
     Root package: App, Config, Run, re-exports.
+    singleinstance*.go  Single-instance lock (per-platform process check)
 styles/
     styles.go        Styles aggregate
     merge.go         Merge(base, over)
