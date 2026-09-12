@@ -63,9 +63,6 @@ func Merge(base, over Styles) Styles {
 	if over.Opacity != 0 {
 		base.Opacity = over.Opacity
 	}
-	if over.Visibility != 0 {
-		base.Visibility = over.Visibility
-	}
 	if properties.CalcColor(over.Color).A != 0 {
 		base.Color = over.Color
 	}

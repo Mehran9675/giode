@@ -55,17 +55,12 @@ func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
 	size.X += padding.Left + padding.Right
 	size.Y += padding.Top + padding.Bottom
 
-	// Opacity and Visibility both mean unset at 0 (fully visible); it
-	// applies to the background and the content.
+	// Opacity 0 means unset (fully opaque); it applies to the
+	// background and the content.
 	opacity := float32(st.Opacity)
 	if opacity == 0 {
 		opacity = 1
 	}
-	visibility := float32(st.Visibility)
-	if visibility == 0 {
-		visibility = 1
-	}
-	opacity *= visibility
 	if opacity < 1 {
 		opStack := paint.PushOpacity(gtx.Ops, opacity)
 		defer opStack.Pop()

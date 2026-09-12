@@ -46,9 +46,6 @@ type Styles struct {
 	BorderRadius properties.BorderRadius
 	// Opacity is the element transparency in the range 0-1.
 	Opacity properties.Opacity
-	// Visibility fades the element in the range 0-1, combining with
-	// Opacity.
-	Visibility properties.Visibility
 	// Color is the text color.
 	Color properties.Color
 	// FontSize is the text size in sp.

@@ -15,7 +15,6 @@ var boxStyle = giode.Styles{
 	Background:   "black",
 	BorderRadius: 5,
 	Gap:          10,
-	Width:        200,
 }
 var textStyle = giode.Styles{Color: "white", FontSize: 24, TextAlign: giode.TextAlignCenter}
 

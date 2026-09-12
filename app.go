@@ -12,8 +12,9 @@ import (
 )
 
 // SetContextMenu registers a menu to open with a right-click anywhere
-// in the window. The app registers the right-click area and renders
-// the menu on top automatically.
+// in the window, including on top of other widgets. The app registers
+// the right-click area (last, so it isn't blocked by the rest of the
+// UI — see menu.Context) and renders the menu on top automatically.
 func (a *App) SetContextMenu(m *menu.Menu) {
 	a.ctxMenu = m
 }
@@ -51,11 +52,9 @@ func (a *App) runLoop(view func() Element) error {
 			if a.cfg.Frameless && a.cfg.Draggable {
 				a.drag.layout(gtx)
 			}
-			if a.ctxMenu != nil {
-				a.ctxMenu.Context(gtx)
-			}
 			view().Layout(gtx)
 			if a.ctxMenu != nil {
+				a.ctxMenu.Context(gtx)
 				a.ctxMenu.Layout(gtx)
 			}
 			e.Frame(gtx.Ops)

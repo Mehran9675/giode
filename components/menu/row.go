@@ -14,13 +14,26 @@ import (
 // row returns the element for one menu row.
 func (m *Menu) row(item *Item, width int, st styles.Styles) elements.Element {
 	if item.separator {
-		return elements.Divider(styles.Styles{Color: properties.CalcColorReverse(defaultSeparator), Height: 1})
+		// Divider always fills its ambient Max.X rather than hugging
+		// (that's its point when used standalone), so it must be
+		// wrapped to the shared row width explicitly once known -
+		// otherwise it would stretch to whatever loose constraint the
+		// panel happens to have been given.
+		divider := elements.Divider(styles.Styles{Color: properties.CalcColorReverse(defaultSeparator), Height: 1})
+		if width > 0 {
+			return elements.Box(styles.Styles{Width: properties.Width(width)}, divider)
+		}
+		return divider
 	}
 	if item.disabled {
-		return elements.Box(styles.Styles{
+		st := styles.Styles{
 			Padding: properties.SymmetricInset(28, 8),
 			Color:   properties.CalcColorReverse(defaultDisabled),
-		}, elements.Text(item.label))
+		}
+		if width > 0 {
+			st.Width = properties.Width(width)
+		}
+		return elements.Box(st, elements.Text(item.label))
 	}
 	return &menuRow{
 		menu:  m,
@@ -49,13 +62,19 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	return item.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		if r.width > 0 {
-			gtx.Constraints.Min.X = r.width
-			gtx.Constraints.Max.X = r.width
-		}
 		st := styles.Styles{
 			Padding:      properties.SymmetricInset(28, 8),
 			BorderRadius: 6,
+		}
+		// Force the row to the shared width via the Width style, not
+		// by poking the incoming constraints directly: an unset Width
+		// makes this box hug, which zeroes the constraint minimum
+		// regardless of what a caller set it to, discarding a
+		// raw-constraint override silently. Going through Width keeps
+		// the box's own "am I fixed-size?" check (hugMain) in sync
+		// with what's actually being asked of it.
+		if r.width > 0 {
+			st.Width = properties.Width(r.width)
 		}
 		if item.click.Hovered() {
 			st.Background = properties.CalcColorReverse(defaultHover)

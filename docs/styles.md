@@ -49,7 +49,6 @@ Every element is a flex container; there is no block layout mode.
 | `BoxShadow` | struct | `{X, Y, Blur int; Color color.NRGBA}` | Drop shadow behind the box. |
 | `ScrollBar` | struct | `{Width, Radius, MinThumbLength int; TrackColor, ThumbColor color}` | Customizes the bar a `Scroll` container draws; see [scroll.md](components/scroll.md). |
 | `Opacity` | float | 0–1 | Transparency of the element and its children. |
-| `Visibility` | float | 0–1 | Fades the element and its children; combines with `Opacity`. Zero means unset (fully visible). |
 
 ## Text
 

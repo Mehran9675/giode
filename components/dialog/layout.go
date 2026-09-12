@@ -44,9 +44,15 @@ func (d *Dialog) Layout(gtx layout.Context) layout.Dimensions {
 		st.Padding = properties.UniformInset(20)
 	}
 
-	// Measure the panel, then center it.
+	// Measure the panel, then center it. The panel must hug its
+	// content, so its minimum is cleared: Gio's Flex zeros a rigid
+	// child's minimum on the main axis but never on the cross axis, so
+	// Dialog (however it's placed in the tree) can inherit a cross-axis
+	// minimum equal to the full available width, forcing the panel to
+	// fill it instead of hugging.
 	macro := op.Record(gtx.Ops)
 	panelGtx := gtx
+	panelGtx.Constraints.Min = image.Point{}
 	panelGtx.Constraints.Max.X = win.X - 2*kit.Margin
 	panelGtx.Constraints.Max.Y = win.Y - 2*kit.Margin
 	dims := elements.Box(st, d.content()).Layout(panelGtx)

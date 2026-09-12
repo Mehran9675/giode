@@ -149,7 +149,11 @@ func (b *boxEl) layoutFlexWrap(gtx layout.Context, children []Element, axis layo
 	}
 
 	crossOffset := 0
+	contentMain := 0
 	for li, ln := range lines {
+		if ln.used > contentMain {
+			contentMain = ln.used
+		}
 		leftover := mainMax - ln.used
 		lead, between := justifySpacing(st.Justify, leftover, len(ln.items))
 		mainOffset := lead
@@ -169,7 +173,21 @@ func (b *boxEl) layoutFlexWrap(gtx layout.Context, children []Element, axis layo
 		}
 	}
 
-	return layout.Dimensions{Size: axisPoint(axis, mainMax, crossOffset)}
+	// Report the widest line's actual extent, not the full mainMax: a
+	// hugging container (Min < mainMax, e.g. a button sized to its
+	// label) must still hug its wrapped content instead of claiming
+	// all the space it was merely allowed to wrap within. A container
+	// required to fill or that's exactly sized (Min == mainMax) still
+	// reports mainMax, since contentMain is clamped up to it.
+	mainSize := contentMain
+	if minMain := minConstraint(gtx.Constraints, axis); mainSize < minMain {
+		mainSize = minMain
+	}
+	if mainSize > mainMax {
+		mainSize = mainMax
+	}
+
+	return layout.Dimensions{Size: axisPoint(axis, mainSize, crossOffset)}
 }
 
 // justifySpacing splits leftover main-axis space into a leading
