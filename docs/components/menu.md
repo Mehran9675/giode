@@ -6,7 +6,7 @@ flipping above the cursor when it would overflow the bottom edge.
 ## Global right-click
 
 ```go
-menu := giode.Menu().
+menu := giode.Menu(giode.Styles{}).
 	Item("New", func() { ... }).
 	IconItem("trash", "Delete", func() { ... }).
 	Separator().
@@ -33,11 +33,13 @@ Without `SetContextMenu`, lay the menu out **last** in the view so it renders ab
 
 | Member | Description |
 | --- | --- |
-| `Menu(st ...Styles) *Menu` | Creates an empty menu. The styles argument is optional: `Background`, `BorderRadius`, `Padding`, `Color`. |
+| `Menu(st ...Styles) *Menu` | Creates an empty menu. |
 | `Item(label string, action func()) *Menu` | Clickable item. |
 | `IconItem(iconName, label string, action func()) *Menu` | Item with a material icon. |
 | `DisabledItem(label string) *Menu` | Grayed-out item. |
 | `Separator() *Menu` | Horizontal line. |
+
+Styles: `Background`, `BorderRadius`, `Padding`, `Color` (item text).
 
 ## Behavior
 

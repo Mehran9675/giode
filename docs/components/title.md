@@ -4,7 +4,7 @@ Heading text, H1 (32sp) through H6 (14sp), all bold by default. User styles over
 defaults.
 
 ```go
-giode.H1("Welcome", giode.Styles{Color: giode.HexColor("#f8fafc")})
+giode.H1("Welcome", giode.Styles{Color: "#f8fafc"})
 giode.H3("Section", giode.Styles{})
 ```
 

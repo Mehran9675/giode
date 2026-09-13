@@ -3,7 +3,7 @@
 Stateless animated loading indicator.
 
 ```go
-giode.Spinner(giode.Styles{Width: 24, Height: 24, Color: giode.HexColor("#3b82f6")})
+giode.Spinner(giode.Styles{Width: 24, Height: 24, Color: "#3b82f6"})
 ```
 
 ## Styles

@@ -3,7 +3,7 @@
 Stateless determinate bar. Build it every frame.
 
 ```go
-giode.Progress(0.35, giode.Styles{Color: giode.HexColor("#3b82f6")})
+giode.Progress(0.35, giode.Styles{Color: "#3b82f6"})
 ```
 
 | Argument | Description |

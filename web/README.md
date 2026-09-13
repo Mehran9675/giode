@@ -32,10 +32,11 @@ copy buttons and full-text search are included.
 ## Deploy to GitHub Pages
 
 A workflow at `.github/workflows/deploy-pages.yml` builds `web/` and deploys it to
-GitHub Pages on every push to `main`. Enable it once:
+GitHub Pages when a **release is published** (or the workflow is dispatched manually).
+Enable it once:
 
 1. Repo → **Settings → Pages** → **Source: GitHub Actions**.
-2. Push to `main`; the first deploy takes a minute or two.
+2. Publish a release; the deploy takes a minute or two.
 3. The site appears at `https://<user>.github.io/giode/`.
 
 The build uses relative URLs, so it works from the repo subpath.

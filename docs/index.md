@@ -8,9 +8,9 @@ stays reachable everywhere.
 ## Features
 
 - **Window config** — size, min/max, resizable, frameless, draggable, fullscreen, centered,
-  always-on-top, per-axis size bounds, initial window state, lifecycle callbacks
-  (startup, ready, shutdown, close) and a single-instance lock, plus runtime actions
-  (minimize, maximize, center, raise, close).
+  always-on-top, per-axis size bounds, initial window state, window icon, lifecycle
+  callbacks (startup, ready, shutdown, close) and a single-instance lock, plus runtime
+  actions (minimize, maximize, center, raise, close).
 - **Elements** — `Box`, `Row`, `Stack`, `Text`, `Divider`, `Raw`, `Responsive`.
 - **Components** — Button, Progress, Spinner, Tabs, Drawer, Dialog, Scroll, Title, Image,
   a right-click context Menu with window-bounds clamping, and the form controls grouped

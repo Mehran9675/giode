@@ -6,11 +6,11 @@
 giode.go / app.go / config.go / drag.go / reexport.go
     Root package: App, Config, Run, re-exports.
     singleinstance*.go  Single-instance lock (per-platform process check)
+    icon*.go            Runtime window icon (Windows)
 styles/
     styles.go        Styles aggregate
     merge.go         Merge(base, over)
-    hex.go           HexColor
-    properties/      One file per CSS property
+    properties/      One file per CSS property (colors resolve via calcColor)
 elements/
     Stateless building blocks (Box, Row, Stack, Text, Divider, Raw, Responsive)
 components/

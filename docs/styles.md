@@ -7,25 +7,30 @@ falls back to its default. Each property is defined in its own file under
 ```go
 card := giode.Styles{
 	FlexDirection: giode.FlexDirectionColumn,
-	Gap:          12,
-	Padding:      giode.UniformInset(16),
-	Background:   giode.HexColor("#1e293b"),
-	BorderRadius: 12,
-	BoxShadow:    giode.BoxShadow{Y: 4, Blur: 12, Color: giode.HexColor("#00000060")},
+	Gap:           12,
+	Padding:       giode.UniformInset(16),
+	Background:    "#1e293b",
+	BorderRadius:  12,
+	BoxShadow:     giode.BoxShadow{Y: 4, Blur: 12, Color: "#00000060"},
 }
 ```
 
-## Layout
+## Colors
 
-Every element is a flex container; there is no block layout mode.
+Colors are strings: CSS hex (`"#fff"`, `"#1e293b"`, `"#00000060"`) or one of the named
+colors `white`, `black`, `gray`, `yellow`, `red`, `green`, `blue`, `magenta`, `cyan`,
+`purple`. An empty string means unset (transparent); an unrecognized name renders white
+so a typo is visible.
+
+## Layout
 
 | Property | Type | Values | Notes |
 | --- | --- | --- | --- |
-| `FlexDirection` | string | `FlexDirectionRow` (default), `FlexDirectionColumn` | Flex main axis (CSS flex-direction). |
-| `Align` | string | `AlignStart`, `AlignCenter`, `AlignEnd` | Flex cross-axis (align-items). |
-| `Justify` | string | `JustifyStart` (default), `JustifyCenter`, `JustifyEnd`, `JustifySpaceBetween`, `JustifySpaceAround`, `JustifySpaceEvenly` | Flex main-axis distribution. |
-| `Wrap` | string | `WrapWrap`, `WrapNoWrap` | Whether children continue onto a new line when they overflow the main axis. Unset defaults to wrapping on `Row` and not wrapping on `Stack`. `FlexGrow` has no effect on wrapped children — see [elements.md](elements.md). |
-| `Gap` | int | px | Space between flex children, and between wrapped lines. |
+| `FlexDirection` | string | `FlexDirectionRow` (default), `FlexDirectionColumn` | Main axis (CSS flex-direction). |
+| `Align` | string | `AlignStart`, `AlignCenter`, `AlignEnd` | Cross-axis alignment (align-items). |
+| `Justify` | string | `JustifyStart` (default), `JustifyCenter`, `JustifyEnd`, `JustifySpaceBetween`, `JustifySpaceAround`, `JustifySpaceEvenly` | Main-axis distribution. |
+| `Wrap` | string | `WrapWrap`, `WrapNoWrap` | Whether children continue onto new lines. Unset: Row wraps, Stack does not. |
+| `Gap` | int | px | Space between children and between wrapped lines. |
 | `FlexGrow` | int | ≥0 | Share of spare main-axis space. |
 | `Width` / `Height` | int | `0` hug, `-1` expand, `>0` fixed px | |
 | `WidthPct` / `HeightPct` | int | 1–100 | Percent of available space; takes precedence over `Width`/`Height`. |
@@ -36,25 +41,25 @@ Every element is a flex container; there is no block layout mode.
 | `Top` / `Right` / `Bottom` / `Left` | int | px | Offsets of absolute children. |
 | `ZIndex` | int | any | Stacking order of siblings. |
 | `Overflow` | string | `OverflowVisible` (default), `OverflowHidden` | Hidden clips content to the box. |
+| `ScrollBar` | struct | — | Customizes the scrollbar a `Scroll` draws: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`. |
 
 ## Paint
 
 | Property | Type | Values | Notes |
 | --- | --- | --- | --- |
-| `Background` | color | any | Fill color. |
+| `Background` | string | any color | Fill color. |
 | `BackgroundImage` | `image.Image` | — | Image behind the content. |
 | `BackgroundFit` | string | `FitContain` (default), `FitCover`, `FitStretch`, `FitNone` | Scaling of the background image. |
-| `BorderWidth` / `BorderColor` | int / color | — | Border around the box. |
+| `BorderWidth` / `BorderColor` | int / string | — | Border around the box. |
 | `BorderRadius` | int | px | Rounds the box corners. |
-| `BoxShadow` | struct | `{X, Y, Blur int; Color color.NRGBA}` | Drop shadow behind the box. |
-| `ScrollBar` | struct | `{Width, Radius, MinThumbLength int; TrackColor, ThumbColor color}` | Customizes the bar a `Scroll` container draws; see [scroll.md](components/scroll.md). |
-| `Opacity` | float | 0–1 | Transparency of the element and its children. |
+| `BoxShadow` | struct | `{X, Y, Blur int; Color string}` | Drop shadow behind the box. |
+| `Opacity` | float | 0–1 | Transparency of the element and its children; 0 means unset. |
 
 ## Text
 
 | Property | Type | Values | Notes |
 | --- | --- | --- | --- |
-| `Color` | color | any | Text color; zero alpha resolves to black. |
+| `Color` | string | any color | Text color; empty resolves to black. |
 | `FontSize` | sp | — | Default 14sp. |
 | `FontWeight` | string | `FontWeightThin` … `FontWeightBlack` | Default normal. |
 | `FontStyle` | string | `FontStyleNormal`, `FontStyleItalic` | |
@@ -82,7 +87,7 @@ giode.Box(giode.Styles{}, content,
 	giode.Box(giode.Styles{
 		Position: giode.PositionAbsolute,
 		Top: 8, Right: 8, ZIndex: 10,
-		Background: giode.HexColor("#ef4444"), BorderRadius: 99,
+		Background: "#ef4444", BorderRadius: 99,
 	}, giode.Text("3")),
 )
 ```

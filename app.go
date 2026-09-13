@@ -1,6 +1,9 @@
 package giode
 
 import (
+	"fmt"
+	"os"
+
 	"gioui.org/app"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -22,8 +25,10 @@ func (a *App) SetContextMenu(m *menu.Menu) {
 // window closes. view runs on every frame: build the UI from scratch,
 // but reuse stateful components created before Run.
 //
-// Run blocks for the lifetime of the application; on desktop it
-// returns the window close error, if any.
+// Run blocks for the lifetime of the application: when the window
+// closes it releases the single-instance lock, runs OnShutdown and
+// terminates the process. Any window close error is printed to
+// stderr.
 func (a *App) Run(view func() Element) error {
 	if a.secondInstance {
 		a.logf(LogLevelInfo, "giode: second instance exiting")
@@ -36,20 +41,25 @@ func (a *App) Run(view func() Element) error {
 		a.cfg.OnStartup()
 	}
 	a.logf(LogLevelInfo, "giode: app started")
-	errCh := make(chan error, 1)
 	go func() {
-		errCh <- a.runLoop(view)
+		err := a.runLoop(view)
+		if a.instanceLockOwner {
+			releaseInstanceLock(a.instanceLockPath)
+		}
+		if a.cfg.OnShutdown != nil {
+			a.cfg.OnShutdown()
+		}
+		a.logf(LogLevelDebug, "giode: app stopped")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "giode:", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}()
+	// app.Main blocks forever on most platforms; the process exits
+	// from the window goroutine above once the window closes.
 	app.Main()
-	err := <-errCh
-	if a.instanceLockOwner {
-		releaseInstanceLock(a.instanceLockPath)
-	}
-	if a.cfg.OnShutdown != nil {
-		a.cfg.OnShutdown()
-	}
-	a.logf(LogLevelDebug, "giode: app stopped")
-	return err
+	return nil
 }
 
 // RunRaw is Run with a plain Gio layout function.
@@ -68,6 +78,8 @@ func (a *App) runLoop(view func() Element) error {
 			}
 			a.logf(LogLevelDebug, "giode: window closed")
 			return e.Err
+		case app.ViewEvent:
+			a.handleViewEvent(e)
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
 			paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))

@@ -5,15 +5,15 @@ function every frame.
 
 ## Box
 
-The container. Every `Box` lays its children out as a flex container along
-`FlexDirection` (row by default), with `Align`, `Justify` and `Gap` distribution:
+The flex container. Children are laid along `FlexDirection` (row by default) with
+`Align`, `Justify`, `Gap` and `Wrap`:
 
 ```go
 giode.Box(giode.Styles{
-	FlexDirection: giode.FlexDirectionRow, // or FlexDirectionColumn
+	FlexDirection: giode.FlexDirectionColumn,
 	Align:         giode.AlignCenter,
-	Justify:       giode.JustifySpaceBetween,
-	Gap:           8,
+	Gap:           12,
+	Padding:       giode.UniformInset(16),
 }, child1, child2)
 ```
 
@@ -25,50 +25,28 @@ containing block for absolutely positioned children.
 Shorthand containers with the flex direction preset:
 
 ```go
-giode.Row(giode.Styles{Gap: 8, Align: giode.AlignCenter}, a, b, c)     // horizontal
-giode.Stack(giode.Styles{Gap: 8}, a, b, c)                            // vertical
+giode.Row(giode.Styles{Gap: 8, Align: giode.AlignCenter}, a, b, c) // horizontal
+giode.Stack(giode.Styles{Gap: 8}, a, b, c)                        // vertical
 ```
 
-`Row` sets `FlexDirection` to row, `Stack` to column. Both behave exactly like a
-plain `Box`.
+`Row` sets `FlexDirection` to row, `Stack` to column.
 
-### Wrapping
+## Wrap
 
-`Wrap` controls whether children continue onto a new line when they overflow the main
-axis (CSS flex-wrap). It is **on by default for `Row`** (and any `Box` with
-`FlexDirection: FlexDirectionRow`) and off by default for `Stack`/column containers;
-either can be overridden explicitly:
+By default a `Row` wraps children onto new lines when they overflow (`WrapWrap`), while
+a `Stack` keeps them on a single line (`WrapNoWrap`). Override with the `Wrap` property:
 
 ```go
-giode.Row(giode.Styles{Gap: 8}, tag1, tag2, tag3, /* ...many more... */)
-// narrower than the tags need? they wrap onto additional lines automatically.
-
-giode.Row(giode.Styles{Gap: 8, Wrap: giode.WrapNoWrap}, a, b, c) // force single line
-giode.Stack(giode.Styles{Wrap: giode.WrapWrap}, a, b, c)         // wrap a column too
+giode.Row(giode.Styles{Wrap: giode.WrapNoWrap, Gap: 8}, chips...)
+giode.Stack(giode.Styles{Wrap: giode.WrapWrap, Gap: 8}, chips...)
 ```
 
-Each child is measured once, so wrapping is safe with stateful children (buttons,
-inputs, ...). The one limitation this implies: `FlexGrow` has no effect on children of
-a wrapping container — a line's leftover space can't be redistributed after a child
-has already been laid out, so `Justify`/`Align` still space and align items, they just
-don't grow them.
-
-If a wrapped `Row` ends up taller than its container (vertical overflow), it does not
-scroll on its own — wrap it in [`Scroll`](components/scroll.md), which is a stateful
-component (create it once, like `Button`) and has a fully customizable scrollbar:
-
-```go
-list := giode.Scroll(func() giode.Element {
-	return giode.Row(giode.Styles{Gap: 8}, tag1, tag2, tag3 /* ... */)
-}) // once
-
-giode.Box(giode.Styles{Height: 200}, list) // in the view
-```
+Wrapped lines are stacked on the cross axis and separated by `Gap`.
 
 ## Text
 
 ```go
-giode.Text("Hello", giode.Styles{Color: giode.HexColor("#fff"), FontSize: 18})
+giode.Text("Hello", giode.Styles{Color: "#fff", FontSize: 18})
 ```
 
 The styles argument is optional. Supports text alignment, weight, style, family,
@@ -79,7 +57,7 @@ line-height, max-lines and decoration.
 A thin horizontal line. Color defaults to a subtle gray, height to 1px:
 
 ```go
-giode.Divider(giode.Styles{Color: giode.HexColor("#334155")})
+giode.Divider(giode.Styles{Color: "#334155"})
 ```
 
 ## Raw

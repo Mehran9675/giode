@@ -3,28 +3,29 @@
 Stateful components are created once and laid out every frame. They are built on the
 stateless elements.
 
-| Component | Docs | State |
+| Component | Constructor | State |
 | --- | --- | --- |
 | Button | [button.md](button.md) | clickable |
-| Checkbox | [checkbox.md](checkbox.md) | bool |
-| Dialog | [dialog.md](dialog.md) | open/closed |
-| Drawer | [drawer.md](drawer.md) | open/closed, animated |
-| Dropdown | [dropdown.md](dropdown.md) | selection, open |
-| Icons | [icons.md](icons.md) | stateless |
-| Image | [image.md](image.md) | stateless |
-| Input | [input.md](input.md) | text |
+| Input (text field) | [input.md](input.md) | text |
+| Input (checkbox) | [input.md](input.md) | bool |
+| Input (slider) | [input.md](input.md) | value |
+| Input (select) | [input.md](input.md) | selection |
+| Tabs | [tabs.md](tabs.md) | selection |
+| Scroll | [scroll.md](scroll.md) | offset |
+| Drawer | [drawer.md](drawer.md) | external `*bool` |
+| Dialog | [dialog.md](dialog.md) | external `*bool` |
 | Menu | [menu.md](menu.md) | items, open |
 | Progress | [progress.md](progress.md) | stateless |
-| Scroll | [scroll.md](scroll.md) | offset |
-| Slider | [slider.md](slider.md) | value |
 | Spinner | [spinner.md](spinner.md) | stateless, animated |
-| Tabs | [tabs.md](tabs.md) | selection |
+| Image | [image.md](image.md) | stateless |
+| Icons | [icons.md](icons.md) | stateless |
 | Title | [title.md](title.md) | stateless |
 
 Common patterns:
 
-- **Chaining**: constructors and setters return the component, so handles configure in one
-  expression.
-- **Callbacks**: handlers are plain Go closures and may capture anything.
-- **Styling**: every component takes `Styles(...)`; see the individual docs for which
+- **Constructors take styles last**: `giode.Button("Go", giode.Styles{...})`,
+  `giode.Input.Text("Name", giode.Styles{...})`, `giode.Scroll(content, styles)`.
+- **Callbacks**: handlers are plain Go closures and may capture anything; chainable
+  setters return the component.
+- **Styling**: every component accepts `Styles`; see the individual docs for which
   properties are honored.

@@ -6,7 +6,7 @@ color from `Color` (default black).
 ## Material set
 
 ```go
-giode.IconMaterial("home", giode.Styles{Color: giode.HexColor("#fff"), Width: 20, Height: 20})
+giode.IconMaterial("home", giode.Styles{Color: "#fff", Width: 20, Height: 20})
 ```
 
 Unknown names panic. List the built-in names with `icon.Names()`. The set includes:

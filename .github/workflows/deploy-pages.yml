@@ -1,8 +1,10 @@
 name: Deploy docs to GitHub Pages
 
+# The site is published only when a new release is created (or the
+# workflow is dispatched manually).
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:

@@ -9,7 +9,7 @@ tabs := giode.Tabs(giode.Styles{},
 ).OnChange(func(i int) { ... })
 
 // in the view:
-giode.Box(giode.Styles{}, tabs)
+giode.Stack(giode.Styles{}, tabs)
 ```
 
 ## API

@@ -11,9 +11,9 @@ import (
 	"github.com/mehran9675/giode/components/menu"
 )
 
-// Config configures the application window. The options mirror the
-// common window settings of desktop app frameworks such as Tauri and
-// Wails; unsupported platform features are simply ignored.
+// Config configures the application window. The options cover the
+// common window settings of desktop applications; unsupported
+// platform features are simply ignored.
 type Config struct {
 	// Title is the window title.
 	Title string
@@ -25,7 +25,7 @@ type Config struct {
 	MinSize image.Point
 	MaxSize image.Point
 	// MinWidth, MinHeight, MaxWidth and MaxHeight bound the window
-	// size per axis, like the Wails options of the same name.
+	// size per axis.
 	MinWidth  int
 	MinHeight int
 	MaxWidth  int
@@ -40,6 +40,11 @@ type Config struct {
 	Draggable bool
 	// Background is the window background color.
 	Background string
+	// Icon is the window icon, PNG or JPEG bytes. It is applied at
+	// runtime where the platform supports it (Windows). The icon
+	// shown by file managers comes from the executable and is set at
+	// build time.
+	Icon []byte
 	// WindowStartState selects the initial window state. It takes
 	// precedence over the Fullscreen, Maximized and Minimized flags.
 	WindowStartState WindowStartState
@@ -59,21 +64,19 @@ type Config struct {
 	LogLevel LogLevel
 	// OnStartup runs before the event loop starts.
 	OnStartup func()
-	// OnReady runs after the first frame is presented to the screen
-	// (the Wails OnDomReady equivalent).
+	// OnReady runs after the first frame is presented to the screen.
 	OnReady func()
 	// OnShutdown runs after the window closes.
 	OnShutdown func()
-	// OnBeforeClose runs when a window close is requested. Unlike
-	// Wails it cannot veto the close.
+	// OnBeforeClose runs when a window close is requested. It cannot
+	// veto the close.
 	OnBeforeClose func()
 	// SingleInstanceLock, when set, ensures only one instance of the
 	// application runs.
 	SingleInstanceLock *SingleInstanceLock
 }
 
-// WindowStartState selects the initial state of the window, like the
-// Wails option of the same name.
+// WindowStartState selects the initial state of the window.
 type WindowStartState int
 
 const (
@@ -120,6 +123,9 @@ type App struct {
 	window  *app.Window
 	drag    dragState
 	ctxMenu *menu.Menu
+
+	icon        image.Image
+	iconApplied bool
 
 	instanceLockPath  string
 	instanceLockOwner bool
@@ -188,6 +194,7 @@ func New(cfg Config) *App {
 		opts = append(opts, app.TopMost(true))
 	}
 	a := &App{cfg: cfg}
+	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
 		a.secondInstance, a.instanceLockPath, a.instanceLockOwner = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
 	}
