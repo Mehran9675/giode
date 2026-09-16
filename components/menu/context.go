@@ -8,9 +8,15 @@ import (
 )
 
 // Context registers a window-wide right-click area. It must be laid
-// out with a context whose origin is the window origin (the app does
-// this for menus passed to SetContextMenu) and after the rest of the
-// UI so it isn't blocked by ordinary widgets. It never paints.
+// out with a context whose origin is the window origin and after the
+// rest of the UI so it isn't blocked by ordinary widgets. It never
+// paints.
+//
+// App.SetContextMenu does not call this - it has its own equivalent
+// window-wide listener (windowPointer, in the root package) instead,
+// so the app doesn't have to be told to lay Context out itself.
+// Context remains available for a menu scoped to one specific region
+// rather than the whole window.
 //
 // Ordering matters here in a way that's easy to get backwards: this
 // area uses pointer.PassOp so it never blocks widgets behind it, but

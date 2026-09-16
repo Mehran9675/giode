@@ -9,6 +9,7 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
+	"github.com/mehran9675/giode/state"
 )
 
 // Config configures the application window. The options cover the
@@ -119,10 +120,10 @@ type SingleInstanceLock struct {
 
 // App owns a window and its render loop.
 type App struct {
-	cfg     Config
-	window  *app.Window
-	drag    dragState
-	ctxMenu *menu.Menu
+	cfg        Config
+	window     *app.Window
+	winPointer windowPointer
+	ctxMenu    *menu.Menu
 
 	icon        image.Image
 	iconApplied bool
@@ -203,6 +204,7 @@ func New(cfg Config) *App {
 	if cfg.Center {
 		a.window.Perform(system.ActionCenter)
 	}
+	state.SetInvalidator(a.window.Invalidate)
 	return a
 }
 

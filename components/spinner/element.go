@@ -7,23 +7,43 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/styles"
 )
 
-// spinnerEl renders the rotating arc.
-type spinnerEl struct {
+// SpinnerElement renders the rotating arc.
+type SpinnerElement struct {
 	st styles.Styles
+
+	kit.HoverTracker
+	hoverSt styles.Styles
+}
+
+// OnHover sets styles applied while the pointer is over the spinner,
+// merged on top of its base styles. Hover state lives in the element,
+// so create it once and reuse it every frame; rebuilding it in the
+// view function resets the hover on each frame.
+func (s *SpinnerElement) OnHover(st styles.Styles) *SpinnerElement {
+	s.Enable()
+	s.hoverSt = st
+	return s
 }
 
 // Layout draws one frame of the animation and requests the next.
-func (s *spinnerEl) Layout(gtx layout.Context) layout.Dimensions {
-	sizeX := int(s.st.Width)
+func (s *SpinnerElement) Layout(gtx layout.Context) layout.Dimensions {
+	s.Update(gtx)
+	st := s.st
+	if s.Enabled() && s.Hovered() {
+		st = styles.Merge(s.st, s.hoverSt)
+	}
+
+	sizeX := int(st.Width)
 	if sizeX <= 0 {
 		sizeX = 32
 	}
-	sizeY := int(s.st.Height)
+	sizeY := int(st.Height)
 	if sizeY <= 0 {
 		sizeY = sizeX
 	}
@@ -35,19 +55,23 @@ func (s *spinnerEl) Layout(gtx layout.Context) layout.Dimensions {
 	if float32(size.Y)/2 < radius {
 		radius = float32(size.Y) / 2
 	}
-	c := properties.CalcColor(s.st.Color)
+	c := properties.CalcColor(st.Color)
 	if c.A == 0 {
 		c = defaultColor
 	}
 
-	defer op.Offset(image.Pt(size.X/2, size.Y/2)).Push(gtx.Ops).Pop()
+	off := op.Offset(image.Pt(size.X/2, size.Y/2)).Push(gtx.Ops)
 
 	dt := float32((time.Duration(gtx.Now.UnixNano()) % time.Second).Seconds())
 	startAngle := dt * math.Pi * 2
 	endAngle := startAngle + math.Pi*1.5
 
-	defer clipArc(gtx.Ops, startAngle, endAngle, radius).Push(gtx.Ops).Pop()
+	arcClip := clipArc(gtx.Ops, startAngle, endAngle, radius).Push(gtx.Ops)
 	paintFill(gtx.Ops, c)
+	arcClip.Pop()
+	off.Pop()
+
+	s.RegisterArea(gtx, image.Pt(0, 0), size, st.Cursor)
 
 	// Keep animating while visible.
 	gtx.Execute(op.InvalidateCmd{})

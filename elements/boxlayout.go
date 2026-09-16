@@ -3,6 +3,7 @@ package elements
 import (
 	"image"
 
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -14,8 +15,8 @@ import (
 
 // Layout resolves the box size and paints the background stack
 // (shadow, fill, image, border) with the content replayed on top.
-func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
-	st := b.st
+func (b *BoxElement) Layout(gtx layout.Context) layout.Dimensions {
+	st := b.resolveStyles(gtx)
 
 	// Margin carves space out of the constraints; the painted content
 	// is then offset inside it.
@@ -40,15 +41,22 @@ func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
 	flow, absolute := b.split()
 
 	// Lay the content out into a macro so the background can be
-	// painted underneath it once its size is known.
+	// painted underneath it once its size is known. Children's own
+	// Layout calls happen inside this block, so the absolute-position
+	// tracker (see absolute.go) must be pushed around it, not around
+	// the later replay below - by the time that runs, every child has
+	// already finished laying itself out.
 	macro := op.Record(gtx.Ops)
 	padding := st.Padding
 	cgtx := gtx
 	cgtx.Constraints = insetConstraints(gtx.Constraints, padding)
-	dims := b.layoutFlex(cgtx, flow)
+	contentOff := image.Pt(margin.Left+padding.Left, margin.Top+padding.Top)
+	popAbs := PushOffset(contentOff)
+	dims := b.layoutFlex(cgtx, st, flow)
 	if len(absolute) > 0 {
 		b.layoutAbsolute(cgtx, absolute, dims.Size)
 	}
+	popAbs()
 	content := macro.Stop()
 
 	size := dims.Size
@@ -83,9 +91,24 @@ func (b *boxEl) Layout(gtx layout.Context) layout.Dimensions {
 	bgOff.Pop()
 
 	// Replay the content at its padded position.
-	off := op.Offset(image.Pt(margin.Left+padding.Left, margin.Top+padding.Top)).Push(gtx.Ops)
+	off := op.Offset(contentOff).Push(gtx.Ops)
 	content.Add(gtx.Ops)
 	off.Pop()
+
+	// Register the hover area over the painted box. A pass-through
+	// region sees pointer events without blocking children above it.
+	if b.hover != nil {
+		bgOff := op.Offset(image.Pt(margin.Left, margin.Top)).Push(gtx.Ops)
+		ps := pointer.PassOp{}.Push(gtx.Ops)
+		cl := clip.Rect{Max: size}.Push(gtx.Ops)
+		b.hover.Add(gtx.Ops)
+		if b.hovered && st.Cursor != "" {
+			st.Cursor.CursorFor().Add(gtx.Ops)
+		}
+		cl.Pop()
+		ps.Pop()
+		bgOff.Pop()
+	}
 
 	return layout.Dimensions{
 		Size: image.Pt(size.X+margin.Left+margin.Right, size.Y+margin.Top+margin.Bottom),

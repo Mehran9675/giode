@@ -3,24 +3,31 @@ package elements
 import (
 	"sort"
 
+	"gioui.org/gesture"
 	"gioui.org/layout"
 
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-// boxEl is a container element: block flow, flex layout or a
+// BoxElement is a container element: a flex container and a
 // containing block for absolutely positioned children.
-type boxEl struct {
+type BoxElement struct {
 	st       styles.Styles
 	children []Element
+
+	// Hover styles, set with OnHover. The hovered field caches the
+	// last observed hover state.
+	hover   *gesture.Hover
+	hoverSt styles.Styles
+	hovered bool
 }
 
-// Box is a container element. Its display property selects between
-// block flow (children stacked vertically, filling the width), flex
-// layout, and none (not laid out).
-func Box(st styles.Styles, children ...Element) Element {
-	return &boxEl{st: st, children: children}
+// Box is a container element: children are laid along FlexDirection
+// with Align, Justify, Gap and Wrap. Chain OnHover to add hover
+// styles.
+func Box(st styles.Styles, children ...Element) *BoxElement {
+	return &BoxElement{st: st, children: children}
 }
 
 // flexible marks elements that carry layout hints: how much they
@@ -32,15 +39,15 @@ type flexible interface {
 	zIndex() int
 }
 
-func (b *boxEl) flexWeight(axis layout.Axis) int {
+func (b *BoxElement) flexWeight(axis layout.Axis) int {
 	return weightOf(b.st, axis)
 }
 
-func (b *boxEl) percentOf(axis layout.Axis) int {
+func (b *BoxElement) percentOf(axis layout.Axis) int {
 	return percentOf(b.st, axis)
 }
 
-func (b *boxEl) zIndex() int {
+func (b *BoxElement) zIndex() int {
 	return int(b.st.ZIndex)
 }
 
@@ -88,10 +95,10 @@ func zIndexOf(el Element) int {
 // split partitions children into flow and absolutely positioned
 // children, each sorted by z-index. Absolute positioning applies to
 // Box children.
-func (b *boxEl) split() (flow, absolute []Element) {
+func (b *BoxElement) split() (flow, absolute []Element) {
 	flow = make([]Element, 0, len(b.children))
 	for _, child := range b.children {
-		if box, ok := child.(*boxEl); ok && box.st.Position.Mode() == properties.PositionAbsolute {
+		if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {
 			absolute = append(absolute, child)
 		} else {
 			flow = append(flow, child)

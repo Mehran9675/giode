@@ -11,9 +11,9 @@ import (
 // Top/Left (or Right/Bottom) offsets within the parent's content box,
 // painting above the flow content. The children do not affect the
 // parent's size.
-func (b *boxEl) layoutAbsolute(gtx layout.Context, children []Element, size image.Point) {
+func (b *BoxElement) layoutAbsolute(gtx layout.Context, children []Element, size image.Point) {
 	for _, child := range children {
-		box, ok := child.(*boxEl)
+		box, ok := child.(*BoxElement)
 		if !ok {
 			continue
 		}
@@ -41,12 +41,22 @@ func (b *boxEl) layoutAbsolute(gtx layout.Context, children []Element, size imag
 			cgtx.Constraints.Max.Y = 0
 		}
 
+		// Left/top-anchored position is known upfront; right/bottom
+		// anchoring depends on the child's own size, so it can only be
+		// resolved after Layout returns. The absolute-position tracker
+		// (see absolute.go) is pushed with the upfront estimate before
+		// Layout runs (needed since children's own Layout calls happen
+		// here, not at the later replay below) - accurate for the
+		// common left/top case, an approximation for right/bottom.
+		x := int(st.Left)
+		y := int(st.Top)
+
+		popAbs := PushOffset(image.Pt(x, y))
 		macro := op.Record(gtx.Ops)
 		dims := box.Layout(cgtx)
 		childOps := macro.Stop()
+		popAbs()
 
-		x := int(st.Left)
-		y := int(st.Top)
 		if st.Left == 0 && st.Right > 0 {
 			x = size.X - int(st.Right) - dims.Size.X
 		}

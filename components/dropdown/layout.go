@@ -1,10 +1,10 @@
 package dropdown
 
 import (
-	"gioui.org/f32"
+	"image"
+
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
 
 	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
@@ -13,7 +13,10 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-// Layout lays out the field and, when open, the dropdown below it.
+// Layout lays out the field and, when open, queues the dropdown panel
+// as a portal (see elements.RegisterPortal) anchored just below it, so
+// it paints above everything else regardless of where Layout is
+// called from.
 func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	st := styles.Merge(styles.Styles{
 		Background:   properties.CalcColorReverse(defaultBackground),
@@ -29,13 +32,14 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	// Field.
-	macro := op.Record(gtx.Ops)
 	fieldDims := s.field.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		if s.st.Width > 0 {
 			gtx.Constraints.Min.X = int(s.st.Width)
 			gtx.Constraints.Max.X = int(s.st.Width)
 		}
+		fieldSt := st
 		if s.field.Hovered() {
+			fieldSt.BorderColor = kit.Hovered(st.BorderColor)
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		row := elements.Row(styles.Styles{Align: properties.AlignCenter},
@@ -43,31 +47,20 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 			elements.Box(styles.Styles{Width: 4}),
 			icon.Material("chevron-down", styles.Styles{Color: st.Color, Width: 16, Height: 16}),
 		)
-		return elements.Box(st, row).Layout(gtx)
+		return elements.Box(fieldSt, row).Layout(gtx)
 	})
-	fieldOps := macro.Stop()
+	// Keep the field clickable even inside a frameless window's
+	// whole-window drag area - see button.Layout's identical comment.
+	kit.BlockDrag(gtx, fieldDims.Size)
 
-	// Dropdown.
-	var dropdownDims layout.Dimensions
-	var dropdownOps op.CallOp
 	if s.open && len(s.options) > 0 {
-		m := op.Record(gtx.Ops)
-		dropdownDims = s.dropdown(gtx, st, fieldDims.Size.X)
-		dropdownOps = m.Stop()
-	}
-
-	fieldOps.Add(gtx.Ops)
-	if s.open && len(s.options) > 0 {
-		panelSize := f32.Pt(float32(dropdownDims.Size.X), float32(dropdownDims.Size.Y))
-		pos := kit.ClampPos(
-			f32.Pt(float32(gtx.Constraints.Max.X), float32(gtx.Constraints.Max.Y)),
-			panelSize,
-			f32.Pt(0, float32(fieldDims.Size.Y)+4),
-			kit.Margin,
-		)
-		off := op.Offset(pos.Round()).Push(gtx.Ops)
-		dropdownOps.Add(gtx.Ops)
-		off.Pop()
+		fieldWidth := fieldDims.Size.X
+		anchor := elements.AbsolutePosition().Add(image.Pt(0, fieldDims.Size.Y+4))
+		elements.RegisterPortal(gtx, anchor, func() elements.Element {
+			return elements.Raw(func(gtx layout.Context) layout.Dimensions {
+				return s.dropdown(gtx, st, fieldWidth)
+			})
+		})
 	}
 	return fieldDims
 }

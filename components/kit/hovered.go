@@ -1,8 +1,8 @@
 package kit
 
-import "image/color"
+import "github.com/mehran9675/giode/styles/properties"
 
 // Hovered returns the hover highlight of c: slightly lighter.
-func Hovered(c color.NRGBA) color.NRGBA {
+func Hovered(c properties.Color) properties.Color {
 	return Scale(c, 1.15)
 }

@@ -51,8 +51,44 @@ component authors need:
 | `kit.Hovered(c)` | Hover shading: slightly lighter. |
 | `kit.Pressed(c)` | Pressed shading: slightly darker. |
 | `kit.Alpha(c, a)` | Multiplies a color's alpha. |
+| `kit.HoverTracker` | Embeddable hover-tracking building block; gives a stateless element its own `OnHover`/`Hovered()`, the same way `Text`/`Divider`/`Image`/`Progress`/`Spinner` do. |
 | `kit.ClampPos(win, size, pos, margin)` | Keeps an overlay panel inside a window; flips above the anchor when it would overflow the bottom edge. |
 | `kit.Margin` | Default overlay-to-edge distance (8px). |
+| `kit.BlockDrag(gtx, size)` / `kit.BlockDragHere(gtx)` | Keeps a clickable/draggable/scrollable component working inside a frameless, draggable window (`Config{Frameless: true, Draggable: true}`): without it, a press on the component would be hijacked into moving the window instead of reaching the component. Call once after laying the component's own visual out, passing its measured size (`BlockDrag`), or inline if a clip scope for the component's own pointer/gesture registration is already open (`BlockDragHere`) — see `components/button`, `components/slider` for each pattern. |
+
+## Rendering above everything: portals
+
+`elements.RegisterPortal(gtx, anchor, build)` queues `build` to be laid out and painted
+after the rest of the view, regardless of how deeply nested the caller is in the element
+tree — the mechanism behind `Tooltip`, `Menu`'s panel and `Dropdown`'s options list. The
+app drains the queue once per frame via `elements.DrainPortals(gtx)` (already wired into
+`App.Run`), so a component author never calls that part themselves.
+
+`anchor` is a window-absolute point, typically `elements.AbsolutePosition()` (the
+accumulated offset at the current point in the layout traversal), optionally offset by
+the trigger's own size:
+
+```go
+anchor := elements.AbsolutePosition().Add(image.Pt(0, triggerHeight+4))
+elements.RegisterPortal(gtx, anchor, func() elements.Element {
+	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
+		return myPanel(gtx)
+	})
+})
+```
+
+`RegisterPortal` measures `build` once on a disabled scratch context to size it, then
+clamps the position inside the window with `kit.ClampPos` — the same technique `Menu`'s
+own panel sizing uses.
+
+`AbsolutePosition` is exact for a `Box`'s own content offset and for a
+left/top-anchored absolutely positioned child; it's an approximation (the shared
+container's origin, not the individual child's own offset) for one of several children
+distributed by a flex container (a `Row`/`Stack` with more than one child), since a flex
+container only knows where each child lands after measuring all of them. A custom
+element that positions its own children with `op.Offset` should call
+`elements.PushOffset(off)` (returns a pop func) around the same child so
+`AbsolutePosition`/`RegisterPortal` stay correct for content placed inside it.
 
 ## Worked example: a star rating
 
@@ -155,7 +191,9 @@ a toggle holds a `widget.Bool`.
   `elements`, `styles` and `kit`.
 - To mimic the built-ins, re-export it from the root `giode` package of a fork or wrap
   your own package in a small facade.
-- Overlays (menus, dropdowns, popovers) must be laid out last in the view to render above
-  the rest of the UI.
+- Overlays (menus, dropdowns, popovers, tooltips) should render their popup content via
+  `elements.RegisterPortal` rather than painting it in place — see "Rendering above
+  everything: portals" above — so it renders above the rest of the UI regardless of
+  where the component sits in the tree.
 
 See [architecture.md](architecture.md) for how the built-in components are organized.

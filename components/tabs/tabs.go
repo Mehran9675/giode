@@ -2,8 +2,6 @@
 package tabs
 
 import (
-	"image/color"
-
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/elements"
@@ -11,9 +9,9 @@ import (
 )
 
 var (
-	defaultActive     = color.NRGBA{R: 0x3b, G: 0x82, B: 0xf6, A: 0xff}
-	defaultText       = color.NRGBA{R: 0x94, G: 0xa3, B: 0xb8, A: 0xff}
-	defaultActiveText = color.NRGBA{R: 0xf8, G: 0xfa, B: 0xfc, A: 0xff}
+	defaultActive     = "#3b82f6"
+	defaultText       = "#94a3b8"
+	defaultActiveText = "#f8fafc"
 )
 
 // Tab is one tab: its label and the view shown while selected.

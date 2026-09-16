@@ -43,6 +43,7 @@ func main() {
 		},
 	})
 
+	textPg := NewTextPage()
 	buttonPg := NewButtonPage()
 	checkboxPg := NewCheckboxPage()
 	inputPg := NewInputPage()
@@ -54,6 +55,15 @@ func main() {
 	tabsPg := NewTabsPage()
 	scrollPg := NewScrollPage()
 	routerPg := NewRouterPage()
+	themePg := NewThemePage()
+	tooltipPg := NewTooltipPage()
+	dropdownMenuPg := NewDropdownMenuPage()
+	autocompletePg := NewAutocompletePage()
+	appShellPg := NewAppShellPage()
+	scrollObserverPg := NewScrollObserverPage()
+	statePg := NewStatePage()
+	accordionPg := NewAccordionPage()
+	paginationPg := NewPaginationPage()
 
 	app.SetContextMenu(NewShowcaseMenu())
 
@@ -63,7 +73,7 @@ func main() {
 			Gap:     20,
 			Padding: giode.SymmetricInset(10, 10),
 		},
-			TextShowcase(),
+			textPg.View(),
 			buttonPg.View(),
 			checkboxPg.View(),
 			inputPg.View(),
@@ -78,8 +88,18 @@ func main() {
 			ImageShowcase(),
 			IconsShowcase(),
 			DividerShowcase(),
+			TableShowcase(),
 			ResponsiveShowcase(),
 			routerPg.View(),
+			themePg.View(),
+			tooltipPg.View(),
+			dropdownMenuPg.View(),
+			autocompletePg.View(),
+			appShellPg.View(),
+			scrollObserverPg.View(),
+			statePg.View(),
+			accordionPg.View(),
+			paginationPg.View(),
 			MenuHint(),
 		)
 	}, giode.Styles{ScrollBar: giode.ScrollBar{ThumbColor: "#3b82f6"}})

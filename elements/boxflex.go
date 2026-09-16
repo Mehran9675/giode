@@ -6,14 +6,15 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 
+	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
 // layoutFlex lays children along an axis with align, justify and gap
 // distribution, wrapping onto new lines when Wrap is active and the
-// children overflow the main axis.
-func (b *boxEl) layoutFlex(gtx layout.Context, children []Element) layout.Dimensions {
-	st := b.st
+// children overflow the main axis. st may differ from b.st when hover
+// styles are active.
+func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children []Element) layout.Dimensions {
 	axis := st.FlexDirection.Axis()
 	mainMax := mainConstraint(gtx.Constraints, axis)
 
@@ -36,7 +37,7 @@ func (b *boxEl) layoutFlex(gtx layout.Context, children []Element) layout.Dimens
 	}
 
 	if st.Wrap.Resolved(axis) && mainMax < unbounded {
-		return b.layoutFlexWrap(gtx, children, axis, mainMax)
+		return b.layoutFlexWrap(gtx, st, children, axis, mainMax)
 	}
 
 	kids := make([]layout.FlexChild, 0, len(children))
@@ -102,8 +103,7 @@ type wrapLine struct {
 // space cannot be redistributed after a child has already been laid
 // out once, so Justify only spaces items apart (as it already does
 // for rigid children without wrap), it does not grow them.
-func (b *boxEl) layoutFlexWrap(gtx layout.Context, children []Element, axis layout.Axis, mainMax int) layout.Dimensions {
-	st := b.st
+func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, children []Element, axis layout.Axis, mainMax int) layout.Dimensions {
 	gap := int(st.Gap)
 
 	items := make([]wrapItem, 0, len(children))
@@ -187,7 +187,18 @@ func (b *boxEl) layoutFlexWrap(gtx layout.Context, children []Element, axis layo
 		mainSize = mainMax
 	}
 
-	return layout.Dimensions{Size: axisPoint(axis, mainSize, crossOffset)}
+	// The cross extent is clamped the same way, so a container with a
+	// forced cross size (e.g. Height: -1) still fills it even when its
+	// wrapped content is shorter.
+	crossSize := crossOffset
+	if minCross := axisCross(gtx.Constraints.Min, axis); crossSize < minCross {
+		crossSize = minCross
+	}
+	if maxCross := axisCross(gtx.Constraints.Max, axis); crossSize > maxCross {
+		crossSize = maxCross
+	}
+
+	return layout.Dimensions{Size: axisPoint(axis, mainSize, crossSize)}
 }
 
 // justifySpacing splits leftover main-axis space into a leading

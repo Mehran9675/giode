@@ -1,14 +1,17 @@
 // Package kit provides the small building blocks used to create
-// custom components: color state shading and overlay positioning.
+// custom components: color state shading, hover tracking and overlay
+// positioning (used by elements.RegisterPortal to keep click/hover
+// popups inside the window).
 //
 // See the "Extending the library" documentation for a full recipe.
 package kit
 
-import "image/color"
+import "github.com/mehran9675/giode/styles/properties"
 
 // Scale multiplies each channel of c by f, clamping to the valid
 // range.
-func Scale(c color.NRGBA, f float32) color.NRGBA {
+func Scale(c properties.Color, f float32) properties.Color {
+	nc := properties.CalcColor(c)
 	sc := func(v uint8) uint8 {
 		n := int(float32(v) * f)
 		if n > 0xff {
@@ -16,5 +19,6 @@ func Scale(c color.NRGBA, f float32) color.NRGBA {
 		}
 		return uint8(n)
 	}
-	return color.NRGBA{R: sc(c.R), G: sc(c.G), B: sc(c.B), A: c.A}
+	nc.R, nc.G, nc.B = sc(nc.R), sc(nc.G), sc(nc.B)
+	return properties.CalcColorReverse(nc)
 }

@@ -1,6 +1,9 @@
 package giode
 
 import (
+	"github.com/mehran9675/giode/components/accordion"
+	"github.com/mehran9675/giode/components/appshell"
+	"github.com/mehran9675/giode/components/autocomplete"
 	"github.com/mehran9675/giode/components/button"
 	"github.com/mehran9675/giode/components/checkbox"
 	"github.com/mehran9675/giode/components/dialog"
@@ -11,15 +14,18 @@ import (
 	"github.com/mehran9675/giode/components/input"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/components/menu"
+	"github.com/mehran9675/giode/components/pagination"
 	"github.com/mehran9675/giode/components/progress"
 	"github.com/mehran9675/giode/components/scroll"
 	"github.com/mehran9675/giode/components/slider"
 	"github.com/mehran9675/giode/components/spinner"
 	"github.com/mehran9675/giode/components/tabs"
 	"github.com/mehran9675/giode/components/title"
+	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/router"
+	"github.com/mehran9675/giode/state"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -36,6 +42,31 @@ type Breakpoint = elements.Breakpoint
 type Tab = tabs.Tab
 type Side = drawer.Side
 
+type Mode = properties.Mode
+type Palette = properties.Palette
+
+type AppShellConfig = appshell.Config
+type AppShellSlot = appshell.Slot
+
+type ButtonVariant = button.Variant
+
+// State is a minimal global-state primitive: an observable value
+// readable/writable from anywhere, including a goroutine outside the
+// render loop (a network response, a timer), not just from within a
+// Layout call. Create it with NewState.
+type State[T any] = state.State[T]
+
+// NewState returns a State holding initial.
+func NewState[T any](initial T) *State[T] {
+	return state.New(initial)
+}
+
+const (
+	VariantContained = button.VariantContained
+	VariantOutlined  = button.VariantOutlined
+	VariantGhost     = button.VariantGhost
+)
+
 type Router = router.Router
 type Route = router.Route
 
@@ -50,6 +81,11 @@ var (
 
 	Divider    = elements.Divider
 	Responsive = elements.Responsive
+
+	Table       = elements.Table
+	TableHeader = elements.TableHeader
+	TableRow    = elements.TableRow
+	TableCell   = elements.TableCell
 )
 
 // --- Components -----------------------------------------------------------
@@ -62,9 +98,12 @@ var (
 	Dialog = dialog.New
 	Menu   = menu.New
 
-	Progress = progress.Progress
-	Spinner  = spinner.Spinner
-	Image    = imageutil.New
+	Progress   = progress.Progress
+	Spinner    = spinner.Spinner
+	Image      = imageutil.New
+	Tooltip    = tooltip.New
+	Accordion  = accordion.New
+	Pagination = pagination.New
 
 	H1 = title.H1
 	H2 = title.H2
@@ -86,15 +125,20 @@ type InputAPI struct {
 	Slider func(st ...Styles) *slider.Slider
 	// Select creates a dropdown choosing among options.
 	Select func(st Styles, options ...string) *dropdown.Select
+	// AutoComplete creates a text field with a filtered suggestion
+	// list.
+	AutoComplete func(placeholder string, options []string, st ...Styles) *autocomplete.AutoComplete
 }
 
 // Input groups the form-control constructors that collect user
-// input: Input.Text, Input.Checkbox, Input.Slider and Input.Select.
+// input: Input.Text, Input.Checkbox, Input.Slider, Input.Select and
+// Input.AutoComplete.
 var Input = InputAPI{
-	Text:     input.New,
-	Checkbox: checkbox.New,
-	Slider:   slider.New,
-	Select:   dropdown.New,
+	Text:         input.New,
+	Checkbox:     checkbox.New,
+	Slider:       slider.New,
+	Select:       dropdown.New,
+	AutoComplete: autocomplete.New,
 }
 
 const (
@@ -110,7 +154,17 @@ var (
 	IconSVGCustom = icon.SVGCustom
 	IconImage     = icon.Image
 	IconIconVG    = icon.IconVG
+
+	// LoadIconSVG parses a whole .svg file's bytes (viewBox and one or
+	// more <path> elements), unlike IconSVG/IconSVGCustom, which take
+	// raw path data. Call .Icon(st...) on the result to render it.
+	LoadIconSVG = icon.LoadSVG
+	// MustLoadIconSVG is LoadIconSVG, panicking on error - convenient
+	// for bytes known at compile time, e.g. via go:embed.
+	MustLoadIconSVG = icon.MustLoadSVG
 )
+
+type IconDocument = icon.Document
 
 // --- Fonts ----------------------------------------------------------------
 
@@ -126,6 +180,57 @@ var (
 
 	UniformInset   = properties.UniformInset
 	SymmetricInset = properties.SymmetricInset
+)
+
+// --- Theming ---------------------------------------------------------------
+
+const (
+	ModeLight = properties.ModeLight
+	ModeDark  = properties.ModeDark
+)
+
+var (
+	// SetMode switches the active color mode, changing what every
+	// "theme.*" color token (e.g. Styles{Background: "theme.surface"})
+	// resolves to on the next frame.
+	SetMode = properties.SetMode
+	// CurrentMode returns the active color mode (ModeLight by
+	// default).
+	CurrentMode = properties.CurrentMode
+	// SetPalette replaces the palette used for mode m, changing what
+	// every "theme.*" color token resolves to while that mode is
+	// active. Start from DefaultLightPalette/DefaultDarkPalette to
+	// override just a few fields.
+	SetPalette = properties.SetPalette
+)
+
+// DefaultLightPalette and DefaultDarkPalette are the built-in
+// palettes for ModeLight/ModeDark, in effect until SetPalette
+// overrides one of them.
+var (
+	DefaultLightPalette = properties.DefaultLightPalette
+	DefaultDarkPalette  = properties.DefaultDarkPalette
+)
+
+// --- AppShell ---------------------------------------------------------------
+
+var (
+	// AppShell returns a full-window layout: Header/Navbar/Aside/Footer
+	// (each optional, via AppShellConfig) are fixed to their respective
+	// edges, and Main fills the remaining space, offset by whichever of
+	// them are present.
+	AppShell = appshell.New
+	// Header, Navbar, Aside and Footer build an AppShellConfig field -
+	// AppShellConfig{Header: giode.Header(60, ...), ...}.
+	Header = appshell.Header
+	Navbar = appshell.Navbar
+	Aside  = appshell.Aside
+	Footer = appshell.Footer
+	// Main wraps an AppShell's main content area.
+	Main = appshell.Main
+	// Section groups content inside a Navbar/Aside as a scrollable
+	// area.
+	Section = appshell.Section
 )
 
 // --- Routing ---------------------------------------------------------------

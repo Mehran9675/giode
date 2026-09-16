@@ -12,61 +12,98 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-// textEl renders a single string with its styles.
-type textEl struct {
+// TextElement renders a single string with its styles. Chain OnHover
+// to add hover styles.
+type TextElement struct {
 	str string
 	st  styles.Styles
+
+	kit.HoverTracker
+	hoverSt styles.Styles
 }
 
 // Text renders a string with the given styles. The styles argument is
 // optional.
-func Text(str string, st ...styles.Styles) Element {
+func Text(str string, st ...styles.Styles) *TextElement {
 	var s styles.Styles
 	if len(st) > 0 {
 		s = st[0]
 	}
-	return &textEl{str: str, st: s}
+	return &TextElement{str: str, st: s}
 }
 
-func (t *textEl) flexWeight(axis layout.Axis) int {
+// OnHover sets styles applied while the pointer is over the text,
+// merged on top of its base styles - color, decoration, weight,
+// anything Styles' text properties support:
+//
+//	label := giode.Text("Docs", giode.Styles{Color: "#94a3b8"}).OnHover(giode.Styles{
+//		Color:          "#f8fafc",
+//		TextDecoration: giode.TextDecorationUnderline,
+//		Cursor:         giode.CursorPointer,
+//	})
+//
+// Hover state lives in the element, so create it once and reuse it
+// every frame; rebuilding it in the view function resets the hover on
+// each frame.
+func (t *TextElement) OnHover(st styles.Styles) *TextElement {
+	t.Enable()
+	t.hoverSt = st
+	return t
+}
+
+func (t *TextElement) flexWeight(axis layout.Axis) int {
 	return weightOf(t.st, axis)
 }
 
-func (t *textEl) percentOf(axis layout.Axis) int {
+func (t *TextElement) percentOf(axis layout.Axis) int {
 	return percentOf(t.st, axis)
 }
 
-func (t *textEl) zIndex() int {
+func (t *TextElement) zIndex() int {
 	return int(t.st.ZIndex)
 }
 
+// resolveStyles returns the styles to lay out and paint with: the
+// base styles, with the hover styles merged on top while hovered.
+func (t *TextElement) resolveStyles() styles.Styles {
+	if !t.Enabled() || !t.Hovered() {
+		return t.st
+	}
+	return styles.Merge(t.st, t.hoverSt)
+}
+
 // Layout shapes and paints the text with its decoration.
-func (t *textEl) Layout(gtx layout.Context) layout.Dimensions {
+func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
+	t.Update(gtx)
+	st := t.resolveStyles()
+
 	if fonts.Shaper() == nil {
 		return layout.Dimensions{}
 	}
-	col := properties.ResolveColor(t.st.Color)
+	col := properties.ResolveColor(st.Color)
 	colMacro := op.Record(gtx.Ops)
 	paint.ColorOp{Color: col}.Add(gtx.Ops)
 	textColor := colMacro.Stop()
 
 	face := font.Font{
-		Weight:   t.st.FontWeight.Weight(),
-		Style:    t.st.FontStyle.Style(),
-		Typeface: font.Typeface(t.st.FontFamily),
+		Weight:   st.FontWeight.Weight(),
+		Style:    st.FontStyle.Style(),
+		Typeface: font.Typeface(st.FontFamily),
 	}
 	dims := widget.Label{
-		Alignment:  t.st.TextAlign.LayoutAlignment(),
-		MaxLines:   int(t.st.MaxLines),
-		LineHeight: unit.Sp(t.st.LineHeight),
-	}.Layout(gtx, fonts.Shaper(), face, properties.ResolveFontSize(t.st.FontSize), t.str, textColor)
+		Alignment:  st.TextAlign.LayoutAlignment(),
+		MaxLines:   int(st.MaxLines),
+		LineHeight: unit.Sp(st.LineHeight),
+	}.Layout(gtx, fonts.Shaper(), face, properties.ResolveFontSize(st.FontSize), t.str, textColor)
 
-	paintDecoration(gtx, dims.Size, t.st.TextDecoration, col)
+	paintDecoration(gtx, dims.Size, st.TextDecoration, col)
+	t.RegisterArea(gtx, image.Pt(0, 0), dims.Size, st.Cursor)
 	return dims
 }
 

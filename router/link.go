@@ -1,18 +1,17 @@
 package router
 
 import (
-	"image/color"
-
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/widget"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-var defaultLinkColor = color.NRGBA{R: 0x60, G: 0xa5, B: 0xfa, A: 0xff}
+var defaultLinkColor = "#60a5fa"
 
 // Link returns a clickable element that navigates to path when
 // clicked.
@@ -32,17 +31,21 @@ func (r *Router) Link(path, text string, st ...styles.Styles) elements.Element {
 			r.Navigate(path)
 		}
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			col := properties.CalcColor(s.Color)
-			if col.A == 0 {
+			col := s.Color
+			if col == "" {
 				col = defaultLinkColor
 			}
+			deco := s.TextDecoration
 			if click.Hovered() {
+				col = kit.Hovered(col)
+				deco = properties.TextDecorationUnderline
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
 			return elements.Box(styles.Styles{
-				Color:      properties.CalcColorReverse(col),
-				FontSize:   s.FontSize,
-				FontWeight: properties.FontWeightMedium,
+				Color:          col,
+				FontSize:       s.FontSize,
+				FontWeight:     properties.FontWeightMedium,
+				TextDecoration: deco,
 			}, elements.Text(text)).Layout(gtx)
 		})
 	})

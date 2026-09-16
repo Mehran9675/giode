@@ -5,6 +5,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -36,7 +37,7 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 			}
 			gtx.Execute(op.InvalidateCmd{})
 		}
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			rowSt := styles.Styles{
 				Padding:      properties.SymmetricInset(12, 8),
 				BorderRadius: 4,
@@ -47,5 +48,10 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 			}
 			return elements.Box(rowSt, elements.Text(s.options[i], styles.Styles{Color: st.Color})).Layout(gtx)
 		})
+		// Keep the option clickable even when a frameless window's
+		// whole-window drag area happens to reach this portal - see
+		// button.Layout's identical comment.
+		kit.BlockDrag(gtx, dims.Size)
+		return dims
 	})
 }

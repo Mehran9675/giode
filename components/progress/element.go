@@ -6,28 +6,48 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/styles"
 )
 
-// progressEl renders the track and fill.
-type progressEl struct {
+// ProgressElement renders the track and fill.
+type ProgressElement struct {
 	value float32
 	st    styles.Styles
+
+	kit.HoverTracker
+	hoverSt styles.Styles
+}
+
+// OnHover sets styles applied while the pointer is over the bar,
+// merged on top of its base styles. Hover state lives in the element,
+// so create it once and reuse it every frame; rebuilding it in the
+// view function resets the hover on each frame.
+func (p *ProgressElement) OnHover(st styles.Styles) *ProgressElement {
+	p.Enable()
+	p.hoverSt = st
+	return p
 }
 
 // Layout renders the bar.
-func (p *progressEl) Layout(gtx layout.Context) layout.Dimensions {
-	height := int(p.st.Height)
+func (p *ProgressElement) Layout(gtx layout.Context) layout.Dimensions {
+	p.Update(gtx)
+	st := p.st
+	if p.Enabled() && p.Hovered() {
+		st = styles.Merge(p.st, p.hoverSt)
+	}
+
+	height := int(st.Height)
 	if height <= 0 {
 		height = 8
 	}
-	track := p.st.Background
+	track := st.Background
 	if properties.CalcColor(track).A == 0 {
 		track = properties.CalcColorReverse(defaultTrack)
 	}
-	fill := p.st.Color
+	fill := st.Color
 	if properties.CalcColor(fill).A == 0 {
 		fill = properties.CalcColorReverse(defaultFill)
 	}
@@ -49,5 +69,6 @@ func (p *progressEl) Layout(gtx layout.Context) layout.Dimensions {
 		defer clip.UniformRRect(image.Rect(0, 0, fillW, height), height/2).Push(gtx.Ops).Pop()
 		paint.Fill(gtx.Ops, properties.CalcColor(fill))
 	}
+	p.RegisterArea(gtx, image.Pt(0, 0), size, st.Cursor)
 	return layout.Dimensions{Size: size}
 }

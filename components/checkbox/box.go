@@ -47,18 +47,16 @@ func (c *Checkbox) box() elements.Element {
 		checked := c.bool.Value
 		fill := stOrDefault(c.st.Background, defaultChecked)
 		border := stOrDefault(c.st.BorderColor, defaultBox)
-		fillColor := properties.CalcColor(fill)
-		borderColor := properties.CalcColor(border)
 		switch {
 		case !checked && c.bool.Hovered():
-			borderColor = kit.Hovered(borderColor)
+			border = kit.Hovered(border)
 		case checked && c.bool.Hovered():
-			fillColor = kit.Hovered(fillColor)
+			fill = kit.Hovered(fill)
 		}
 
 		defer clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops).Pop()
 		if checked {
-			paint.Fill(gtx.Ops, fillColor)
+			paint.Fill(gtx.Ops, properties.CalcColor(fill))
 			iconSt := styles.Merge(styles.Styles{
 				Color:  defaultIcon,
 				Width:  properties.Width(size.X),
@@ -66,7 +64,7 @@ func (c *Checkbox) box() elements.Element {
 			}, c.iconSt)
 			icon.Material(c.iconName, iconSt).Layout(gtx)
 		} else {
-			properties.PaintBorder(gtx.Ops, size, properties.BorderWidth(borderWidth), properties.CalcColorReverse(borderColor), properties.BorderRadius(radius))
+			properties.PaintBorder(gtx.Ops, size, properties.BorderWidth(borderWidth), border, properties.BorderRadius(radius))
 		}
 		return layout.Dimensions{Size: size}
 	})

@@ -24,9 +24,21 @@ var defaultColors = map[string]string{
 // shadows, component defaults) behaves consistently; an unrecognized
 // non-empty name falls back to white so a typo is visible rather than
 // silently invisible.
+//
+// A "theme.<field>" value (e.g. "theme.primary", "theme.background")
+// resolves against the active Palette instead of a fixed color - see
+// SetMode/SetPalette - so restyling the palette or switching mode
+// updates every element styled with that token, without editing each
+// one.
 func CalcColor(c string) color.NRGBA {
 	if c == "" {
 		return color.NRGBA{}
+	}
+	if strings.HasPrefix(c, "theme.") {
+		if resolved, ok := themeToken(c); ok {
+			return CalcColor(resolved)
+		}
+		return Hex(defaultColors["white"])
 	}
 	if !strings.HasPrefix(c, "#") {
 		if value, ok := defaultColors[c]; ok {

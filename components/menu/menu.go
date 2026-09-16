@@ -18,20 +18,39 @@ type Item struct {
 	separator bool
 	click     *widget.Clickable
 	action    func()
+	submenu   *Menu
 }
 
 // Menu is a stateful context menu. Register it with App.SetContextMenu
-// to open it with a right-click anywhere in the window, or call
-// OpenAt/Toggle directly.
+// to open it with a right-click anywhere in the window, call
+// OpenAt/Toggle directly, or wrap a trigger element with Trigger for a
+// click-to-open dropdown menu.
 //
 // When SetContextMenu is used the app registers the right-click area
-// and renders the menu on top automatically; otherwise lay the menu
-// out last in the view.
+// and renders the menu on top automatically; otherwise lay Menu out
+// anywhere in the view (its panel renders via elements.RegisterPortal,
+// so it paints above everything else regardless of tree position).
 type Menu struct {
 	items  []Item
 	open   bool
 	pos    f32.Point
 	styles styles.Styles
+
+	// openSubmenu is the index of the item whose submenu is showing,
+	// or -1. It persists once hover opens a submenu - set again every
+	// frame while that item stays the active one - rather than closing
+	// the moment the pointer leaves the row, so moving into the
+	// submenu's own (separately positioned) panel doesn't flicker it
+	// shut; it only changes when a sibling submenu item is hovered, or
+	// this menu closes.
+	openSubmenu int
+	// isSubmenu marks a Menu opened via SubMenu rather than
+	// SetContextMenu/OpenAt/Trigger: its visibility is driven entirely
+	// by the parent row's hover (openSubmenu above), so it skips its
+	// own dismiss-on-outside-click scrim and Escape handling, which
+	// would otherwise need to cover the whole window from deep inside
+	// the parent panel's own (much smaller) layout constraints.
+	isSubmenu bool
 
 	scrim widget.Clickable
 }
@@ -40,7 +59,7 @@ type Menu struct {
 // Background, BorderRadius, Padding and Color (item text) are
 // honored; the rest fall back to defaults.
 func New(st ...styles.Styles) *Menu {
-	m := &Menu{}
+	m := &Menu{openSubmenu: -1}
 	if len(st) > 0 {
 		m.styles = st[0]
 	}
@@ -82,6 +101,22 @@ func (m *Menu) Separator() *Menu {
 	return m
 }
 
+// SubMenu appends an item that reveals submenu as a nested panel,
+// cascading to the side, when hovered. submenu is a *Menu of its own
+// - built the same way as any other (Item, IconItem, Separator,
+// SubMenu for further nesting) - but must not be registered with
+// SetContextMenu, OpenAt, Toggle or Trigger itself: this item's hover
+// state is its only way of opening. It returns m for chaining.
+func (m *Menu) SubMenu(label string, submenu *Menu) *Menu {
+	submenu.isSubmenu = true
+	m.items = append(m.items, Item{
+		label:   label,
+		click:   new(widget.Clickable),
+		submenu: submenu,
+	})
+	return m
+}
+
 // OpenAt opens the menu anchored at p, in window pixel coordinates.
 func (m *Menu) OpenAt(p f32.Point) {
 	m.pos = p
@@ -91,15 +126,22 @@ func (m *Menu) OpenAt(p f32.Point) {
 // Toggle flips the menu state, anchored at p.
 func (m *Menu) Toggle(p f32.Point) {
 	if m.open {
-		m.open = false
+		m.Close()
 		return
 	}
 	m.OpenAt(p)
 }
 
-// Close closes the menu.
+// Close closes the menu, and any open submenu (recursively, in case a
+// submenu itself has a submenu open).
 func (m *Menu) Close() {
 	m.open = false
+	m.openSubmenu = -1
+	for i := range m.items {
+		if sub := m.items[i].submenu; sub != nil {
+			sub.Close()
+		}
+	}
 }
 
 // Opened reports whether the menu is open.

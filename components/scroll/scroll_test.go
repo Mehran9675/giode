@@ -1,0 +1,126 @@
+package scroll
+
+import (
+	"image"
+	"testing"
+
+	"gioui.org/layout"
+	"gioui.org/op"
+
+	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/styles"
+	"github.com/mehran9675/giode/styles/properties"
+)
+
+func tallContent(height int) func() elements.Element {
+	return func() elements.Element {
+		return elements.Box(styles.Styles{Width: -1, Height: properties.Height(height)})
+	}
+}
+
+func TestScroll_ShortContentIsAtBottomImmediately(t *testing.T) {
+	s := New(tallContent(50))
+
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(200, 200))}
+	s.Layout(gtx)
+
+	if !s.AtBottom() {
+		t.Error("content shorter than the viewport: AtBottom() = false, want true (nothing to scroll)")
+	}
+	if got := s.Progress(); got != 0 {
+		t.Errorf("Progress() = %v, want 0", got)
+	}
+	if s.ContentHeight() != 50 {
+		t.Errorf("ContentHeight() = %d, want 50", s.ContentHeight())
+	}
+	if s.ViewportHeight() != 200 {
+		t.Errorf("ViewportHeight() = %d, want 200", s.ViewportHeight())
+	}
+}
+
+func TestScroll_OnReachBottomFiresOnceOnRisingEdge(t *testing.T) {
+	s := New(tallContent(1000))
+
+	calls := 0
+	s.OnReachBottom(func() { calls++ })
+
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(200, 200))}
+
+	s.Layout(gtx) // not at bottom yet (content 1000 > viewport 200)
+	if calls != 0 {
+		t.Fatalf("calls = %d before reaching bottom, want 0", calls)
+	}
+
+	s.ScrollTo(800) // maxOffset = 1000-200 = 800
+	s.Layout(gtx)
+	if calls != 1 {
+		t.Fatalf("calls = %d after scrolling to bottom, want 1", calls)
+	}
+
+	// Staying at the bottom across more frames doesn't fire again.
+	s.Layout(gtx)
+	s.Layout(gtx)
+	if calls != 1 {
+		t.Fatalf("calls = %d after staying at the bottom, want 1 (edge-triggered)", calls)
+	}
+
+	// Scrolling away and back fires it again.
+	s.ScrollTo(0)
+	s.Layout(gtx)
+	if calls != 1 {
+		t.Fatalf("calls = %d after scrolling away from the bottom, want 1 (unchanged)", calls)
+	}
+	s.ScrollTo(800)
+	s.Layout(gtx)
+	if calls != 2 {
+		t.Fatalf("calls = %d after scrolling back to the bottom, want 2", calls)
+	}
+}
+
+func TestScroll_Progress(t *testing.T) {
+	s := New(tallContent(1000))
+
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(200, 200))}
+	s.Layout(gtx) // maxOffset = 800
+
+	s.ScrollTo(400)
+	s.Layout(gtx)
+	if got, want := s.Progress(), float32(0.5); got != want {
+		t.Errorf("Progress() at offset 400/800 = %v, want %v", got, want)
+	}
+
+	s.ScrollTo(800)
+	s.Layout(gtx)
+	if got, want := s.Progress(), float32(1); got != want {
+		t.Errorf("Progress() at offset 800/800 = %v, want %v", got, want)
+	}
+}
+
+func TestScroll_Visible(t *testing.T) {
+	s := New(tallContent(1000))
+
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(200, 200))}
+	s.ScrollTo(300)
+	s.Layout(gtx) // viewport now covers content [300, 500)
+
+	cases := []struct {
+		top, height int
+		want        bool
+	}{
+		{0, 100, false},   // [0,100) entirely above the viewport
+		{600, 100, false}, // [600,700) entirely below the viewport
+		{250, 100, true},  // [250,350) overlaps the top edge
+		{450, 100, true},  // [450,550) overlaps the bottom edge
+		{320, 50, true},   // [320,370) fully inside
+		{300, 200, true},  // exactly the viewport
+	}
+	for _, c := range cases {
+		if got := s.Visible(c.top, c.height); got != c.want {
+			t.Errorf("Visible(%d, %d) = %v, want %v", c.top, c.height, got, c.want)
+		}
+	}
+}

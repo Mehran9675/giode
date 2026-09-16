@@ -24,3 +24,40 @@ func MenuHint() giode.Element {
 		giode.Text("Right-click anywhere", giode.Styles{Color: "white"}),
 	)
 }
+
+// dropdownMenuPage demonstrates Menu.Trigger (a click-to-open, widget-
+// anchored dropdown menu) and Menu.SubMenu (a hover-triggered nested
+// panel), created once so their open/hover state persists.
+type dropdownMenuPage struct {
+	trigger giode.Element
+	menu    giode.Element
+}
+
+func NewDropdownMenuPage() *dropdownMenuPage {
+	share := giode.Menu().
+		Item("Email", func() { log.Println("share: email") }).
+		Item("Link", func() { log.Println("share: link") })
+
+	m := giode.Menu().
+		Item("New", func() { log.Println("file: new") }).
+		SubMenu("Share", share).
+		Separator().
+		Item("Quit", func() { log.Println("file: quit") })
+
+	trigger := giode.Button("File", giode.Styles{
+		Background: "gray", BorderRadius: 6,
+	})
+
+	return &dropdownMenuPage{
+		trigger: m.Trigger(trigger),
+		menu:    m,
+	}
+}
+
+func (p *dropdownMenuPage) View() giode.Element {
+	return giode.Stack(boxStyle,
+		giode.Text("Dropdown menu", textStyle),
+		p.trigger,
+		p.menu,
+	)
+}

@@ -2,7 +2,6 @@ package tabs
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
@@ -21,12 +20,12 @@ func (t *Tabs) Layout(gtx layout.Context) layout.Dimensions {
 	if len(t.tabs) == 0 {
 		return layout.Dimensions{}
 	}
-	active := properties.CalcColor(t.st.Color)
-	if active.A == 0 {
+	active := t.st.Color
+	if active == "" {
 		active = defaultActive
 	}
-	activeText := properties.CalcColor(t.st.BorderColor)
-	if activeText.A == 0 {
+	activeText := t.st.BorderColor
+	if activeText == "" {
 		activeText = defaultActiveText
 	}
 
@@ -49,7 +48,7 @@ func (t *Tabs) Layout(gtx layout.Context) layout.Dimensions {
 }
 
 // tabButtons returns one header element per tab.
-func (t *Tabs) tabButtons(active, activeText color.NRGBA) []elements.Element {
+func (t *Tabs) tabButtons(active, activeText properties.Color) []elements.Element {
 	els := make([]elements.Element, 0, len(t.tabs))
 	for i := range t.tabs {
 		els = append(els, t.tabButton(i, active, activeText))
@@ -58,7 +57,7 @@ func (t *Tabs) tabButtons(active, activeText color.NRGBA) []elements.Element {
 }
 
 // tabButton renders one clickable tab header.
-func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element {
+func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.Element {
 	click := t.clicks[i]
 	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 		if click.Clicked(gtx) {
@@ -68,7 +67,7 @@ func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element
 			}
 			gtx.Execute(op.InvalidateCmd{})
 		}
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			sel := i == t.selected
 			textColor := defaultText
 			if sel {
@@ -82,7 +81,7 @@ func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element
 			st := styles.Styles{
 				Padding: properties.SymmetricInset(12, 8),
 			}
-			content := elements.Text(t.tabs[i].Label, styles.Styles{Color: properties.CalcColorReverse(textColor), FontSize: 14})
+			content := elements.Text(t.tabs[i].Label, styles.Styles{Color: textColor, FontSize: 14})
 			if !sel {
 				return elements.Box(st, content).Layout(gtx)
 			}
@@ -93,9 +92,14 @@ func (t *Tabs) tabButton(i int, active, activeText color.NRGBA) elements.Element
 			defer clip.Rect{Max: dims.Size}.Push(gtx.Ops).Pop()
 			contentOps.Add(gtx.Ops)
 			off := op.Offset(image.Pt(0, dims.Size.Y-2)).Push(gtx.Ops)
-			paint.FillShape(gtx.Ops, active, clip.Rect{Max: image.Pt(dims.Size.X, 2)}.Op())
+			paint.FillShape(gtx.Ops, properties.CalcColor(active), clip.Rect{Max: image.Pt(dims.Size.X, 2)}.Op())
 			off.Pop()
 			return dims
 		})
+		// Keep the tab clickable even inside a frameless window's
+		// whole-window drag area - see button.Layout's identical
+		// comment.
+		kit.BlockDrag(gtx, dims.Size)
+		return dims
 	})
 }

@@ -4,7 +4,6 @@ package progress
 import (
 	"image/color"
 
-	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 )
 
@@ -15,11 +14,11 @@ var (
 
 // Progress is a stateless determinate progress bar. It expands to the
 // available width; the height defaults to 8px. Color is the fill and
-// Background is the track.
-func Progress(value float32, st ...styles.Styles) elements.Element {
+// Background is the track. Chain OnHover to add hover styles.
+func Progress(value float32, st ...styles.Styles) *ProgressElement {
 	var s styles.Styles
 	if len(st) > 0 {
 		s = st[0]
 	}
-	return &progressEl{value: value, st: s}
+	return &ProgressElement{value: value, st: s}
 }

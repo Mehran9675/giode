@@ -11,14 +11,26 @@ stays reachable everywhere.
   always-on-top, per-axis size bounds, initial window state, window icon, lifecycle
   callbacks (startup, ready, shutdown, close) and a single-instance lock, plus runtime
   actions (minimize, maximize, center, raise, close).
-- **Elements** — `Box`, `Row`, `Stack`, `Text`, `Divider`, `Raw`, `Responsive`.
-- **Components** — Button, Progress, Spinner, Tabs, Drawer, Dialog, Scroll, Title, Image,
-  a right-click context Menu with window-bounds clamping, and the form controls grouped
-  under `Input`: Text, Checkbox, Slider, Select.
+- **Elements** — `Box`, `Row`, `Stack`, `Text`, `Divider`, `Table`/`TableHeader`/
+  `TableRow`/`TableCell`, `Raw`, `Responsive`, most with `OnHover` for pointer-reactive
+  styling.
+- **Components** — Button (contained/outlined/ghost variants), Progress, Spinner, Tabs,
+  Drawer, Dialog, Scroll (with intersection-observer-style `OnReachBottom`/`Visible`),
+  Title, Image, Tooltip, Accordion, Pagination, AppShell (Header/Navbar/Aside/Footer/
+  Main/Section), a Menu with a right-click trigger, a widget-anchored dropdown trigger
+  and hover-nested submenus, and the form controls grouped under `Input`: Text,
+  Checkbox, Slider, Select, AutoComplete.
+- **Portals** — any component can render above everything else regardless of nesting
+  depth via `elements.RegisterPortal` - the mechanism behind Tooltip, Menu's panel and
+  Dropdown/AutoComplete's suggestion list.
+- **Theming** — a `Palette` of semantic colors and a light/dark `Mode`; any `"theme.*"`
+  color token (e.g. `Background: "theme.surface"`) follows `SetMode`/`SetPalette`.
+- **Global state** — `State[T]`, a generic observable value readable/writable from
+  anywhere, including a goroutine outside the render loop.
 - **CSS-like styling** — 40+ properties, each defined in its own file, extensible by design.
 - **Routing** — `NewRouter`, `Push`/`Navigate`/`Back`, `Link`.
 - **Breakpoints** — `Responsive` switches views when the available width crosses a threshold.
-- **Icons** — Material set, SVG path data, IconVG, plain images.
+- **Icons** — Material set, SVG path data, a full `.svg` file loader, IconVG, plain images.
 - **Component kit** — create your own components with the same helpers the built-ins use.
 - **Low-level escape hatches** — `Raw`, `RunRaw`, `App.Window()`.
 
@@ -29,6 +41,7 @@ stays reachable everywhere.
 - [Elements](elements.md)
 - [Style properties](styles.md)
 - [Components](components/)
+- [Global state](state.md)
 - [Routing](routing.md)
 - [Extending the library](extending.md)
 - [Architecture](architecture.md)
@@ -46,6 +59,7 @@ underlying packages stay importable directly:
 | `elements` | Stateless building blocks |
 | `components/*` | Stateful components, one directory each |
 | `components/kit` | Helpers for custom components |
+| `state` | The generic `State[T]` global-state primitive |
 | `router` | Navigation |
 | `fonts` | Font/shaper registry |
 

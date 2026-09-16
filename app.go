@@ -82,17 +82,15 @@ func (a *App) runLoop(view func() Element) error {
 			a.handleViewEvent(e)
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
+			elements.SetWindowSize(gtx.Constraints.Max)
 			paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
-			if a.cfg.Frameless && a.cfg.Draggable {
-				a.drag.layout(gtx)
-			}
-			if a.ctxMenu != nil {
-				a.ctxMenu.Context(gtx)
-			}
+			layoutDrag(a, gtx)
 			view().Layout(gtx)
+			a.winPointer.layout(a, gtx)
 			if a.ctxMenu != nil {
 				a.ctxMenu.Layout(gtx)
 			}
+			elements.DrainPortals(gtx)
 			e.Frame(gtx.Ops)
 			if !ready {
 				ready = true

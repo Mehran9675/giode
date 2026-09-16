@@ -5,18 +5,18 @@ package spinner
 import (
 	"image/color"
 
-	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 )
 
 var defaultColor = color.NRGBA{R: 0x3b, G: 0x82, B: 0xf6, A: 0xff}
 
 // Spinner is a stateless animated loading indicator. Color sets the
-// arc color and Width/Height the size (default 32px).
-func Spinner(st ...styles.Styles) elements.Element {
+// arc color and Width/Height the size (default 32px). Chain OnHover
+// to add hover styles.
+func Spinner(st ...styles.Styles) *SpinnerElement {
 	var s styles.Styles
 	if len(st) > 0 {
 		s = st[0]
 	}
-	return &spinnerEl{st: s}
+	return &SpinnerElement{st: s}
 }

@@ -9,26 +9,48 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/widget"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-// imageEl renders an image scaled into its box.
-type imageEl struct {
+// ImageElement renders an image scaled into its box. Chain OnHover to
+// add hover styles.
+type ImageElement struct {
 	img image.Image
 	st  styles.Styles
+
+	kit.HoverTracker
+	hoverSt styles.Styles
+}
+
+// OnHover sets styles applied while the pointer is over the image,
+// merged on top of its base styles - Opacity and BorderRadius are the
+// properties Image paints. Hover state lives in the element, so
+// create it once and reuse it every frame; rebuilding it in the view
+// function resets the hover on each frame.
+func (i *ImageElement) OnHover(st styles.Styles) *ImageElement {
+	i.Enable()
+	i.hoverSt = st
+	return i
 }
 
 // Layout renders the image.
-func (i *imageEl) Layout(gtx layout.Context) layout.Dimensions {
-	if i.st.Width != 0 {
-		gtx.Constraints.Min.X, gtx.Constraints.Max.X = int(i.st.Width), int(i.st.Width)
+func (i *ImageElement) Layout(gtx layout.Context) layout.Dimensions {
+	i.Update(gtx)
+	st := i.st
+	if i.Enabled() && i.Hovered() {
+		st = styles.Merge(i.st, i.hoverSt)
 	}
-	if i.st.Height != 0 {
-		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = int(i.st.Height), int(i.st.Height)
+
+	if st.Width != 0 {
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = int(st.Width), int(st.Width)
+	}
+	if st.Height != 0 {
+		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = int(st.Height), int(st.Height)
 	}
 	var fit widget.Fit
-	switch i.st.Fit.Mode() {
+	switch st.Fit.Mode() {
 	case properties.FitNone:
 		fit = widget.Unscaled
 	case properties.FitCover:
@@ -44,9 +66,19 @@ func (i *imageEl) Layout(gtx layout.Context) layout.Dimensions {
 		Fit: fit,
 	}.Layout(gtx)
 	imgOps := macro.Stop()
-	if i.st.BorderRadius > 0 {
-		defer clip.UniformRRect(image.Rectangle{Max: dims.Size}, int(i.st.BorderRadius)).Push(gtx.Ops).Pop()
+
+	opacity := float32(st.Opacity)
+	if opacity == 0 {
+		opacity = 1
+	}
+	if opacity < 1 {
+		opStack := paint.PushOpacity(gtx.Ops, opacity)
+		defer opStack.Pop()
+	}
+	if st.BorderRadius > 0 {
+		defer clip.UniformRRect(image.Rectangle{Max: dims.Size}, int(st.BorderRadius)).Push(gtx.Ops).Pop()
 	}
 	imgOps.Add(gtx.Ops)
+	i.RegisterArea(gtx, image.Pt(0, 0), dims.Size, st.Cursor)
 	return dims
 }

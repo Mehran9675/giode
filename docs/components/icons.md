@@ -25,6 +25,21 @@ Supports the commands M, L, H, V, C, S, Q, T, A, Z in absolute or relative form,
 from a 24x24 viewBox. `IconSVGCustom(pathData, viewBox, st)` scales from a custom viewBox.
 Arc commands (`A`) degrade to straight lines.
 
+## SVG file
+
+`IconSVG`/`IconSVGCustom` take raw path *data*. To load a whole `.svg` file (viewBox and
+one or more `<path>` elements, including ones nested in `<g>` groups), use
+`LoadIconSVG`/`MustLoadIconSVG`:
+
+```go
+doc := giode.MustLoadIconSVG(svgBytes) // or LoadIconSVG for an (icon, error)
+icon := doc.Icon(giode.Styles{Color: "#fff", Width: 24, Height: 24})
+```
+
+Every path in the document fills with the same `Color`, like the other icon formats -
+per-path fill colors from the source file aren't preserved. Stroke-only icon sets
+(`fill="none"` with a visible stroke) aren't rendered; only fill geometry is supported.
+
 ## IconVG
 
 Gio's native vector format:

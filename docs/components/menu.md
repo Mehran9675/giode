@@ -27,7 +27,46 @@ menu.Close()
 menu.Opened()
 ```
 
-Without `SetContextMenu`, lay the menu out **last** in the view so it renders above the UI.
+Without `SetContextMenu`, lay the menu out anywhere in the view - its panel renders via
+a portal (see [extending.md](../extending.md#rendering-above-everything-portals)), so it
+paints above everything else regardless of tree position.
+
+## Dropdown menu: Trigger
+
+Wrap any element so clicking it opens the menu anchored just below, like a "File" menu
+button:
+
+```go
+trigger := giode.Button("File", giode.Styles{Background: "gray"})
+wrapped := menu.Trigger(trigger)
+
+// in the view, lay out wrapped in trigger's place, and lay menu out
+// somewhere too (its panel still renders via a portal):
+giode.Stack(giode.Styles{}, wrapped, menu)
+```
+
+## Nested submenus: SubMenu
+
+`SubMenu` appends an item that reveals a nested panel, cascading to the side, when
+hovered:
+
+```go
+sub := giode.Menu().
+	Item("Copy", func() { ... }).
+	Item("Paste", func() { ... })
+
+menu := giode.Menu().
+	Item("New", func() { ... }).
+	SubMenu("More", sub)
+```
+
+`sub` is a `*Menu` built the same way as any other, and can itself contain further
+`SubMenu` items for deeper nesting - but must not be registered with `SetContextMenu`,
+`OpenAt`, `Toggle` or `Trigger` itself: its parent item's hover is its only way of
+opening. Once hover opens it, it stays open until a sibling submenu item is hovered
+instead (not the moment the pointer leaves the row), so moving into the submenu's own
+panel doesn't flicker it shut. Closing an ancestor menu (`Close`, clicking outside,
+Escape) closes every open submenu with it.
 
 ## API
 
@@ -38,12 +77,16 @@ Without `SetContextMenu`, lay the menu out **last** in the view so it renders ab
 | `IconItem(iconName, label string, action func()) *Menu` | Item with a material icon. |
 | `DisabledItem(label string) *Menu` | Grayed-out item. |
 | `Separator() *Menu` | Horizontal line. |
+| `SubMenu(label string, submenu *Menu) *Menu` | Item that reveals submenu on hover. |
+| `Trigger(el Element) Element` | Wraps el; clicking it opens the menu anchored below. |
 
 Styles: `Background`, `BorderRadius`, `Padding`, `Color` (item text).
 
 ## Behavior
 
-- Opens at the cursor position, measured and clamped to the window with an 8px margin.
+- Opens at the cursor position (or below the `Trigger` element), measured and clamped to
+  the window with an 8px margin.
 - Clicking an item runs its action and closes the menu.
-- Clicking outside or pressing Escape closes it.
+- Clicking outside or pressing Escape closes it - submenus don't have this dismissal
+  layer of their own; they close with whichever ancestor menu has it.
 - The dismissal layer is modal: clicks under it do not reach the UI.

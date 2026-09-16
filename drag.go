@@ -8,30 +8,60 @@ import (
 	"gioui.org/op/clip"
 )
 
-// dragState tracks whether the pointer is over empty space (no widget
-// claimed it) and, while so, registers the whole window as a native
-// move area so the OS drags the window from its background.
-type dragState struct {
-	active bool
+// layoutDrag registers a whole-window system-move area so pressing
+// empty (non-widget) space drags a frameless window, the way an OS
+// titlebar would. It must be laid out before the rest of the view:
+// Gio resolves overlapping system.ActionInputOp registrations to
+// whichever was registered most recently (see gioui.org/io/input's
+// TestPointerSystemAction/"uses topmost action op"), so interactive
+// widgets - which each carve out their own bounds with
+// kit.BlockDrag/BlockDragHere while they lay themselves out, later in
+// the frame - win over this at their own position.
+//
+// This can't be driven reactively from an observed press the way
+// dragging used to be attempted (tracking pointer.Grabbed priority):
+// the OS resolves whether a press starts a window-move before
+// delivering it as a normal click (on Windows, in the WM_NCHITTEST
+// handler, which runs ahead of WM_LBUTTONDOWN), so the registration
+// has to be present proactively, every frame, regardless of pointer
+// state.
+func layoutDrag(a *App, gtx layout.Context) {
+	if !a.cfg.Frameless || !a.cfg.Draggable {
+		return
+	}
+	cl := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
+	cl.Pop()
 }
 
-// layout registers the pointer region and, when the pointer hovers
-// empty space, the native move area.
-func (d *dragState) layout(gtx layout.Context) layout.Dimensions {
-	// A pass-through region sees every pointer event but never blocks
-	// the widgets above: Grabbed priority means the pointer is over
-	// empty space, Shared means a widget claimed it.
+// windowPointer is a whole-window pass-through pointer listener for
+// the global right-click context menu registered with
+// App.SetContextMenu.
+//
+// It's registered after the rest of the view, not before: PassOp
+// keeps it from blocking ordinary (non-pass-through) widgets, but
+// does not make it immune to being blocked BY them, and almost every
+// pixel of a real UI is covered by some such widget - see
+// menu.Context's doc comment for the full reasoning, which applies
+// here identically.
+type windowPointer struct{}
+
+// layout registers the pointer region, when a context menu is
+// registered, and processes events queued from the registration on a
+// previous frame: opening the menu on a right-click.
+func (w *windowPointer) layout(a *App, gtx layout.Context) {
+	if a.ctxMenu == nil {
+		return
+	}
+
 	ps := pointer.PassOp{}.Push(gtx.Ops)
 	cl := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
-	event.Op(gtx.Ops, d)
+	event.Op(gtx.Ops, w)
 	cl.Pop()
 	ps.Pop()
 
 	for {
-		ev, ok := gtx.Source.Event(pointer.Filter{
-			Target: d,
-			Kinds:  pointer.Move | pointer.Press | pointer.Release | pointer.Drag | pointer.Cancel,
-		})
+		ev, ok := gtx.Source.Event(pointer.Filter{Target: w, Kinds: pointer.Press})
 		if !ok {
 			break
 		}
@@ -39,14 +69,8 @@ func (d *dragState) layout(gtx layout.Context) layout.Dimensions {
 		if !ok {
 			continue
 		}
-		d.active = e.Priority == pointer.Grabbed
+		if e.Buttons.Contain(pointer.ButtonSecondary) {
+			a.ctxMenu.OpenAt(e.Position)
+		}
 	}
-
-	if d.active {
-		// The action area makes the OS treat presses as caption
-		// drags. It is registered only while the pointer hovers
-		// empty space, so widgets stay clickable.
-		system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
-	}
-	return layout.Dimensions{}
 }

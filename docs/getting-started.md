@@ -73,7 +73,9 @@ app.Run(func() giode.Element {    // every frame
 })
 ```
 
-Creating a stateful component inside the view function resets it every frame.
+Creating a stateful component inside the view function resets it every frame. The same
+applies to elements with hover styles: `Box(...).OnHover(...)` stores hover state in the
+element, so create it once and reuse it.
 
 ## Lifecycle
 

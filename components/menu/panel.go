@@ -24,11 +24,11 @@ func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
 	st.FlexDirection = properties.FlexDirectionColumn
 
 	// Bound the panel to the window and let it hug its content: the
-	// incoming gtx is the raw root constraint (Menu.Layout is laid out
-	// directly off the window, not through a normal flex parent that
-	// would otherwise neutralize this), which is typically exact
-	// (Min == Max, the window size) rather than loose, so the minimum
-	// must be cleared or the panel would be forced to fill the window.
+	// incoming gtx is bounded by the window regardless of how deep in
+	// the tree Layout was called from - see elements.RegisterPortal's
+	// use of elements.SetWindowSize - and is typically exact (Min ==
+	// Max, the window size) rather than loose, so the minimum must be
+	// cleared or the panel would be forced to fill the window.
 	win := gtx.Constraints.Max
 	gtx.Constraints.Min = image.Point{}
 	gtx.Constraints.Max.X = win.X - 2*kit.Margin
@@ -38,7 +38,7 @@ func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
 
 	children := make([]elements.Element, 0, len(m.items))
 	for i := range m.items {
-		children = append(children, m.row(&m.items[i], width, st))
+		children = append(children, m.row(&m.items[i], i, width, st))
 	}
 	return elements.Box(st, children...).Layout(gtx)
 }
@@ -57,7 +57,7 @@ func (m *Menu) measureWidth(gtx layout.Context, st styles.Styles) int {
 		if m.items[i].separator {
 			continue
 		}
-		dims := m.row(&m.items[i], 0, st).Layout(scratch)
+		dims := m.row(&m.items[i], i, 0, st).Layout(scratch)
 		if dims.Size.X > width {
 			width = dims.Size.X
 		}

@@ -8,6 +8,7 @@ Form controls are grouped under the `Input` API:
 | `giode.Input.Checkbox(label, st...)` | Checkbox (label may be `""`) |
 | `giode.Input.Slider(st...)` | Horizontal slider in [0, 1] |
 | `giode.Input.Select(st, options...)` | Dropdown among options |
+| `giode.Input.AutoComplete(placeholder, options, st...)` | Text field with filtered suggestions |
 
 ## Text field
 
@@ -79,5 +80,24 @@ size := giode.Input.Select(giode.Styles{}, "Small", "Medium", "Large").
 
 Styles: `Background` (field and panel fill), `Color` (text), `BorderColor` (field
 border), `BorderRadius` (corners), `Width` (fixed field width). The panel opens below
-the field, clamped to the bounds of the parent container; siblings laid out after the
-select paint above an open panel.
+the field via a portal (see [extending.md](../extending.md#rendering-above-everything-portals)),
+so it paints above everything else regardless of tree position.
+
+## AutoComplete
+
+```go
+city := giode.Input.AutoComplete("City", []string{"Paris", "London", "Tokyo", ...}).
+	OnSelect(func(value string) { ... })
+```
+
+| Member | Description |
+| --- | --- |
+| `Text() string` | Current field content. |
+| `SetText(s string)` | Replaces the content without reopening the suggestion panel - for a programmatic reset, e.g. loading a saved value; not meant for what the user types. |
+| `SetOptions(options []string)` | Replaces the suggestion source. |
+| `OnSelect(fn func(value string))` | Handler for picking a suggestion (click). |
+
+Styles: same as `Select` (`Background`, `Color`, `BorderColor`/`BorderRadius`/`Width` on
+the field; `Background` also fills the panel). The panel shows below the field, via a
+portal, whenever the current text matches at least one option (case-insensitive
+substring match) - no keyboard navigation of the list yet, only clicking a suggestion.

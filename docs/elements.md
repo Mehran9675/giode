@@ -31,6 +31,44 @@ giode.Stack(giode.Styles{Gap: 8}, a, b, c)                        // vertical
 
 `Row` sets `FlexDirection` to row, `Stack` to column.
 
+## Hover
+
+Every stateless element with something to paint supports `OnHover`: `Box` (and `Row`/
+`Stack`), `Text`, `Divider`, `Image`, `Progress` and `Spinner`. Chain it to apply styles
+while the pointer is over the element:
+
+```go
+card := giode.Box(base, children...).OnHover(giode.Styles{
+	Background:   "#1e40af",
+	BorderColor:  "#3b82f6",
+	BorderWidth:  1,
+	BoxShadow:    giode.BoxShadow{Y: 4, Blur: 12, Color: "#00000060"},
+	Cursor:       giode.CursorPointer,
+})
+
+label := giode.Text("Docs", giode.Styles{Color: "#94a3b8"}).OnHover(giode.Styles{
+	Color:          "#f8fafc",
+	TextDecoration: giode.TextDecorationUnderline,
+	Cursor:         giode.CursorPointer,
+})
+```
+
+Hover styles merge on top of the base styles for both layout and painting, and can set
+anything the element's own `Styles` support — colors, borders, shadows, padding,
+cursor, and so on (see each element's own page for which properties it actually
+paints). The hover state lives in the element, so **create it once and reuse it** like
+a stateful component; rebuilding it inside the view function resets the hover each
+frame. `Hovered()` reports the state observed on the last frame.
+
+`Responsive` and `Raw` don't support `OnHover` - they're structural (they just delegate
+to another element or to raw Gio), not something that paints its own styles to merge
+into. The stateful components (`Button`, `Input.*`, `Tabs`, ...) already shade
+themselves on hover internally instead of going through `OnHover`.
+
+Component authors: `OnHover` is built on `kit.HoverTracker`, an embeddable building
+block for adding the same capability to a custom stateless element - see
+[Extending the library](extending.md).
+
 ## Wrap
 
 By default a `Row` wraps children onto new lines when they overflow (`WrapWrap`), while
@@ -58,6 +96,18 @@ A thin horizontal line. Color defaults to a subtle gray, height to 1px:
 
 ```go
 giode.Divider(giode.Styles{Color: "#334155"})
+```
+
+## Table
+
+Rows of cells with column widths aligned across all of them - see
+[table.md](components/table.md):
+
+```go
+giode.Table(giode.Styles{},
+	giode.TableHeader(giode.Styles{}, giode.TableCell(giode.Styles{}, giode.Text("Name"))),
+	giode.TableRow(giode.Styles{}, giode.TableCell(giode.Styles{}, giode.Text("Ada"))),
+)
 ```
 
 ## Raw

@@ -9,7 +9,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
-	"github.com/mehran9675/giode/styles/properties"
+	"github.com/mehran9675/giode/components/kit"
 
 	"github.com/mehran9675/giode/styles"
 )
@@ -19,6 +19,7 @@ import (
 type Slider struct {
 	value    float32
 	drag     gesture.Drag
+	hover    gesture.Hover
 	onChange func(v float32)
 	st       styles.Styles
 }
@@ -56,11 +57,18 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
 	size := image.Pt(gtx.Constraints.Min.X, height)
 
-	// The drag region must be clipped to the slider itself, otherwise
-	// it would span whatever outer area it is laid out in and steal
-	// events from siblings.
+	// The drag and hover regions must be clipped to the slider itself,
+	// otherwise they would span whatever outer area it is laid out in
+	// and steal events from siblings.
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
+	// Keep the slider draggable even inside a frameless window's
+	// whole-window drag area (see the root package's layoutDrag):
+	// without this, dragging the thumb would be hijacked into a
+	// native window-move instead.
+	kit.BlockDragHere(gtx)
 	s.drag.Add(gtx.Ops)
+	s.hover.Add(gtx.Ops)
+	hovered := s.hover.Update(gtx.Source)
 	changed := false
 	for {
 		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Horizontal)
@@ -83,9 +91,19 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 		gtx.Execute(op.InvalidateCmd{})
 	}
 
-	paintTrack(gtx, size, properties.CalcColor(s.st.Background))
-	paintFill(gtx, size, s.value, properties.CalcColor(s.st.Color))
-	paintThumb(gtx, size, s.value, properties.CalcColor(s.st.BorderColor))
+	thumb := s.st.BorderColor
+	switch {
+	case s.drag.Dragging():
+		thumb = kit.Pressed(resolve(thumb, defaultThumb))
+		pointer.CursorGrabbing.Add(gtx.Ops)
+	case hovered:
+		thumb = kit.Hovered(resolve(thumb, defaultThumb))
+		pointer.CursorGrab.Add(gtx.Ops)
+	}
+
+	paintTrack(gtx, size, s.st.Background)
+	paintFill(gtx, size, s.value, s.st.Color)
+	paintThumb(gtx, size, s.value, thumb)
 	return layout.Dimensions{Size: size}
 }
 

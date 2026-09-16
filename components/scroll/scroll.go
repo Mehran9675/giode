@@ -11,6 +11,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/elements"
@@ -19,7 +20,7 @@ import (
 
 var (
 	defaultTrack = color.NRGBA{R: 0x47, G: 0x55, B: 0x69, A: 0x99}
-	defaultThumb = color.NRGBA{R: 0x94, G: 0xa3, B: 0xb8, A: 0xcc}
+	defaultThumb = "#94a3b8cc"
 )
 
 const (
@@ -40,14 +41,17 @@ const (
 // The scroll offset reacts to the mouse wheel and touch drags, and
 // the scrollbar thumb can be dragged with the mouse.
 type Scroll struct {
-	offset    float32
-	scroll    gesture.Scroll
-	barDrag   gesture.Drag
-	barDragY  float32
-	contentH  int
-	viewportH int
-	content   func() elements.Element
-	st        styles.Styles
+	offset        float32
+	scroll        gesture.Scroll
+	barDrag       gesture.Drag
+	barHover      gesture.Hover
+	barDragY      float32
+	contentH      int
+	viewportH     int
+	content       func() elements.Element
+	st            styles.Styles
+	onReachBottom func()
+	wasAtBottom   bool
 }
 
 // New returns a Scroll around content, rebuilt fresh every frame. The
@@ -70,6 +74,57 @@ func (s *Scroll) ScrollTo(v float32) {
 // Offset returns the current vertical offset.
 func (s *Scroll) Offset() float32 {
 	return s.offset
+}
+
+// ContentHeight returns the total height of the scrolled content, as
+// measured on the last frame.
+func (s *Scroll) ContentHeight() int {
+	return s.contentH
+}
+
+// ViewportHeight returns the height of the visible viewport, as
+// measured on the last frame.
+func (s *Scroll) ViewportHeight() int {
+	return s.viewportH
+}
+
+// Progress returns how far scrolled, from 0 (top) to 1 (bottom); 0
+// when there's nothing to scroll (the content fits the viewport).
+func (s *Scroll) Progress() float32 {
+	max := s.maxOffset()
+	if max <= 0 {
+		return 0
+	}
+	return s.offset / float32(max)
+}
+
+// AtBottom reports whether the scroll is at (or past) its maximum
+// offset - also true when there's nothing to scroll at all (the
+// content already fits the viewport), the same way a page with no
+// scrollbar is trivially "at the bottom": there's nowhere else to go,
+// so a load-more handler driven by AtBottom/OnReachBottom fires
+// immediately, prompting an initial fetch when the first page of
+// content doesn't even fill the viewport.
+func (s *Scroll) AtBottom() bool {
+	return s.offset >= float32(s.maxOffset())
+}
+
+// Visible reports whether the vertical range [top, top+height) - in
+// the same coordinate space as Content's own output, e.g. a running
+// offset tracked while building a long list - is at least partially
+// within the current viewport. Useful for lazy-loading or skipping
+// expensive work for an item that isn't currently on screen.
+func (s *Scroll) Visible(top, height int) bool {
+	return top+height > int(s.offset) && top < int(s.offset)+s.viewportH
+}
+
+// OnReachBottom sets the handler invoked once when the scroll reaches
+// its maximum offset - edge-triggered: it fires again only after
+// scrolling away from the bottom and back, not on every frame spent
+// there. It returns s for chaining.
+func (s *Scroll) OnReachBottom(fn func()) *Scroll {
+	s.onReachBottom = fn
+	return s
 }
 
 // maxOffset returns the largest valid offset.
@@ -112,6 +167,10 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	// viewport and must be registered below the content so
 	// interactive children keep priority.
 	defer clip.Rect{Max: viewport}.Push(gtx.Ops).Pop()
+	// Keep touch-drag scrolling working even inside a frameless
+	// window's whole-window drag area - see slider.Layout's identical
+	// comment.
+	kit.BlockDragHere(gtx)
 	s.scroll.Add(gtx.Ops)
 
 	// Clamp the offset to the content.
@@ -127,6 +186,12 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	if dist != 0 {
 		s.offset = s.clamp(s.offset + float32(dist))
 	}
+
+	atBottom := s.AtBottom()
+	if atBottom && !s.wasAtBottom && s.onReachBottom != nil {
+		s.onReachBottom()
+	}
+	s.wasAtBottom = atBottom
 
 	// Draw the scrolled content.
 	if properties.CalcColor(s.st.Background).A != 0 {
@@ -163,9 +228,9 @@ func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
 	if trackColor.A == 0 {
 		trackColor = defaultTrack
 	}
-	thumbColor := properties.CalcColor(sb.ThumbColor)
-	if thumbColor.A == 0 {
-		thumbColor = defaultThumb
+	thumb := sb.ThumbColor
+	if thumb == "" {
+		thumb = defaultThumb
 	}
 
 	x := viewport.X - barWidth
@@ -177,10 +242,13 @@ func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
 	maxThumbOff := trackH - thumbH
 	thumbOff := int(s.offset) * maxThumbOff / max(s.contentH-s.viewportH, 1)
 
-	// Thumb drag region and events.
+	// Thumb drag and hover region and events.
 	thumbRect := image.Rect(x, thumbOff, x+barWidth, min(thumbOff+thumbH, trackH))
 	thumbClip := clip.Rect(thumbRect).Push(gtx.Ops)
+	kit.BlockDragHere(gtx)
 	s.barDrag.Add(gtx.Ops)
+	s.barHover.Add(gtx.Ops)
+	hovered := s.barHover.Update(gtx.Source)
 	for {
 		ev, ok := s.barDrag.Update(gtx.Metric, gtx.Source, gesture.Both)
 		if !ok {
@@ -202,6 +270,14 @@ func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
 			}
 		}
 	}
+	switch {
+	case s.barDrag.Dragging():
+		thumb = kit.Pressed(thumb)
+		pointer.CursorGrabbing.Add(gtx.Ops)
+	case hovered:
+		thumb = kit.Hovered(thumb)
+		pointer.CursorGrab.Add(gtx.Ops)
+	}
 	thumbClip.Pop()
 
 	// Track and thumb, positioned at the same x offset as the drag
@@ -213,7 +289,7 @@ func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
 
 	thumbOff = int(s.offset) * maxThumbOff / max(s.contentH-s.viewportH, 1)
 	thumbClip2 := clip.UniformRRect(image.Rect(0, thumbOff, barWidth, thumbOff+thumbH), radius).Push(gtx.Ops)
-	paint.Fill(gtx.Ops, thumbColor)
+	paint.Fill(gtx.Ops, properties.CalcColor(thumb))
 	thumbClip2.Pop()
 	barOff.Pop()
 }

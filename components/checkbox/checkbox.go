@@ -8,6 +8,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/widget"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -72,7 +73,7 @@ func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	st := styles.Merge(styles.Styles{Color: defaultText}, c.st)
-	return c.bool.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	dims := c.bool.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		if c.bool.Hovered() {
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
@@ -85,4 +86,8 @@ func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
 			elements.Text(c.label, styles.Styles{Color: st.Color, FontSize: st.FontSize}),
 		).Layout(gtx)
 	})
+	// Keep the checkbox clickable even inside a frameless window's
+	// whole-window drag area - see button.Layout's identical comment.
+	kit.BlockDrag(gtx, dims.Size)
+	return dims
 }
