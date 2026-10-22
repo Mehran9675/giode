@@ -89,7 +89,9 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 	panelGtx := gtx
 	panelGtx.Constraints.Min.X = width
 	panelGtx.Constraints.Max.X = width
+	pop := elements.PushOffset(image.Pt(x, 0))
 	elements.Box(st, d.content()).Layout(panelGtx)
+	pop()
 	off.Pop()
 
 	return layout.Dimensions{Size: win}

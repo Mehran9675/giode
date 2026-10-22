@@ -257,6 +257,8 @@ var (
 // the view; component authors don't need to.
 func BeginFrame() {
 	frameNumber++
+	clear(probes)
+	probes = probes[:0]
 }
 
 // EndFrame finishes a frame, releasing keyed memos (see Memo) that

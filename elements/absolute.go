@@ -12,31 +12,26 @@ import "image"
 // submenus and AutoComplete's panel).
 var currentOffset image.Point
 
-// AbsolutePosition returns the accumulated offset at the current
-// point in the Layout traversal: where the calling element's origin
-// currently sits relative to the window. Only meaningful while being
-// laid out as part of the current frame.
+// AbsolutePosition returns the window position of the element being
+// laid out, as far as it is known at that moment. Only meaningful
+// during the current frame's layout.
 //
-// Known limitation: it's exact for a Box's own content offset (margin
-// and padding) and for a left/top-anchored absolutely positioned
-// child, which is the common nesting case. It's an approximation - the
-// shared container's origin, not the individual child's own offset -
-// for one of several children distributed by a flex container (a Row
-// or Stack with more than one child): a flex container measures every
-// child before it knows where any of them land, so by the time a
-// child's final position is known, that child (and anything nested in
-// it) has already finished its own Layout call. Closing this requires
-// instrumenting the flex distribution itself, which real Gio flex
-// containers don't expose partway through; tracked as a follow-up.
+// Containers that place a child only after laying it out (a Row or
+// Stack with several children, a Scroll, Tabs) don't know the child's
+// offset yet, so inside such a child the value is the container's
+// origin. Anything recorded from it through RegisterPortal,
+// RegisterPopup, RecordSemantic or TrackPosition is moved to the right
+// place once the container has placed the child (see ShiftPositions);
+// a value used directly in the same Layout call is not.
 func AbsolutePosition() image.Point {
 	return currentOffset
 }
 
-// PushOffset accumulates off into the tracked absolute position;
-// pair with the op.Offset(off).Push()/Pop() around the same child. A
-// custom element that positions its own children with op.Offset
-// should call this alongside it so AbsolutePosition (and therefore
-// kit.RegisterPortal) works correctly for content placed inside it.
+// PushOffset adds off to the tracked position until the returned
+// function runs; pair it with the op.Offset around the same child. An
+// element that knows a child's offset before laying it out calls this
+// so AbsolutePosition is exact inside the child; one that only knows
+// it afterwards uses MarkPositions and ShiftPositions instead.
 func PushOffset(off image.Point) (pop func()) {
 	currentOffset = currentOffset.Add(off)
 	return func() { currentOffset = currentOffset.Sub(off) }

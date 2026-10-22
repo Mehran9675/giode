@@ -178,8 +178,10 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	cgtx := gtx
 	cgtx.Constraints.Min.Y = 0
 	cgtx.Constraints.Max.Y = unbounded
+	mark := elements.MarkPositions()
 	dims := s.content().Layout(cgtx)
 	contentOps := macro.Stop()
+	contentEnd := elements.MarkPositions()
 	s.contentH = dims.Size.Y
 
 	// Wheel and touch scrolling. The scroll region covers the
@@ -223,6 +225,8 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	off := op.Offset(image.Pt(0, -int(s.offset))).Push(gtx.Ops)
 	contentOps.Add(gtx.Ops)
+	// Popups and semantic nodes inside the content move with it.
+	elements.ShiftPositionsRange(mark, contentEnd, image.Pt(0, -int(s.offset)))
 	off.Pop()
 
 	s.layoutScrollbar(gtx, viewport)

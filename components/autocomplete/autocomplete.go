@@ -107,10 +107,16 @@ func (a *AutoComplete) Layout(gtx layout.Context) layout.Dimensions {
 	if len(a.filtered) > 0 {
 		anchor := elements.AbsolutePosition().Add(image.Pt(0, dims.Size.Y+4))
 		filtered, width := a.filtered, dims.Size.X
-		elements.RegisterPortal(gtx, anchor, func() elements.Element {
+		elements.RegisterPopup(gtx, anchor, a, func() elements.Element {
 			return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 				return a.panel(gtx, filtered, width)
 			})
+		}, elements.PopupOptions{
+			// Clicking elsewhere hides the suggestions until the text
+			// changes; the click still goes through, so clicking back
+			// into the field places the caret.
+			OnDismiss:   func() { a.suppressed = true },
+			PassThrough: true,
 		})
 	}
 	return dims

@@ -37,7 +37,9 @@ func (t *Tabs) Layout(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.Y -= dims.Size.Y
 		gtx.Constraints.Max.Y -= dims.Size.Y
 		off := op.Offset(image.Pt(0, dims.Size.Y)).Push(gtx.Ops)
+		pop := elements.PushOffset(image.Pt(0, dims.Size.Y))
 		contentDims := t.tabs[t.selected].View().Layout(gtx)
+		pop()
 		off.Pop()
 		size.Y += contentDims.Size.Y
 		if contentDims.Size.X > size.X {

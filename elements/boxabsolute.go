@@ -52,10 +52,13 @@ func (b *BoxElement) layoutAbsolute(gtx layout.Context, children []Element, size
 		y := int(st.Top)
 
 		popAbs := PushOffset(image.Pt(x, y))
+		mark := MarkPositions()
 		macro := op.Record(gtx.Ops)
 		dims := box.Layout(cgtx)
 		childOps := macro.Stop()
+		end := MarkPositions()
 		popAbs()
+		estX, estY := x, y
 
 		if st.Left == 0 && st.Right > 0 {
 			x = size.X - int(st.Right) - dims.Size.X
@@ -64,6 +67,9 @@ func (b *BoxElement) layoutAbsolute(gtx layout.Context, children []Element, size
 			y = size.Y - int(st.Bottom) - dims.Size.Y
 		}
 
+		// Right/bottom anchoring is only known now; move what the
+		// child recorded at the estimated position.
+		shiftRange(mark, end, image.Pt(x-estX, y-estY))
 		off := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
 		childOps.Add(gtx.Ops)
 		off.Pop()

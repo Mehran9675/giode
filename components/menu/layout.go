@@ -43,7 +43,9 @@ func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 
-	elements.RegisterPortal(gtx, image.Pt(int(m.pos.X), int(m.pos.Y)), func() elements.Element {
+	// m.pos is already a window position (the pointer, or the
+	// trigger's tracked anchor), so containers mustn't move it.
+	elements.RegisterPortalAt(gtx, image.Pt(int(m.pos.X), int(m.pos.Y)), func() elements.Element {
 		return elements.Raw(m.panel)
 	})
 

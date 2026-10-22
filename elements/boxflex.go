@@ -56,10 +56,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	// for start alignment, but centered or end-aligned children must
 	// keep their own size or there is nothing to align.
 	unstretch := st.Align == properties.AlignCenter || st.Align == properties.AlignEnd
-	var track *semTracker
-	if semantics != nil {
-		track = &semTracker{spans: make([]semSpan, len(children))}
-	}
+	track := &posTracker{spans: make([]posSpan, len(children))}
 	kids := make([]layout.FlexChild, 0, len(children))
 	for i, child := range children {
 		w := child.Layout
@@ -69,9 +66,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		if unstretch {
 			w = unstretchCross(w, axis)
 		}
-		if track != nil {
-			w = track.wrap(i, w)
-		}
+		w = track.wrap(i, w)
 		if wt := flexWeightOf(child, axis); wt > 0 && definite && flexPercentOf(child, axis) == 0 {
 			kids = append(kids, layout.Flexed(float32(wt), w))
 		} else {
@@ -85,10 +80,18 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		Gap:       int(st.Gap),
 	}
 	dims := flex.Layout(gtx, kids...)
-	if track != nil {
-		track.place(gtx.Constraints, flex)
-	}
+	track.place(gtx.Constraints, flex)
 	return dims
+}
+
+// recorded reports whether any child recorded something to correct.
+func (t *posTracker) recorded() bool {
+	for _, s := range t.spans {
+		if s.start != s.end {
+			return true
+		}
+	}
+	return false
 }
 
 // unstretchCross lets a child size itself on the cross axis.
@@ -103,35 +106,35 @@ func unstretchCross(w layout.Widget, axis layout.Axis) layout.Widget {
 	}
 }
 
-// semSpan is the range of semantic nodes one flex child recorded, and
-// its measured size.
-type semSpan struct {
-	start, end int
+// posSpan is what one flex child recorded (popup anchors, semantic
+// nodes), and its measured size.
+type posSpan struct {
+	start, end PositionMark
 	dims       layout.Dimensions
 }
 
-// semTracker fixes up the bounds of semantic nodes recorded by flex
-// children. A child lays out before the flex container knows where it
-// goes, so its nodes are recorded at the container's origin; once the
-// container is done, each child's nodes are shifted by the offset Gio's
-// flex gave it.
-type semTracker struct {
-	spans []semSpan
+// posTracker corrects the positions flex children record. A child is
+// laid out before the flex container knows where it goes, so what it
+// records sits at the container's origin; once the container is done,
+// each child's records are moved by the offset Gio's flex gave it (see
+// ShiftPositions).
+type posTracker struct {
+	spans []posSpan
 }
 
-func (t *semTracker) wrap(i int, w layout.Widget) layout.Widget {
+func (t *posTracker) wrap(i int, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		t.spans[i].start = len(*semantics)
+		t.spans[i].start = MarkPositions()
 		dims := w(gtx)
-		t.spans[i].end = len(*semantics)
+		t.spans[i].end = MarkPositions()
 		t.spans[i].dims = dims
 		return dims
 	}
 }
 
 // place replicates the placement step of layout.Flex.Layout.
-func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
-	if semantics == nil {
+func (t *posTracker) place(cs layout.Constraints, f layout.Flex) {
+	if !t.recorded() {
 		return
 	}
 	n := len(t.spans)
@@ -160,7 +163,6 @@ func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
 			main += space / (n * 2)
 		}
 	}
-	nodes := *semantics
 	for i, s := range t.spans {
 		cross := 0
 		switch f.Alignment {
@@ -174,9 +176,7 @@ func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
 			}
 		}
 		off := axisPoint(f.Axis, main, cross)
-		for j := s.start; j < s.end && j < len(nodes); j++ {
-			nodes[j].Bounds = nodes[j].Bounds.Add(off)
-		}
+		shiftRange(s.start, s.end, off)
 		main += axisMain(s.dims.Size, f.Axis)
 		if i < n-1 {
 			main += f.Gap
@@ -219,9 +219,9 @@ func (s *mainSized) Layout(gtx layout.Context) layout.Dimensions {
 type wrapItem struct {
 	ops         op.CallOp
 	main, cross int
-	// semStart and semEnd delimit the semantic nodes the item
-	// recorded, shifted once its position is known.
-	semStart, semEnd int
+	// start and end delimit what the item recorded, shifted once its
+	// position is known.
+	start, end PositionMark
 }
 
 // wrapLine is one run of items that fit within the main axis.
@@ -280,17 +280,11 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 				cgtx.Constraints.Min.X = 0
 			}
 		}
-		semStart := 0
-		if semantics != nil {
-			semStart = len(*semantics)
-		}
+		start := MarkPositions()
 		macro := op.Record(gtx.Ops)
 		dims := el.Layout(cgtx)
 		ops := macro.Stop()
-		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis)}
-		if semantics != nil {
-			it.semStart, it.semEnd = semStart, len(*semantics)
-		}
+		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis), start: start, end: MarkPositions()}
 		items = append(items, it)
 	}
 
@@ -347,11 +341,7 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 		for i, it := range ln.items {
 			crossPos := alignOffset(st.Align, ln.thickness, it.cross)
 			pos := axisPoint(axis, mainOffset, crossOffset+crossPos)
-			if semantics != nil {
-				for j := it.semStart; j < it.semEnd; j++ {
-					(*semantics)[j].Bounds = (*semantics)[j].Bounds.Add(pos)
-				}
-			}
+			shiftRange(it.start, it.end, pos)
 			off := op.Offset(pos).Push(gtx.Ops)
 			it.ops.Add(gtx.Ops)
 			off.Pop()
