@@ -6,6 +6,7 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/state"
@@ -262,5 +263,21 @@ func TestRow_FlexGrowBoxFills(t *testing.T) {
 		if n.Label == "end" && n.Bounds.Min.X != 340 {
 			t.Errorf("item after a FlexGrow box at x=%d, want 340 (pushed to the end)", n.Bounds.Min.X)
 		}
+	}
+}
+
+func TestResponsive_BreakpointsAreDp(t *testing.T) {
+	var picked string
+	view := func(name string) func() Element {
+		return func() Element {
+			picked = name
+			return Box(styles.Styles{})
+		}
+	}
+	r := Responsive(Breakpoint{Width: 600, View: view("narrow")}, Breakpoint{View: view("wide")})
+	// 1000px at 2x is 500dp: the 600dp breakpoint matches.
+	r.Layout(layout.Context{Ops: new(op.Ops), Metric: unit.Metric{PxPerDp: 2}, Constraints: layout.Constraints{Max: image.Pt(1000, 100)}})
+	if picked != "narrow" {
+		t.Errorf("500dp wide picked %q, want narrow", picked)
 	}
 }

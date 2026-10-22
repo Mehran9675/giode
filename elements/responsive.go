@@ -1,9 +1,12 @@
 package elements
 
-import "gioui.org/layout"
+import (
+	"gioui.org/layout"
+	"gioui.org/unit"
+)
 
 // Breakpoint is a simplified media query: it matches when the
-// available width is at most Width. A Width of zero always matches and
+// available width is at most Width dp. A Width of zero always matches and
 // can serve as the fallback when listed last.
 type Breakpoint struct {
 	Width int
@@ -24,8 +27,9 @@ type responsiveEl struct {
 //		giode.Breakpoint{View: desktopView},
 //	)
 //
-// Only the matching view is built each frame. Width is measured in
-// the layout pixel space of the parent container.
+// Only the matching view is built each frame. Width is in dp, like
+// every other size, compared against the width available to the
+// element.
 func Responsive(bps ...Breakpoint) Element {
 	return &responsiveEl{bps: bps}
 }
@@ -33,7 +37,7 @@ func Responsive(bps ...Breakpoint) Element {
 func (r *responsiveEl) Layout(gtx layout.Context) layout.Dimensions {
 	w := gtx.Constraints.Max.X
 	for _, bp := range r.bps {
-		if bp.Width == 0 || w <= bp.Width {
+		if bp.Width == 0 || w <= gtx.Dp(unit.Dp(bp.Width)) {
 			return bp.View().Layout(gtx)
 		}
 	}
