@@ -14,6 +14,7 @@ settings of desktop applications; unsupported platform features are ignored.
 | `Resizable` | `bool` | `false` | Allow user resizing. When false the size is locked to `Size`. |
 | `Frameless` | `bool` | `false` | Remove the OS title bar and borders. |
 | `Draggable` | `bool` | `false` | Drag the window from empty (non-widget) space anywhere. Frameless only. For a custom title bar, use [TitleBar](components/titlebar.md) instead. |
+| `OnFileDrop` | `func(paths []string)` | `nil` | Files dropped onto the window from the file manager, on the UI goroutine. Windows only for now. |
 | `OnWindowStateChange` | `func(WindowState)` | `nil` | Runs when the window is minimized, maximized, made fullscreen or restored. |
 | `Background` | `string` | `"#000000"` | Window background color (any CSS hex). |
 | `Icon` | `[]byte` | `nil` | Window icon, PNG or JPEG bytes. Applied at runtime on Windows. |
@@ -101,3 +102,29 @@ app.ReadClipboard(func(text string) { ... }) // fn runs on the UI goroutine
 Inside a `Layout`, `kit.WriteClipboard(gtx, text)` copies immediately. For a ready-made
 control, `giode.CopyButton(func() string { return value })` copies when clicked and shows a
 check mark for a moment (`Labels`, `Feedback`, `OnCopy` customize it).
+
+## File drop
+
+```go
+giode.Config{
+	OnFileDrop: func(paths []string) {
+		model.files = append(model.files, paths...) // UI goroutine: no locks needed
+	},
+}
+```
+
+On Windows the app subclasses its own window and accepts `WM_DROPFILES`, including when it
+runs as administrator (it lets the drop messages through Windows' privilege filter, which
+would otherwise silently block drops from a normal Explorer).
+
+Other platforms don't support it yet, and a warning is logged once if `OnFileDrop` is set
+there. Gio's own event loop consumes the X11 and Wayland drag-and-drop protocol messages, so
+Linux support needs changes in Gio itself. macOS support needs AppKit drag registration,
+which is not implemented yet. Drag enter/leave events (for highlighting a drop zone) aren't
+available yet either; they need Windows' COM `IDropTarget` instead of `WM_DROPFILES`.
+
+## Native window handle
+
+`app.NativeHandle()` returns the native window handle: the `HWND` on Windows, the `NSView`
+on macOS, the X11 window or `wl_surface` on Linux. `app.NativeView()` returns Gio's full
+platform view event for other integrations. Both are zero until the window exists.

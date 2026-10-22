@@ -84,6 +84,11 @@ type Config struct {
 	// SingleInstanceLock, when set, ensures only one instance of the
 	// application runs.
 	SingleInstanceLock *SingleInstanceLock
+	// OnFileDrop runs with the paths of files dropped onto the window
+	// from the file manager, on the UI goroutine. It works when the app
+	// runs as administrator too. Windows only for now; elsewhere a
+	// warning is logged once.
+	OnFileDrop func(paths []string)
 	// MCP starts a Model Context Protocol server alongside the window,
 	// so AI agents can see and drive the running app: inspect the UI,
 	// click, type, take screenshots, read and set named state - plus
@@ -155,6 +160,10 @@ type App struct {
 	winFocused atomic.Bool
 
 	clip clipboardState
+
+	viewMu     sync.Mutex
+	view       app.ViewEvent
+	dropWarned bool
 
 	mcp     *mcpBridge
 	uiMu    sync.Mutex
