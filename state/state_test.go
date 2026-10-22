@@ -73,8 +73,8 @@ func TestState_MultipleWatchersAllFire(t *testing.T) {
 }
 
 func TestState_SetCallsInvalidator(t *testing.T) {
-	orig := invalidate
-	defer func() { invalidate = orig }()
+	orig := invalidate.Load()
+	defer invalidate.Store(orig)
 
 	calls := 0
 	SetInvalidator(func() { calls++ })
@@ -113,4 +113,81 @@ func TestState_ConcurrentAccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestState_WatchersRunInRegistrationOrder(t *testing.T) {
+	s := New(0)
+	var order []int
+	for i := 0; i < 20; i++ {
+		i := i
+		s.Watch(func(int) { order = append(order, i) })
+	}
+	s.Set(1)
+	for i, v := range order {
+		if v != i {
+			t.Fatalf("watcher order = %v, want ascending", order)
+		}
+	}
+}
+
+func TestState_SetIfChanged(t *testing.T) {
+	s := New([]int{1, 2})
+	v := s.Version()
+	if s.SetIfChanged([]int{1, 2}) {
+		t.Error("SetIfChanged with an equal slice reported a change")
+	}
+	if s.Version() != v {
+		t.Error("version advanced without a change")
+	}
+	if !s.SetIfChanged([]int{3}) {
+		t.Error("SetIfChanged with a different value reported no change")
+	}
+}
+
+func TestTracker_RecordsReads(t *testing.T) {
+	a, b := New(1), New(2)
+	tr := Track()
+	_ = a.Get()
+	tr.Stop()
+	_ = b.Get() // after Stop: not tracked
+	if tr.Len() != 1 {
+		t.Fatalf("tracked %d states, want 1", tr.Len())
+	}
+	if tr.Changed() {
+		t.Error("Changed before any write")
+	}
+	b.Set(3)
+	if tr.Changed() {
+		t.Error("write to an untracked state reported as a change")
+	}
+	a.Set(5)
+	if !tr.Changed() {
+		t.Error("write to a tracked state not reported")
+	}
+}
+
+func TestNamed_JSONRoundTrip(t *testing.T) {
+	type prefs struct {
+		Volume int    `json:"volume"`
+		Theme  string `json:"theme"`
+	}
+	s := Named("test.prefs", prefs{Volume: 3, Theme: "dark"})
+	defer Unregister("test.prefs")
+	e, ok := Lookup("test.prefs")
+	if !ok {
+		t.Fatal("named state not registered")
+	}
+	data, err := e.JSON()
+	if err != nil || string(data) != `{"volume":3,"theme":"dark"}` {
+		t.Fatalf("JSON = %s, %v", data, err)
+	}
+	if err := e.SetJSON([]byte(`{"volume":7,"theme":"light"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Get(); got.Volume != 7 || got.Theme != "light" {
+		t.Errorf("after SetJSON: %+v", got)
+	}
+	if err := e.SetJSON([]byte(`"nope"`)); err == nil {
+		t.Error("SetJSON with the wrong type: want error")
+	}
 }
