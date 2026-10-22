@@ -22,7 +22,12 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	// axis: Gio passes the parent's cross minimum through to rigid
 	// children, which would otherwise inflate hug-sized containers
 	// via the spacing distribution.
+	// A growing box (FlexGrow) fills the space its parent hands it,
+	// like CSS flex-grow, rather than shrinking back to its content.
 	hugMain := func() bool {
+		if st.FlexGrow > 0 {
+			return false
+		}
 		if axis == layout.Horizontal {
 			return st.Width == 0 && st.WidthPct == 0
 		}
@@ -40,24 +45,147 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		return b.layoutFlexWrap(gtx, st, children, axis, mainMax)
 	}
 
+	// Gio passes the container's cross-axis minimum on to every child,
+	// stretching it. That matches CSS's default (align-items: stretch)
+	// for start alignment, but centered or end-aligned children must
+	// keep their own size or there is nothing to align.
+	unstretch := st.Align == properties.AlignCenter || st.Align == properties.AlignEnd
+	var track *semTracker
+	if semantics != nil {
+		track = &semTracker{spans: make([]semSpan, len(children))}
+	}
 	kids := make([]layout.FlexChild, 0, len(children))
-	for _, child := range children {
+	for i, child := range children {
+		w := child.Layout
 		if pct := flexPercentOf(child, axis); pct > 0 && mainMax < unbounded {
-			size := mainMax * pct / 100
-			kids = append(kids, layout.Rigid((&mainSized{el: child, axis: axis, size: size}).Layout))
-		} else if w := flexWeightOf(child, axis); w > 0 {
-			kids = append(kids, layout.Flexed(float32(w), child.Layout))
+			w = (&mainSized{el: child, axis: axis, size: mainMax * pct / 100}).Layout
+		}
+		if unstretch {
+			w = unstretchCross(w, axis)
+		}
+		if track != nil {
+			w = track.wrap(i, w)
+		}
+		if wt := flexWeightOf(child, axis); wt > 0 && flexPercentOf(child, axis) == 0 {
+			kids = append(kids, layout.Flexed(float32(wt), w))
 		} else {
-			kids = append(kids, layout.Rigid(child.Layout))
+			kids = append(kids, layout.Rigid(w))
 		}
 	}
-	dims := layout.Flex{
+	flex := layout.Flex{
 		Axis:      axis,
 		Spacing:   st.Justify.FlexSpacing(),
 		Alignment: st.Align.FlexAlignment(),
 		Gap:       int(st.Gap),
-	}.Layout(gtx, kids...)
+	}
+	dims := flex.Layout(gtx, kids...)
+	if track != nil {
+		track.place(gtx.Constraints, flex)
+	}
 	return dims
+}
+
+// unstretchCross lets a child size itself on the cross axis.
+func unstretchCross(w layout.Widget, axis layout.Axis) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		if axis == layout.Horizontal {
+			gtx.Constraints.Min.Y = 0
+		} else {
+			gtx.Constraints.Min.X = 0
+		}
+		return w(gtx)
+	}
+}
+
+// semSpan is the range of semantic nodes one flex child recorded, and
+// its measured size.
+type semSpan struct {
+	start, end int
+	dims       layout.Dimensions
+}
+
+// semTracker fixes up the bounds of semantic nodes recorded by flex
+// children. A child lays out before the flex container knows where it
+// goes, so its nodes are recorded at the container's origin; once the
+// container is done, each child's nodes are shifted by the offset Gio's
+// flex gave it.
+type semTracker struct {
+	spans []semSpan
+}
+
+func (t *semTracker) wrap(i int, w layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		t.spans[i].start = len(*semantics)
+		dims := w(gtx)
+		t.spans[i].end = len(*semantics)
+		t.spans[i].dims = dims
+		return dims
+	}
+}
+
+// place replicates the placement step of layout.Flex.Layout.
+func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
+	if semantics == nil {
+		return
+	}
+	n := len(t.spans)
+	mainMin := axisMain(cs.Min, f.Axis)
+	crossMin := axisCross(cs.Min, f.Axis)
+	size, maxCross, maxBaseline := 0, crossMin, 0
+	for _, s := range t.spans {
+		size += axisMain(s.dims.Size, f.Axis)
+		maxCross = max(maxCross, axisCross(s.dims.Size, f.Axis))
+		maxBaseline = max(maxBaseline, s.dims.Size.Y-s.dims.Baseline)
+	}
+	if n > 1 && f.Gap > 0 {
+		size += f.Gap * (n - 1)
+	}
+	space := max(0, mainMin-size)
+	main := 0
+	switch f.Spacing {
+	case layout.SpaceSides:
+		main += space / 2
+	case layout.SpaceStart:
+		main += space
+	case layout.SpaceEvenly:
+		main += space / (1 + n)
+	case layout.SpaceAround:
+		if n > 0 {
+			main += space / (n * 2)
+		}
+	}
+	nodes := *semantics
+	for i, s := range t.spans {
+		cross := 0
+		switch f.Alignment {
+		case layout.End:
+			cross = maxCross - axisCross(s.dims.Size, f.Axis)
+		case layout.Middle:
+			cross = (maxCross - axisCross(s.dims.Size, f.Axis)) / 2
+		case layout.Baseline:
+			if f.Axis == layout.Horizontal {
+				cross = maxBaseline - (s.dims.Size.Y - s.dims.Baseline)
+			}
+		}
+		off := axisPoint(f.Axis, main, cross)
+		for j := s.start; j < s.end && j < len(nodes); j++ {
+			nodes[j].Bounds = nodes[j].Bounds.Add(off)
+		}
+		main += axisMain(s.dims.Size, f.Axis)
+		if i < n-1 {
+			main += f.Gap
+			switch f.Spacing {
+			case layout.SpaceEvenly:
+				main += space / (1 + n)
+			case layout.SpaceAround:
+				main += space / n
+			case layout.SpaceBetween:
+				if n > 1 {
+					main += space / (n - 1)
+				}
+			}
+		}
+	}
 }
 
 // mainSized wraps an element to force its size on the flex main axis,
@@ -85,6 +213,9 @@ func (s *mainSized) Layout(gtx layout.Context) layout.Dimensions {
 type wrapItem struct {
 	ops         op.CallOp
 	main, cross int
+	// semStart and semEnd delimit the semantic nodes the item
+	// recorded, shifted once its position is known.
+	semStart, semEnd int
 }
 
 // wrapLine is one run of items that fit within the main axis.
@@ -106,6 +237,21 @@ type wrapLine struct {
 func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, children []Element, axis layout.Axis, mainMax int) layout.Dimensions {
 	gap := int(st.Gap)
 
+	// A container that hugs the main axis has no leftover space to
+	// distribute: mainMax is only the space it may grow into, while
+	// the container (and any clip around it, e.g. a Clickable's) ends
+	// up as wide as its content. Justify must not push the content
+	// across that unused space.
+	hugMain := false
+	switch {
+	case st.FlexGrow > 0:
+		// Growing boxes fill what they're given; see layoutFlex.
+	case axis == layout.Horizontal:
+		hugMain = st.Width == 0 && st.WidthPct == 0
+	default:
+		hugMain = st.Height == 0 && st.HeightPct == 0
+	}
+
 	items := make([]wrapItem, 0, len(children))
 	for _, child := range children {
 		el := child
@@ -120,10 +266,26 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 			cgtx.Constraints.Min.Y = 0
 			cgtx.Constraints.Max.Y = mainMax
 		}
+		if st.Align == properties.AlignCenter || st.Align == properties.AlignEnd {
+			// See layoutFlex: aligned items keep their own cross size.
+			if axis == layout.Horizontal {
+				cgtx.Constraints.Min.Y = 0
+			} else {
+				cgtx.Constraints.Min.X = 0
+			}
+		}
+		semStart := 0
+		if semantics != nil {
+			semStart = len(*semantics)
+		}
 		macro := op.Record(gtx.Ops)
 		dims := el.Layout(cgtx)
 		ops := macro.Stop()
-		items = append(items, wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis)})
+		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis)}
+		if semantics != nil {
+			it.semStart, it.semEnd = semStart, len(*semantics)
+		}
+		items = append(items, it)
 	}
 
 	var lines []wrapLine
@@ -148,6 +310,22 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 		lines = append(lines, cur)
 	}
 
+	// Lines share any spare cross-axis space of a container with a
+	// minimum cross size (a fixed Height on a Row, say), like CSS's
+	// default align-content: stretch, so aligned items align within
+	// the container rather than within their own line.
+	if len(lines) > 0 {
+		total := gap * (len(lines) - 1)
+		for _, ln := range lines {
+			total += ln.thickness
+		}
+		if extra := axisCross(gtx.Constraints.Min, axis) - total; extra > 0 {
+			for i := range lines {
+				lines[i].thickness += extra / len(lines)
+			}
+		}
+	}
+
 	crossOffset := 0
 	contentMain := 0
 	for li, ln := range lines {
@@ -155,11 +333,20 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 			contentMain = ln.used
 		}
 		leftover := mainMax - ln.used
+		if hugMain {
+			leftover = 0
+		}
 		lead, between := justifySpacing(st.Justify, leftover, len(ln.items))
 		mainOffset := lead
 		for i, it := range ln.items {
 			crossPos := alignOffset(st.Align, ln.thickness, it.cross)
-			off := op.Offset(axisPoint(axis, mainOffset, crossOffset+crossPos)).Push(gtx.Ops)
+			pos := axisPoint(axis, mainOffset, crossOffset+crossPos)
+			if semantics != nil {
+				for j := it.semStart; j < it.semEnd; j++ {
+					(*semantics)[j].Bounds = (*semantics)[j].Bounds.Add(pos)
+				}
+			}
+			off := op.Offset(pos).Push(gtx.Ops)
 			it.ops.Add(gtx.Ops)
 			off.Pop()
 			mainOffset += it.main

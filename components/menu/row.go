@@ -6,9 +6,8 @@ import (
 	"gioui.org/f32"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
+	"gioui.org/unit"
 
-	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
@@ -17,7 +16,8 @@ import (
 
 // row returns the element for one menu row. index is the item's
 // position in m.items, needed to track which row's submenu (if any)
-// is currently open.
+// is currently open. width is the shared row width in pixels, as
+// measured by the panel (0 while measuring).
 func (m *Menu) row(item *Item, index, width int, st styles.Styles) elements.Element {
 	if item.separator {
 		// Divider always fills its ambient Max.X rather than hugging
@@ -25,21 +25,27 @@ func (m *Menu) row(item *Item, index, width int, st styles.Styles) elements.Elem
 		// wrapped to the shared row width explicitly once known -
 		// otherwise it would stretch to whatever loose constraint the
 		// panel happens to have been given.
-		divider := elements.Divider(styles.Styles{Color: properties.CalcColorReverse(defaultSeparator), Height: 1})
+		sep := m.separatorColor
+		if sep == "" {
+			sep = properties.CalcColorReverse(defaultSeparator)
+		}
+		divider := elements.Divider(styles.Styles{Color: sep, Height: 1})
 		if width > 0 {
-			return elements.Box(styles.Styles{Width: properties.Width(width)}, divider)
+			return elements.SizedPx(width, 0, divider)
 		}
 		return divider
 	}
 	if item.disabled {
-		st := styles.Styles{
-			Padding: properties.SymmetricInset(28, 8),
-			Color:   properties.CalcColorReverse(defaultDisabled),
-		}
+		st := styles.Styles{Padding: m.rowPadding()}
+		// The color goes on the text itself: a Box's Color doesn't
+		// carry over to the Text inside it, which would otherwise draw
+		// in the default (dark) color.
+		label := elements.Text(item.label, styles.Styles{Color: m.disabledText()})
 		if width > 0 {
-			st.Width = properties.Width(width)
+			st.Width = -1
+			return elements.SizedPx(width, 0, elements.Box(st, label))
 		}
-		return elements.Box(st, elements.Text(item.label))
+		return elements.Box(st, label)
 	}
 	return &menuRow{
 		menu:  m,
@@ -71,56 +77,109 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			item.action()
 		}
 		r.menu.Close()
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 	}
 	dims := item.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		st := styles.Styles{
-			Padding:      properties.SymmetricInset(28, 8),
+			Padding:      r.menu.rowPadding(),
 			BorderRadius: 6,
 		}
-		// Force the row to the shared width via the Width style, not
-		// by poking the incoming constraints directly: an unset Width
-		// makes this box hug, which zeroes the constraint minimum
-		// regardless of what a caller set it to, discarding a
-		// raw-constraint override silently. Going through Width keeps
-		// the box's own "am I fixed-size?" check (hugMain) in sync
-		// with what's actually being asked of it.
+		// Force the row to the shared width: an unset Width makes the
+		// box hug, which zeroes the constraint minimum regardless of
+		// what a caller set it to. The measured width is in pixels, so
+		// it's applied as exact constraints the box then expands to
+		// fill (Width -1), rather than as a dp Width that would be
+		// scaled a second time.
 		if r.width > 0 {
-			st.Width = properties.Width(r.width)
+			st.Width = -1
+			gtx.Constraints.Min.X, gtx.Constraints.Max.X = r.width, r.width
 		}
 		hovered := item.click.Hovered()
+		if hovered || item.click.Pressed() {
+			kit.MarkLive()
+		}
 		if hovered {
-			st.Background = properties.CalcColorReverse(defaultHover)
+			st.Background = r.menu.hoverColor
+			if st.Background == "" {
+				st.Background = properties.CalcColorReverse(defaultHover)
+			}
 			pointer.CursorPointer.Add(gtx.Ops)
 			if item.submenu != nil {
 				r.menu.openSubmenu = r.index
 			}
 		}
 		var children []elements.Element
-		if item.icon != "" {
+		if item.icon != nil {
 			children = append(children,
-				icon.Material(item.icon, styles.Styles{Color: r.st.Color, Width: 16, Height: 16}),
+				item.icon.Icon(styles.Styles{Color: r.st.Color, Width: 16, Height: 16}),
 				elements.Box(styles.Styles{Width: 8}),
 			)
 		}
-		children = append(children, elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(item.label, styles.Styles{Color: r.st.Color})))
+		// Once the shared width is known the label fills the leftover
+		// space, pushing a submenu chevron to the right edge; while
+		// measuring it must hug its text.
+		labelSt := styles.Styles{FlexGrow: 1}
+		if r.width > 0 {
+			labelSt.Width = -1
+		}
+		children = append(children, elements.Box(labelSt, elements.Text(item.label, styles.Styles{Color: r.st.Color})))
 		if item.submenu != nil {
 			children = append(children,
 				elements.Box(styles.Styles{Width: 8}),
-				icon.Material("chevron-right", styles.Styles{Color: r.st.Color, Width: 14, Height: 14}),
+				elements.Glyph(kit.GlyphChevronRight, styles.Styles{Color: r.st.Color, Width: 14}),
 			)
 		}
-		return elements.Box(st, elements.Row(styles.Styles{Align: properties.AlignCenter}, children...)).Layout(gtx)
+		// Width -1 makes the row span the shared width, so the growing
+		// label pushes a submenu chevron to the right edge.
+		// No wrap: FlexGrow is ignored on wrapped lines.
+		rowSt := styles.Styles{Align: properties.AlignCenter, Wrap: properties.WrapNoWrap}
+		if r.width > 0 {
+			rowSt.Width = -1
+		}
+		return elements.Box(st, elements.Row(rowSt, children...)).Layout(gtx)
 	})
 	// Keep the item clickable even when a frameless window's
 	// whole-window drag area happens to reach this portal - see
 	// button.Layout's identical comment.
 	kit.BlockDrag(gtx, dims.Size)
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticMenuItem, Label: item.label, Target: menuItemActor{r.menu, item}}, dims.Size)
 
-	if item.submenu != nil && r.menu.openSubmenu == r.index {
-		anchor := elements.AbsolutePosition().Add(image.Pt(dims.Size.X, 0))
+	// Only the real pass opens the submenu. The menu also lays its rows
+	// out on scratch passes with input disabled (measureWidth, and
+	// RegisterPortal's sizing pass); registering the submenu's portal
+	// there anchors it at the scratch origin, drawing a second copy in
+	// the window's top-left corner.
+	if item.submenu != nil && r.menu.openSubmenu == r.index && gtx.Source.Enabled() {
+		// Shift up by the submenu's top padding so its first row lines
+		// up with this one.
+		anchor := elements.AbsolutePosition().Add(image.Pt(dims.Size.X, -gtx.Dp(unit.Dp(item.submenu.panelPaddingTop()))))
 		item.submenu.OpenAt(f32.Pt(float32(anchor.X), float32(anchor.Y)))
 		item.submenu.Layout(gtx)
 	}
 	return dims
+}
+
+// menuItemActor lets automation activate a menu item as a click
+// would.
+type menuItemActor struct {
+	menu *Menu
+	item *Item
+}
+
+func (a menuItemActor) Click() {
+	if a.item.submenu != nil {
+		return
+	}
+	if a.item.action != nil {
+		a.item.action()
+	}
+	a.menu.Close()
+}
+
+// disabledText is the text color of disabled rows.
+func (m *Menu) disabledText() properties.Color {
+	if m.disabledColor != "" {
+		return m.disabledColor
+	}
+	return properties.CalcColorReverse(defaultDisabled)
 }

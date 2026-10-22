@@ -3,13 +3,14 @@ package slider
 
 import (
 	"image"
+	"strconv"
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/elements"
 
 	"github.com/mehran9675/giode/styles"
 )
@@ -39,6 +40,22 @@ func (s *Slider) Value() float32 {
 	return s.value
 }
 
+// Dragging reports whether the thumb is being dragged this frame.
+// Callers that sync the slider to an external value (a player's
+// position, say) use it to avoid overwriting the value under the
+// user's finger.
+func (s *Slider) Dragging() bool {
+	return s.drag.Dragging()
+}
+
+// Change sets the value and invokes OnChange, as a user drag would.
+func (s *Slider) Change(v float32) {
+	s.value = clamp01(v)
+	if s.onChange != nil {
+		s.onChange(s.value)
+	}
+}
+
 // SetValue sets the value without invoking OnChange.
 func (s *Slider) SetValue(v float32) {
 	s.value = clamp01(v)
@@ -54,8 +71,9 @@ func (s *Slider) OnChange(fn func(v float32)) *Slider {
 // Layout lays out and updates the slider. It expands to the available
 // width.
 func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
+	m := metricsFor(gtx)
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
-	size := image.Pt(gtx.Constraints.Min.X, height)
+	size := image.Pt(gtx.Constraints.Min.X, m.height)
 
 	// The drag and hover regions must be clipped to the slider itself,
 	// otherwise they would span whatever outer area it is laid out in
@@ -77,18 +95,21 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 		}
 		switch ev.Kind {
 		case pointer.Press, pointer.Drag:
-			if ev.Priority == pointer.Grabbed {
-				v := s.valueFromX(float32(ev.Position.X), float32(size.X))
-				if v != s.value {
-					s.value = v
-					changed = true
-				}
+			// No Priority check: a plain click never grabs the pointer
+			// (the drag only grabs once it moves past the touch slop),
+			// so requiring a grab made clicking the track do nothing.
+			// Press only arrives when the click lands on the slider, and
+			// a drag another handler grabs arrives as Cancel instead.
+			v := s.valueFromX(float32(ev.Position.X), float32(size.X), m.padding)
+			if v != s.value {
+				s.value = v
+				changed = true
 			}
 		}
 	}
 	if changed && s.onChange != nil {
 		s.onChange(s.value)
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 	}
 
 	thumb := s.st.BorderColor
@@ -101,17 +122,23 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 		pointer.CursorGrab.Add(gtx.Ops)
 	}
 
-	paintTrack(gtx, size, s.st.Background)
-	paintFill(gtx, size, s.value, s.st.Color)
-	paintThumb(gtx, size, s.value, thumb)
+	paintTrack(gtx, size, s.st.Background, m)
+	paintFill(gtx, size, s.value, s.st.Color, m)
+	paintThumb(gtx, size, s.value, thumb, m)
+	if s.drag.Dragging() {
+		kit.MarkLive()
+	}
+	elements.RecordSemantic(gtx, elements.SemanticNode{
+		Kind: elements.SemanticSlider, Value: strconv.FormatFloat(float64(s.value), 'f', 3, 32), Target: s,
+	}, size)
 	return layout.Dimensions{Size: size}
 }
 
-func (s *Slider) valueFromX(x, width float32) float32 {
-	if width <= 2*padding {
+func (s *Slider) valueFromX(x, width float32, padding int) float32 {
+	if width <= float32(2*padding) {
 		return 0
 	}
-	return clamp01((x - padding) / (width - 2*padding))
+	return clamp01((x - float32(padding)) / (width - float32(2*padding)))
 }
 
 func clamp01(v float32) float32 {

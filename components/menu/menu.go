@@ -7,13 +7,15 @@ import (
 	"gioui.org/f32"
 	"gioui.org/widget"
 
+	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/styles"
+	"github.com/mehran9675/giode/styles/properties"
 )
 
 // Item is a single row of a menu.
 type Item struct {
 	label     string
-	icon      string
+	icon      icon.Source
 	disabled  bool
 	separator bool
 	click     *widget.Clickable
@@ -35,6 +37,11 @@ type Menu struct {
 	open   bool
 	pos    f32.Point
 	styles styles.Styles
+	// itemPadding overrides the rows' padding when itemPaddingSet.
+	itemPadding    properties.Inset
+	itemPaddingSet bool
+	// hoverColor and separatorColor override the defaults when set.
+	hoverColor, separatorColor, disabledColor properties.Color
 
 	// openSubmenu is the index of the item whose submenu is showing,
 	// or -1. It persists once hover opens a submenu - set again every
@@ -76,12 +83,13 @@ func (m *Menu) Item(label string, action func()) *Menu {
 	return m
 }
 
-// IconItem appends an item with a material icon. It returns m for
-// chaining.
-func (m *Menu) IconItem(iconName, label string, action func()) *Menu {
+// IconItem appends an item with a leading icon - any icon.Source: a
+// loaded SVG document, a registered icon (icon.Lookup) or path data
+// (icon.Path). It returns m for chaining.
+func (m *Menu) IconItem(ic icon.Source, label string, action func()) *Menu {
 	m.items = append(m.items, Item{
 		label:  label,
-		icon:   iconName,
+		icon:   ic,
 		click:  new(widget.Clickable),
 		action: action,
 	})
@@ -115,6 +123,52 @@ func (m *Menu) SubMenu(label string, submenu *Menu) *Menu {
 		submenu: submenu,
 	})
 	return m
+}
+
+// IconSubMenu is SubMenu with a leading icon, so it lines up with
+// IconItem rows. It returns m for chaining.
+func (m *Menu) IconSubMenu(ic icon.Source, label string, submenu *Menu) *Menu {
+	m.SubMenu(label, submenu)
+	m.items[len(m.items)-1].icon = ic
+	return m
+}
+
+// ItemPadding sets the padding of every row, in dp, replacing the
+// default of 28 horizontal and 8 vertical. A submenu has its own
+// setting. It returns m for chaining.
+func (m *Menu) ItemPadding(p properties.Inset) *Menu {
+	m.itemPadding = p
+	m.itemPaddingSet = true
+	return m
+}
+
+// HoverColor sets the background of the row under the pointer. It
+// returns m for chaining.
+func (m *Menu) HoverColor(c properties.Color) *Menu {
+	m.hoverColor = c
+	return m
+}
+
+// SeparatorColor sets the color of Separator lines. It returns m for
+// chaining.
+func (m *Menu) SeparatorColor(c properties.Color) *Menu {
+	m.separatorColor = c
+	return m
+}
+
+// DisabledColor sets the text color of DisabledItem rows. It returns m
+// for chaining.
+func (m *Menu) DisabledColor(c properties.Color) *Menu {
+	m.disabledColor = c
+	return m
+}
+
+// rowPadding is the padding of each row.
+func (m *Menu) rowPadding() properties.Inset {
+	if m.itemPaddingSet {
+		return m.itemPadding
+	}
+	return properties.SymmetricInset(28, 8)
 }
 
 // OpenAt opens the menu anchored at p, in window pixel coordinates.

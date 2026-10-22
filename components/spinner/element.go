@@ -39,9 +39,10 @@ func (s *SpinnerElement) Layout(gtx layout.Context) layout.Dimensions {
 		st = styles.Merge(s.st, s.hoverSt)
 	}
 
+	st = st.Px(gtx.Metric)
 	sizeX := int(st.Width)
 	if sizeX <= 0 {
-		sizeX = 32
+		sizeX = gtx.Dp(32)
 	}
 	sizeY := int(st.Height)
 	if sizeY <= 0 {
@@ -74,6 +75,6 @@ func (s *SpinnerElement) Layout(gtx layout.Context) layout.Dimensions {
 	s.RegisterArea(gtx, image.Pt(0, 0), size, st.Cursor)
 
 	// Keep animating while visible.
-	gtx.Execute(op.InvalidateCmd{})
+	kit.RequestFrame(gtx)
 	return layout.Dimensions{Size: size}
 }

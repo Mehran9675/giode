@@ -4,7 +4,6 @@ import (
 	"image"
 
 	"gioui.org/layout"
-	"gioui.org/op/paint"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/elements"
@@ -12,7 +11,8 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-// Image renders an image scaled according to styles.Fit.
+// Image renders an image scaled according to styles.Fit. Width and
+// Height (in dp) fix its size.
 func Image(img image.Image, st ...styles.Styles) elements.Element {
 	return &imageEl{img: img, st: first(st)}
 }
@@ -25,11 +25,12 @@ type imageEl struct {
 
 // Layout renders the image.
 func (i *imageEl) Layout(gtx layout.Context) layout.Dimensions {
-	if i.st.Width != 0 {
-		gtx.Constraints.Min.X, gtx.Constraints.Max.X = int(i.st.Width), int(i.st.Width)
+	st := i.st.Px(gtx.Metric)
+	if st.Width > 0 {
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = int(st.Width), int(st.Width)
 	}
-	if i.st.Height != 0 {
-		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = int(i.st.Height), int(i.st.Height)
+	if st.Height > 0 {
+		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = int(st.Height), int(st.Height)
 	}
 	var fit widget.Fit
 	switch i.st.Fit.Mode() {
@@ -42,8 +43,5 @@ func (i *imageEl) Layout(gtx layout.Context) layout.Dimensions {
 	default:
 		fit = widget.Contain
 	}
-	return widget.Image{
-		Src: paint.NewImageOp(i.img),
-		Fit: fit,
-	}.Layout(gtx)
+	return widget.Image{Src: properties.ImageOp(i.img), Fit: fit}.Layout(gtx)
 }

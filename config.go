@@ -2,6 +2,9 @@ package giode
 
 import (
 	"image"
+	"os"
+	"sync"
+	"sync/atomic"
 
 	"gioui.org/app"
 	"gioui.org/io/system"
@@ -37,7 +40,9 @@ type Config struct {
 	// Frameless removes the OS window frame (title bar and borders).
 	Frameless bool
 	// Draggable makes the window movable by dragging empty
-	// (non-widget) space. It only applies to frameless windows.
+	// (non-widget) space anywhere in it. It only applies to frameless
+	// windows. To drag by a custom title bar only, leave it off and
+	// use TitleBar, which marks its own area as the drag handle.
 	Draggable bool
 	// Background is the window background color.
 	Background string
@@ -72,9 +77,28 @@ type Config struct {
 	// OnBeforeClose runs when a window close is requested. It cannot
 	// veto the close.
 	OnBeforeClose func()
+	// OnWindowStateChange runs when the window is minimized,
+	// maximized, made fullscreen or restored - by the app or by the
+	// user.
+	OnWindowStateChange func(WindowState)
 	// SingleInstanceLock, when set, ensures only one instance of the
 	// application runs.
 	SingleInstanceLock *SingleInstanceLock
+	// OnFileDrop runs with the paths of files dropped onto the window
+	// from the file manager, on the UI goroutine. It works when the app
+	// runs as administrator too. Windows only for now; elsewhere a
+	// warning is logged once.
+	OnFileDrop func(paths []string)
+	// MCP starts a Model Context Protocol server alongside the window,
+	// so AI agents can see and drive the running app: inspect the UI,
+	// click, type, take screenshots, read and set named state - plus
+	// any tools added with App.MCPTool. It listens on
+	// http://127.0.0.1:7600/mcp unless MCPOptions say otherwise.
+	// Setting the GIODE_MCP=1 environment variable enables it too,
+	// without rebuilding.
+	MCP bool
+	// MCPOptions configures the MCP server.
+	MCPOptions MCPOptions
 }
 
 // WindowStartState selects the initial state of the window.
@@ -131,6 +155,19 @@ type App struct {
 	instanceLockPath  string
 	instanceLockOwner bool
 	secondInstance    bool
+
+	winState   atomic.Int32
+	winFocused atomic.Bool
+
+	clip clipboardState
+
+	viewMu     sync.Mutex
+	view       app.ViewEvent
+	dropWarned bool
+
+	mcp     *mcpBridge
+	uiMu    sync.Mutex
+	uiCalls []func()
 }
 
 // New creates an App from cfg. The window is created and shown the
@@ -205,6 +242,10 @@ func New(cfg Config) *App {
 		a.window.Perform(system.ActionCenter)
 	}
 	state.SetInvalidator(a.window.Invalidate)
+	properties.SetThemeChangeHook(a.window.Invalidate)
+	if cfg.MCP || os.Getenv("GIODE_MCP") == "1" {
+		a.mcp = newMCPBridge(a, cfg.MCPOptions)
+	}
 	return a
 }
 

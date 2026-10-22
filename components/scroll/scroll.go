@@ -3,7 +3,6 @@ package scroll
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
@@ -18,15 +17,7 @@ import (
 	"github.com/mehran9675/giode/styles"
 )
 
-var (
-	defaultTrack = color.NRGBA{R: 0x47, G: 0x55, B: 0x69, A: 0x99}
-	defaultThumb = "#94a3b8cc"
-)
-
 const (
-	defaultBarWidth = 8
-	defaultThumbLen = 20
-
 	// unbounded mirrors the sentinel Gio uses for infinite
 	// constraints.
 	unbounded = 1e6
@@ -43,15 +34,14 @@ const (
 type Scroll struct {
 	offset        float32
 	scroll        gesture.Scroll
-	barDrag       gesture.Drag
-	barHover      gesture.Hover
-	barDragY      float32
+	bar           kit.Scrollbar
 	contentH      int
 	viewportH     int
 	content       func() elements.Element
 	st            styles.Styles
 	onReachBottom func()
 	wasAtBottom   bool
+	pxPerDp       float32
 }
 
 // New returns a Scroll around content, rebuilt fresh every frame. The
@@ -118,6 +108,34 @@ func (s *Scroll) Visible(top, height int) bool {
 	return top+height > int(s.offset) && top < int(s.offset)+s.viewportH
 }
 
+// VisibleDp is Visible with top and height in dp, the units Styles
+// use, converted with the display scale of the last frame.
+func (s *Scroll) VisibleDp(top, height float32) bool {
+	scale := s.pxPerDp
+	if scale <= 0 {
+		scale = 1
+	}
+	return s.Visible(int(top*scale), int(height*scale+0.5))
+}
+
+// OffsetDp returns the vertical offset in dp.
+func (s *Scroll) OffsetDp() float32 {
+	scale := s.pxPerDp
+	if scale <= 0 {
+		scale = 1
+	}
+	return s.offset / scale
+}
+
+// ScrollToDp sets the vertical offset in dp.
+func (s *Scroll) ScrollToDp(v float32) {
+	scale := s.pxPerDp
+	if scale <= 0 {
+		scale = elements.DisplayScale()
+	}
+	s.offset = v * scale
+}
+
 // OnReachBottom sets the handler invoked once when the scroll reaches
 // its maximum offset - edge-triggered: it fires again only after
 // scrolling away from the bottom and back, not on every frame spent
@@ -153,6 +171,7 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	viewport := gtx.Constraints.Constrain(image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y))
 	gtx.Constraints = layout.Exact(viewport)
 	s.viewportH = viewport.Y
+	s.pxPerDp = gtx.Metric.PxPerDp
 
 	// Lay the content out with unbounded height.
 	macro := op.Record(gtx.Ops)
@@ -186,6 +205,11 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	if dist != 0 {
 		s.offset = s.clamp(s.offset + float32(dist))
 	}
+	if dist != 0 || s.scroll.State() != gesture.StateIdle {
+		// Flings keep scrolling between input events; cached
+		// ancestors must keep laying the content out.
+		kit.MarkLive()
+	}
 
 	atBottom := s.AtBottom()
 	if atBottom && !s.wasAtBottom && s.onReachBottom != nil {
@@ -208,88 +232,5 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 // layoutScrollbar draws the track and draggable thumb when the
 // content overflows, fully customized via st.ScrollBar.
 func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
-	if s.contentH <= s.viewportH || s.viewportH <= 0 {
-		return
-	}
-	sb := s.st.ScrollBar
-	barWidth := sb.Width
-	if barWidth <= 0 {
-		barWidth = defaultBarWidth
-	}
-	minThumb := sb.MinThumbLength
-	if minThumb <= 0 {
-		minThumb = defaultThumbLen
-	}
-	radius := sb.Radius
-	if radius <= 0 {
-		radius = barWidth / 2
-	}
-	trackColor := properties.CalcColor(sb.TrackColor)
-	if trackColor.A == 0 {
-		trackColor = defaultTrack
-	}
-	thumb := sb.ThumbColor
-	if thumb == "" {
-		thumb = defaultThumb
-	}
-
-	x := viewport.X - barWidth
-	trackH := viewport.Y
-	thumbH := trackH * trackH / s.contentH
-	if thumbH < minThumb {
-		thumbH = minThumb
-	}
-	maxThumbOff := trackH - thumbH
-	thumbOff := int(s.offset) * maxThumbOff / max(s.contentH-s.viewportH, 1)
-
-	// Thumb drag and hover region and events.
-	thumbRect := image.Rect(x, thumbOff, x+barWidth, min(thumbOff+thumbH, trackH))
-	thumbClip := clip.Rect(thumbRect).Push(gtx.Ops)
-	kit.BlockDragHere(gtx)
-	s.barDrag.Add(gtx.Ops)
-	s.barHover.Add(gtx.Ops)
-	hovered := s.barHover.Update(gtx.Source)
-	for {
-		ev, ok := s.barDrag.Update(gtx.Metric, gtx.Source, gesture.Both)
-		if !ok {
-			break
-		}
-		switch ev.Kind {
-		case pointer.Press:
-			if ev.Priority == pointer.Grabbed {
-				s.barDragY = ev.Position.Y
-			}
-		case pointer.Drag:
-			if ev.Priority == pointer.Grabbed {
-				dy := ev.Position.Y - s.barDragY
-				s.barDragY = ev.Position.Y
-				if dy != 0 && maxThumbOff > 0 {
-					delta := dy * float32(s.contentH-s.viewportH) / float32(maxThumbOff)
-					s.offset = s.clamp(s.offset + delta)
-				}
-			}
-		}
-	}
-	switch {
-	case s.barDrag.Dragging():
-		thumb = kit.Pressed(thumb)
-		pointer.CursorGrabbing.Add(gtx.Ops)
-	case hovered:
-		thumb = kit.Hovered(thumb)
-		pointer.CursorGrab.Add(gtx.Ops)
-	}
-	thumbClip.Pop()
-
-	// Track and thumb, positioned at the same x offset as the drag
-	// region above.
-	barOff := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
-	trackClip := clip.UniformRRect(image.Rect(0, 0, barWidth, trackH), radius).Push(gtx.Ops)
-	paint.Fill(gtx.Ops, trackColor)
-	trackClip.Pop()
-
-	thumbOff = int(s.offset) * maxThumbOff / max(s.contentH-s.viewportH, 1)
-	thumbClip2 := clip.UniformRRect(image.Rect(0, thumbOff, barWidth, thumbOff+thumbH), radius).Push(gtx.Ops)
-	paint.Fill(gtx.Ops, properties.CalcColor(thumb))
-	thumbClip2.Pop()
-	barOff.Pop()
+	s.bar.Layout(gtx, viewport, s.contentH, &s.offset, s.st.ScrollBar)
 }

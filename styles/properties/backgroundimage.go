@@ -51,7 +51,7 @@ func PaintBackgroundImage(ops *op.Ops, rect image.Rectangle, img image.Image, fi
 	sy := float32(dst.Dy()) / float32(isz.Y)
 	trans := f32.AffineId().Scale(f32.Point{}, f32.Pt(sx, sy)).Offset(f32.Pt(float32(dst.Min.X), float32(dst.Min.Y)))
 	defer op.Affine(trans).Push(ops).Pop()
-	paint.NewImageOp(img).Add(ops)
+	ImageOp(img).Add(ops)
 	paint.PaintOp{}.Add(ops)
 }
 

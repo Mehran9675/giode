@@ -8,7 +8,7 @@ flipping above the cursor when it would overflow the bottom edge.
 ```go
 menu := giode.Menu(giode.Styles{}).
 	Item("New", func() { ... }).
-	IconItem("trash", "Delete", func() { ... }).
+	IconItem(trashIcon, "Delete", func() { ... }). // any IconSource, see Icons
 	Separator().
 	DisabledItem("Locked")
 

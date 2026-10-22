@@ -42,11 +42,12 @@ func (i *ImageElement) Layout(gtx layout.Context) layout.Dimensions {
 	if i.Enabled() && i.Hovered() {
 		st = styles.Merge(i.st, i.hoverSt)
 	}
+	st = st.Px(gtx.Metric)
 
-	if st.Width != 0 {
+	if st.Width > 0 {
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = int(st.Width), int(st.Width)
 	}
-	if st.Height != 0 {
+	if st.Height > 0 {
 		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = int(st.Height), int(st.Height)
 	}
 	var fit widget.Fit
@@ -62,7 +63,7 @@ func (i *ImageElement) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	macro := op.Record(gtx.Ops)
 	dims := widget.Image{
-		Src: paint.NewImageOp(i.img),
+		Src: properties.ImageOp(i.img),
 		Fit: fit,
 	}.Layout(gtx)
 	imgOps := macro.Stop()

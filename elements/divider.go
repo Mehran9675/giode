@@ -50,10 +50,14 @@ func (d *DividerElement) Layout(gtx layout.Context) layout.Dimensions {
 	if d.Enabled() && d.Hovered() {
 		st = styles.Merge(d.st, d.hoverSt)
 	}
+	if st.Display == properties.DisplayNone {
+		return layout.Dimensions{}
+	}
+	st = st.Px(gtx.Metric)
 
 	height := int(st.Height)
 	if height <= 0 {
-		height = 1
+		height = max(1, gtx.Dp(1))
 	}
 	width := gtx.Constraints.Max.X
 	if width < gtx.Constraints.Min.X {

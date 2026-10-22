@@ -7,6 +7,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/styles"
+	"github.com/mehran9675/giode/styles/properties"
 )
 
 var (
@@ -26,6 +27,8 @@ type Select struct {
 	itemClick []*widget.Clickable
 	onChange  func(index int)
 	st        styles.Styles
+	// hover overrides the option hover background when set.
+	hover properties.Color
 }
 
 // New returns a Select with the given styles and options: Background
@@ -36,6 +39,13 @@ func New(st styles.Styles, options ...string) *Select {
 	for range options {
 		s.itemClick = append(s.itemClick, new(widget.Clickable))
 	}
+	return s
+}
+
+// HoverColor sets the background of the option under the pointer. It
+// returns s for chaining.
+func (s *Select) HoverColor(c properties.Color) *Select {
+	s.hover = c
 	return s
 }
 
@@ -56,6 +66,24 @@ func (s *Select) Value() string {
 func (s *Select) SetSelected(i int) {
 	if i >= 0 && i < len(s.options) {
 		s.selected = i
+	}
+}
+
+// Options returns the selectable options.
+func (s *Select) Options() []string {
+	return s.options
+}
+
+// Choose selects option i and invokes OnChange, as picking it from the
+// list would. Out-of-range indexes are ignored.
+func (s *Select) Choose(i int) {
+	if i < 0 || i >= len(s.options) {
+		return
+	}
+	s.selected = i
+	s.open = false
+	if s.onChange != nil {
+		s.onChange(i)
 	}
 }
 

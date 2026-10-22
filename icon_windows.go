@@ -56,19 +56,21 @@ type bitmapInfo struct {
 	colors [1]uint32
 }
 
-// handleViewEvent applies the configured icon once the platform
-// window handle is known.
-func (a *App) handleViewEvent(ev appViewEvent) {
-	if a.icon == nil || a.iconApplied {
-		return
-	}
+// platformView applies the configured icon and file drop once the
+// platform window handle is known.
+func (a *App) platformView(ev appViewEvent) {
 	if !ev.Valid() {
 		return
 	}
-	if wev, ok := ev.(win32ViewEvent); ok && wev.HWND != 0 {
+	wev, ok := ev.(win32ViewEvent)
+	if !ok || wev.HWND == 0 {
+		return
+	}
+	if a.icon != nil && !a.iconApplied {
 		applyWindowIcon(wev.HWND, a.icon)
 		a.iconApplied = true
 	}
+	a.enableFileDrop(wev.HWND)
 }
 
 // applyWindowIcon converts img to an icon and assigns it to the

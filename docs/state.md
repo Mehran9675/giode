@@ -55,3 +55,44 @@ from outside the render loop:
 For UI-only interactions confined to one component (a click count next to one button, a
 dropdown's own selection), the component's own field is simpler - see
 [Extending the library](extending.md).
+
+## Per-item state for dynamic lists
+
+Stateful components must outlive a frame, which is easy for a fixed UI — create them once —
+but not for a list whose items come and go. `Keyed` gives each item its own state, looked up
+by a stable key:
+
+```go
+func fileRows(files []File) []giode.Element {
+	rows := make([]giode.Element, 0, len(files))
+	for _, f := range files {
+		f := f
+		row := giode.Keyed("files", f.ID, func() *giode.PressableElement {
+			return giode.Pressable(func(s giode.PressState) giode.Element {
+				return fileRow(f, s)
+			}).OnClick(func(giode.ClickEvent) { open(f) })
+		})
+		rows = append(rows, row)
+	}
+	return rows
+}
+```
+
+- Use IDs, not indexes: with indexes, removing an item hands its state to the next one.
+- The scope (`"files"`) keeps unrelated lists apart when their keys could collide.
+- An entry nobody asked for in 60 frames is dropped (`SetKeyedRetention` changes that; frames
+  only happen when something changes, so it isn't a fixed time). `ForgetKeyed` drops one
+  right away.
+
+Inside a stateful component, a typed `KeyedCache` does the same without global scopes:
+
+```go
+type fileList struct {
+	rows *giode.KeyedCache[string, *giode.PressableElement]
+}
+
+l.rows = giode.NewKeyedCache[string, *giode.PressableElement]().Retain(120).
+	OnEvict(func(id string, p *giode.PressableElement) { /* release resources */ })
+
+row := l.rows.Get(f.ID, func() *giode.PressableElement { ... })
+```

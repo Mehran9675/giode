@@ -9,7 +9,9 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 )
 
@@ -39,7 +41,7 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 			progress = 1
 		} else {
 			progress = float32(elapsed) / float32(animDuration)
-			gtx.Execute(op.InvalidateCmd{})
+			kit.RequestFrame(gtx)
 		}
 	} else {
 		elapsed := gtx.Now.Sub(d.closeT)
@@ -48,11 +50,11 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{}
 		}
 		progress = 1 - float32(elapsed)/float32(animDuration)
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 	}
 
 	win := gtx.Constraints.Max
-	width := d.width
+	width := gtx.Dp(unit.Dp(d.width))
 	if width > win.X {
 		width = win.X
 	}
@@ -62,7 +64,7 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 		if d.open != nil {
 			*d.open = false
 		}
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 	}
 	d.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		scrimColor := color.NRGBA{A: uint8(0.4 * 0xff * progress)}

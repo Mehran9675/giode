@@ -21,6 +21,10 @@ type BoxElement struct {
 	hover   *gesture.Hover
 	hoverSt styles.Styles
 	hovered bool
+	hoverAnim
+
+	// press makes the box clickable; see OnClick.
+	press *Pressable
 }
 
 // Box is a container element: children are laid along FlexDirection
@@ -96,6 +100,23 @@ func zIndexOf(el Element) int {
 // children, each sorted by z-index. Absolute positioning applies to
 // Box children.
 func (b *BoxElement) split() (flow, absolute []Element) {
+	// Fast path, the overwhelmingly common case: no absolute children
+	// and no z-index, so the children are used as they are without
+	// allocating.
+	simple := true
+	for _, child := range b.children {
+		if zIndexOf(child) != 0 {
+			simple = false
+			break
+		}
+		if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {
+			simple = false
+			break
+		}
+	}
+	if simple {
+		return b.children, nil
+	}
 	flow = make([]Element, 0, len(b.children))
 	for _, child := range b.children {
 		if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {

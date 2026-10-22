@@ -17,7 +17,7 @@ func (b *BoxElement) layoutAbsolute(gtx layout.Context, children []Element, size
 		if !ok {
 			continue
 		}
-		st := box.st
+		st := box.st.Px(gtx.Metric)
 
 		cgtx := gtx
 		cgtx.Constraints.Min = image.Point{}

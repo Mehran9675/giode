@@ -4,6 +4,13 @@ import "github.com/mehran9675/giode/styles/properties"
 
 // Styles is the set of CSS-like properties applied to an element.
 // Zero values mean "unset"; elements fall back to their defaults.
+//
+// Lengths (sizes, paddings, margins, gaps, radii, border widths,
+// offsets, shadows) are in device-independent pixels (dp): they are
+// scaled by the display's density when laid out, so a UI keeps its
+// physical size on HiDPI screens, matching font sizes, which are in
+// sp. Use Px to resolve a Styles value to physical pixels in custom
+// elements.
 type Styles struct {
 	// FlexDirection is the main axis of a flex container: "row" or
 	// "column".
@@ -44,6 +51,12 @@ type Styles struct {
 	BorderColor properties.BorderColor
 	// BorderRadius rounds the background corners.
 	BorderRadius properties.BorderRadius
+	// BorderRadii rounds each corner separately and takes precedence
+	// over BorderRadius when any corner is set.
+	BorderRadii properties.Corners
+	// BackgroundGradient paints a linear gradient above Background
+	// (see properties.Linear).
+	BackgroundGradient properties.BackgroundGradient
 	// Opacity is the element transparency in the range 0-1.
 	Opacity properties.Opacity
 	// Color is the text color.
@@ -92,4 +105,18 @@ type Styles struct {
 	FontStyle properties.FontStyle
 	// FontFamily selects the text typeface.
 	FontFamily properties.FontFamily
+	// TextTransform changes the capitalization of text.
+	TextTransform properties.TextTransform
+	// TextOverflow selects how text cut off by MaxLines ends.
+	TextOverflow properties.TextOverflow
+	// Transform rotates, scales or translates the painted element
+	// without affecting layout.
+	Transform properties.Transform
+	// Display removes the element from layout when set to none.
+	Display properties.Display
+	// Visibility hides the element while keeping its space.
+	Visibility properties.Visibility
+	// Transition animates color and opacity changes between base and
+	// hover styles.
+	Transition properties.Transition
 }

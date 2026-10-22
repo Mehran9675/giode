@@ -8,7 +8,6 @@ import (
 
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/components/input"
@@ -146,7 +145,7 @@ func (a *AutoComplete) row(i int, opt string) elements.Element {
 			if a.onSelect != nil {
 				a.onSelect(opt)
 			}
-			gtx.Execute(op.InvalidateCmd{})
+			kit.RequestFrame(gtx)
 		}
 		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			textColor := a.st.Color

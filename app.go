@@ -1,6 +1,7 @@
 package giode
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -41,8 +42,13 @@ func (a *App) Run(view func() Element) error {
 		a.cfg.OnStartup()
 	}
 	a.logf(LogLevelInfo, "giode: app started")
+	ctx, cancel := context.WithCancel(context.Background())
+	if a.mcp != nil {
+		a.mcp.start(ctx, a)
+	}
 	go func() {
 		err := a.runLoop(view)
+		cancel()
 		if a.instanceLockOwner {
 			releaseInstanceLock(a.instanceLockPath)
 		}
@@ -76,22 +82,45 @@ func (a *App) runLoop(view func() Element) error {
 			if a.cfg.OnBeforeClose != nil {
 				a.cfg.OnBeforeClose()
 			}
+			if a.mcp != nil {
+				a.mcp.release()
+			}
 			a.logf(LogLevelDebug, "giode: window closed")
 			return e.Err
 		case app.ViewEvent:
 			a.handleViewEvent(e)
+		case app.ConfigEvent:
+			a.handleConfig(e.Config)
 		case app.FrameEvent:
+			a.runUICalls()
 			gtx := app.NewContext(&ops, e)
+			elements.BeginFrame()
+			if a.mcp != nil {
+				elements.BeginSemantics()
+			}
 			elements.SetWindowSize(gtx.Constraints.Max)
+			elements.SetMetric(gtx.Metric)
 			paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
 			layoutDrag(a, gtx)
 			view().Layout(gtx)
 			a.winPointer.layout(a, gtx)
+			a.layoutClipboard(gtx)
 			if a.ctxMenu != nil {
 				a.ctxMenu.Layout(gtx)
 			}
 			elements.DrainPortals(gtx)
+			if elements.RunAfterLayout() {
+				a.window.Invalidate()
+			}
+			var nodes []elements.SemanticNode
+			if a.mcp != nil {
+				nodes = elements.EndSemantics()
+			}
 			e.Frame(gtx.Ops)
+			elements.EndFrame()
+			if a.mcp != nil {
+				a.mcp.frameDone(nodes, &ops, e.Size)
+			}
 			if !ready {
 				ready = true
 				a.logf(LogLevelDebug, "giode: first frame presented")

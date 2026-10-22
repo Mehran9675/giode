@@ -23,7 +23,7 @@ func (e *editorEl) Layout(gtx layout.Context) layout.Dimensions {
 	st := e.st
 	size := properties.ResolveFontSize(st.FontSize)
 	if e.input.editor.Text() == "" {
-		gtx.Constraints.Min.X = 80
+		gtx.Constraints.Min.X = min(gtx.Dp(80), gtx.Constraints.Max.X)
 	}
 
 	textMacro := op.Record(gtx.Ops)

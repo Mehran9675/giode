@@ -6,10 +6,12 @@ import (
 	"github.com/mehran9675/giode/components/autocomplete"
 	"github.com/mehran9675/giode/components/button"
 	"github.com/mehran9675/giode/components/checkbox"
+	"github.com/mehran9675/giode/components/copybutton"
 	"github.com/mehran9675/giode/components/dialog"
 	"github.com/mehran9675/giode/components/drawer"
 	"github.com/mehran9675/giode/components/dropdown"
 	"github.com/mehran9675/giode/components/icon"
+	"github.com/mehran9675/giode/components/iconbutton"
 	"github.com/mehran9675/giode/components/imageutil"
 	"github.com/mehran9675/giode/components/input"
 	"github.com/mehran9675/giode/components/kit"
@@ -21,7 +23,12 @@ import (
 	"github.com/mehran9675/giode/components/spinner"
 	"github.com/mehran9675/giode/components/tabs"
 	"github.com/mehran9675/giode/components/title"
+	"github.com/mehran9675/giode/components/titlebar"
+	"github.com/mehran9675/giode/components/toaster"
 	"github.com/mehran9675/giode/components/tooltip"
+	"github.com/mehran9675/giode/components/transition"
+	"github.com/mehran9675/giode/components/treeview"
+	"github.com/mehran9675/giode/components/virtuallist"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/router"
@@ -39,6 +46,31 @@ type BoxShadow = properties.BoxShadow
 type ScrollBar = properties.ScrollBar
 
 type Breakpoint = elements.Breakpoint
+
+type (
+	Corners         = properties.Corners
+	ColorStop       = properties.ColorStop
+	LinearGradient  = properties.LinearGradient
+	Transform       = properties.Transform
+	StyleTransition = properties.Transition
+	Easing          = properties.Easing
+	Display         = properties.Display
+	Visibility      = properties.Visibility
+	TextTransform   = properties.TextTransform
+	TextOverflow    = properties.TextOverflow
+
+	// MemoCache caches a subtree's painted output across frames; see
+	// Memo.
+	PressState       = elements.PressState
+	ClickEvent       = elements.ClickEvent
+	ClickSource      = elements.ClickSource
+	MouseButton      = elements.MouseButton
+	PressableElement = elements.Pressable
+
+	MemoCache    = elements.MemoCache
+	SemanticNode = elements.SemanticNode
+	SemanticKind = elements.SemanticKind
+)
 type Tab = tabs.Tab
 type Side = drawer.Side
 
@@ -49,6 +81,8 @@ type AppShellConfig = appshell.Config
 type AppShellSlot = appshell.Slot
 
 type ButtonVariant = button.Variant
+type ButtonElement = button.Button
+type IconButtonVariant = iconbutton.Variant
 
 // State is a minimal global-state primitive: an observable value
 // readable/writable from anywhere, including a goroutine outside the
@@ -61,10 +95,47 @@ func NewState[T any](initial T) *State[T] {
 	return state.New(initial)
 }
 
+// Keyed returns the state stored under (scope, key), creating it with
+// init the first time - persistent per-item state (a Pressable, a text
+// field) for lists that change at runtime. Entries not asked for in a
+// while are dropped, so removed items don't leak. Use stable keys
+// (IDs), not indexes.
+func Keyed[T any](scope, key any, init func() T) T {
+	return elements.Keyed(scope, key, init)
+}
+
+// KeyedCache is a typed map of per-item state that drops entries not
+// asked for in a while; hold one in a stateful component.
+type KeyedCache[K comparable, V any] = elements.KeyedCache[K, V]
+
+// NewKeyedCache returns an empty KeyedCache.
+func NewKeyedCache[K comparable, V any]() *KeyedCache[K, V] {
+	return elements.NewKeyedCache[K, V]()
+}
+
+var (
+	// ForgetKeyed drops a Keyed entry right away.
+	ForgetKeyed = elements.ForgetKeyed
+	// SetKeyedRetention sets how many frames Keyed entries survive
+	// without being asked for.
+	SetKeyedRetention = elements.SetKeyedRetention
+)
+
+// NamedState returns a State registered under name, so tooling - the
+// MCP server's state_list/state_set tools - can read and set it. T
+// must be JSON-encodable for that.
+func NamedState[T any](name string, initial T) *State[T] {
+	return state.Named(name, initial)
+}
+
 const (
 	VariantContained = button.VariantContained
 	VariantOutlined  = button.VariantOutlined
 	VariantGhost     = button.VariantGhost
+
+	IconButtonContained = iconbutton.VariantContained
+	IconButtonOutlined  = iconbutton.VariantOutlined
+	IconButtonGhost     = iconbutton.VariantGhost
 )
 
 type Router = router.Router
@@ -82,6 +153,29 @@ var (
 	Divider    = elements.Divider
 	Responsive = elements.Responsive
 
+	// Pressable makes any content clickable; its content is rebuilt
+	// with the current PressState so it can restyle itself.
+	Pressable = elements.NewPressable
+
+	// Memo caches the output of build under key, rebuilding only when
+	// its deps, the States it reads, its constraints or the theme
+	// change - see elements.MemoCache for the full rules.
+	Memo = elements.Memo
+	// NewMemoCache returns a cache to hold in a stateful component.
+	NewMemoCache = elements.NewMemoCache
+	// InvalidateCaches forces every Memo to rebuild on the next frame.
+	InvalidateCaches = elements.InvalidateCaches
+
+	// AfterLayout runs a function once the current frame's layout is
+	// done, on the UI goroutine - for handlers that change the model
+	// the frame is still reading.
+	AfterLayout = elements.AfterLayout
+	// DisplayScale returns the display's pixels per dp as of the last
+	// frame; DpToPx and PxToDp convert with it. Safe from anywhere.
+	DisplayScale = elements.DisplayScale
+	DpToPx       = elements.DpToPx
+	PxToDp       = elements.PxToDp
+
 	Table       = elements.Table
 	TableHeader = elements.TableHeader
 	TableRow    = elements.TableRow
@@ -92,11 +186,15 @@ var (
 
 var (
 	Button = button.New
-	Tabs   = tabs.New
-	Scroll = scroll.New
-	Drawer = drawer.New
-	Dialog = dialog.New
-	Menu   = menu.New
+	// CopyButton copies text to the clipboard when clicked and briefly
+	// shows a check mark.
+	CopyButton = copybutton.New
+	IconButton = iconbutton.New
+	Tabs       = tabs.New
+	Scroll     = scroll.New
+	Drawer     = drawer.New
+	Dialog     = dialog.New
+	Menu       = menu.New
 
 	Progress   = progress.Progress
 	Spinner    = spinner.Spinner
@@ -148,23 +246,51 @@ const (
 
 // --- Icons ----------------------------------------------------------------
 
+// Giode bundles no icon set: load the icons your app uses from SVG
+// files (or path data, IconVG, images) and, optionally, register them
+// by name.
 var (
-	IconMaterial  = icon.Material
-	IconSVG       = icon.SVG
+	// IconSVG renders raw SVG path data on a 24x24 viewBox.
+	IconSVG = icon.SVG
+	// IconSVGCustom renders raw SVG path data on a custom viewBox.
 	IconSVGCustom = icon.SVGCustom
+	// IconSVGStroke strokes raw SVG path data (outline icon sets).
+	IconSVGStroke = icon.SVGStroke
 	IconImage     = icon.Image
 	IconIconVG    = icon.IconVG
+	LoadIconVG    = icon.LoadIconVG
 
-	// LoadIconSVG parses a whole .svg file's bytes (viewBox and one or
-	// more <path> elements), unlike IconSVG/IconSVGCustom, which take
-	// raw path data. Call .Icon(st...) on the result to render it.
+	// LoadIconSVG parses a whole .svg file's bytes; call .Icon(st...)
+	// on the result to render it.
 	LoadIconSVG = icon.LoadSVG
 	// MustLoadIconSVG is LoadIconSVG, panicking on error - convenient
 	// for bytes known at compile time, e.g. via go:embed.
 	MustLoadIconSVG = icon.MustLoadSVG
+	// LoadIconSVGFile and LoadIconSVGFS read and parse an .svg file
+	// from disk or from an fs.FS (such as an embed.FS).
+	LoadIconSVGFile = icon.LoadSVGFile
+	LoadIconSVGFS   = icon.LoadSVGFS
+
+	// RegisterIcon, RegisterIconSVG, RegisterIconsFS and
+	// RegisterIconsDir add icons to the default registry; Icon renders
+	// one by name.
+	RegisterIcon     = icon.Register
+	RegisterIconSVG  = icon.RegisterSVG
+	RegisterIconsFS  = icon.RegisterFS
+	RegisterIconsDir = icon.RegisterDir
+	LookupIcon       = icon.Lookup
+	IconNames        = icon.Names
+	// Icon renders a registered icon; an unknown name renders as empty
+	// space of the icon's size.
+	Icon = icon.Named
 )
 
-type IconDocument = icon.Document
+type (
+	IconDocument = icon.Document
+	IconSource   = icon.Source
+	IconPath     = icon.Path
+	IconRegistry = icon.Registry
+)
 
 // --- Fonts ----------------------------------------------------------------
 
@@ -177,6 +303,14 @@ var (
 
 var (
 	HexColor = properties.HexColor
+	// ParseColor validates any CSS color (hex, rgb(), hsl(), named).
+	ParseColor = properties.ParseColor
+	// Linear builds a linear gradient for Styles.BackgroundGradient.
+	Linear = properties.Linear
+
+	UniformCorners = properties.UniformCorners
+	TopCorners     = properties.TopCorners
+	BottomCorners  = properties.BottomCorners
 
 	UniformInset   = properties.UniformInset
 	SymmetricInset = properties.SymmetricInset
@@ -202,6 +336,10 @@ var (
 	// active. Start from DefaultLightPalette/DefaultDarkPalette to
 	// override just a few fields.
 	SetPalette = properties.SetPalette
+	// ToggleMode switches between light and dark mode.
+	ToggleMode = properties.ToggleMode
+	// CurrentPalette returns the palette of the active mode.
+	CurrentPalette = properties.CurrentPalette
 )
 
 // DefaultLightPalette and DefaultDarkPalette are the built-in
@@ -210,6 +348,130 @@ var (
 var (
 	DefaultLightPalette = properties.DefaultLightPalette
 	DefaultDarkPalette  = properties.DefaultDarkPalette
+)
+
+// --- Title bar ----------------------------------------------------------------
+
+// TitleBar returns a custom window title bar for a frameless window:
+// a drag handle with the title, optional icon and menus, and
+// minimize/maximize/close buttons. Pass the *App:
+//
+//	app := giode.New(giode.Config{Frameless: true, Resizable: true})
+//	bar := giode.TitleBar(app, "My app")
+var TitleBar = titlebar.New
+
+type (
+	TitleBarVariant = titlebar.Variant
+	TitleBarButton  = titlebar.Button
+	TitleBarWindow  = titlebar.Window
+)
+
+const (
+	TitleBarWindows = titlebar.VariantWindows
+	TitleBarMac     = titlebar.VariantMac
+
+	TitleBarMinimize = titlebar.ButtonMinimize
+	TitleBarMaximize = titlebar.ButtonMaximize
+	TitleBarClose    = titlebar.ButtonClose
+)
+
+// App implements the window controls a TitleBar drives.
+var _ titlebar.Window = (*App)(nil)
+
+// --- Tree view ----------------------------------------------------------------------
+
+// TreeView is a virtualized, keyboard-navigable tree. It owns
+// expansion and selection by key and draws indentation, arrows and
+// selection; the row function draws only each node's content.
+var TreeView = treeview.New
+
+type (
+	TreeViewElement = treeview.Tree
+	TreeNode        = treeview.Node
+	TreeRowState    = treeview.RowState
+)
+
+// --- Toasts -----------------------------------------------------------------------
+
+// Toaster shows small notifications in a corner of the window that
+// disappear on their own. Lay it out once per frame anywhere; call
+// Show from any goroutine.
+var Toaster = toaster.New
+
+type (
+	ToasterElement = toaster.Toaster
+	ToastKind      = toaster.Kind
+	ToastPlacement = toaster.Placement
+)
+
+const (
+	ToastInfo    = toaster.Info
+	ToastSuccess = toaster.Success
+	ToastWarning = toaster.Warning
+	ToastError   = toaster.Error
+
+	ToastBottomRight  = toaster.BottomRight
+	ToastBottomLeft   = toaster.BottomLeft
+	ToastBottomCenter = toaster.BottomCenter
+	ToastTopRight     = toaster.TopRight
+	ToastTopLeft      = toaster.TopLeft
+	ToastTopCenter    = toaster.TopCenter
+)
+
+// --- Virtual list ---------------------------------------------------------------
+
+// VirtualList is a vertical list of equal-height rows (height in dp)
+// that only builds the rows in or near the viewport:
+//
+//	list := giode.VirtualList(func() int { return len(rows) }, 32,
+//		func(i int) giode.Element { return rowView(rows[i]) })
+var VirtualList = virtuallist.New
+
+type (
+	VirtualListElement = virtuallist.List
+	ScrollAlign        = virtuallist.Align
+)
+
+const (
+	ScrollAlignNearest = virtuallist.AlignNearest
+	ScrollAlignStart   = virtuallist.AlignStart
+	ScrollAlignCenter  = virtuallist.AlignCenter
+	ScrollAlignEnd     = virtuallist.AlignEnd
+)
+
+// --- Transitions ----------------------------------------------------------------
+
+// Transition animates a component in and out. It takes the component,
+// the effect (combine kinds with |), the duration and a CSS-style
+// easing:
+//
+//	panel := giode.Transition(content, giode.FadeUp, giode.TransitionNormal, giode.EaseOut)
+//	giode.Button("Toggle").OnClick(panel.Toggle)
+var Transition = transition.New
+
+type (
+	TransitionKind    = transition.Kind
+	TransitionElement = transition.Transition
+)
+
+const (
+	Fade          = transition.Fade
+	SlideUp       = transition.SlideUp
+	SlideDown     = transition.SlideDown
+	SlideLeft     = transition.SlideLeft
+	SlideRight    = transition.SlideRight
+	Enlarge       = transition.Enlarge
+	Shrink        = transition.Shrink
+	Rotate        = transition.Rotate
+	Collapse      = transition.Collapse
+	CollapseWidth = transition.CollapseWidth
+	FadeUp        = transition.FadeUp
+	Zoom          = transition.Zoom
+	Pop           = transition.Pop
+
+	TransitionFast   = transition.Fast
+	TransitionNormal = transition.Normal
+	TransitionSlow   = transition.Slow
 )
 
 // --- AppShell ---------------------------------------------------------------
@@ -311,4 +573,33 @@ const (
 
 	OverflowVisible = properties.OverflowVisible
 	OverflowHidden  = properties.OverflowHidden
+
+	DisplayNone       = properties.DisplayNone
+	VisibilityVisible = properties.VisibilityVisible
+	VisibilityHidden  = properties.VisibilityHidden
+
+	TextTransformNone       = properties.TextTransformNone
+	TextTransformUppercase  = properties.TextTransformUppercase
+	TextTransformLowercase  = properties.TextTransformLowercase
+	TextTransformCapitalize = properties.TextTransformCapitalize
+
+	TextOverflowClip     = properties.TextOverflowClip
+	TextOverflowEllipsis = properties.TextOverflowEllipsis
+
+	MousePrimary   = elements.MousePrimary
+	MouseSecondary = elements.MouseSecondary
+	MouseMiddle    = elements.MouseMiddle
+
+	ClickPointer      = elements.ClickPointer
+	ClickKeyboard     = elements.ClickKeyboard
+	ClickProgrammatic = elements.ClickProgrammatic
+
+	EaseInOut     = properties.EaseInOut
+	Ease          = properties.Ease
+	EaseLinear    = properties.EaseLinear
+	EaseIn        = properties.EaseIn
+	EaseOut       = properties.EaseOut
+	EaseOutBack   = properties.EaseOutBack
+	EaseInBack    = properties.EaseInBack
+	EaseOutBounce = properties.EaseOutBounce
 )

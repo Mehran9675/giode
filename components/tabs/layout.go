@@ -65,7 +65,7 @@ func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.El
 			if t.onChange != nil {
 				t.onChange(i)
 			}
-			gtx.Execute(op.InvalidateCmd{})
+			kit.RequestFrame(gtx)
 		}
 		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			sel := i == t.selected
@@ -91,8 +91,9 @@ func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.El
 			contentOps := macro.Stop()
 			defer clip.Rect{Max: dims.Size}.Push(gtx.Ops).Pop()
 			contentOps.Add(gtx.Ops)
-			off := op.Offset(image.Pt(0, dims.Size.Y-2)).Push(gtx.Ops)
-			paint.FillShape(gtx.Ops, properties.CalcColor(active), clip.Rect{Max: image.Pt(dims.Size.X, 2)}.Op())
+			line := gtx.Dp(2)
+			off := op.Offset(image.Pt(0, dims.Size.Y-line)).Push(gtx.Ops)
+			paint.FillShape(gtx.Ops, properties.CalcColor(active), clip.Rect{Max: image.Pt(dims.Size.X, line)}.Op())
 			off.Pop()
 			return dims
 		})
@@ -100,6 +101,24 @@ func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.El
 		// whole-window drag area - see button.Layout's identical
 		// comment.
 		kit.BlockDrag(gtx, dims.Size)
+		value := ""
+		if i == t.selected {
+			value = "selected"
+		}
+		elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticTab, Label: t.tabs[i].Label, Value: value, Target: tabActor{t, i}}, dims.Size)
 		return dims
 	})
+}
+
+// tabActor lets automation select a tab as a click would.
+type tabActor struct {
+	t *Tabs
+	i int
+}
+
+func (a tabActor) Click() {
+	a.t.selected = a.i
+	if a.t.onChange != nil {
+		a.t.onChange(a.i)
+	}
 }

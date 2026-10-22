@@ -2,10 +2,18 @@ package styles
 
 import "github.com/mehran9675/giode/styles/properties"
 
-// Merge overlays the non-zero values of over on top of base and
-// returns the result. It is used by components to apply defaults
-// before user styles.
-func Merge(base, over Styles) Styles {
+// Merge overlays the non-zero values of each of overs on top of base,
+// in order, and returns the result. It is used by components to apply
+// defaults before user styles. Colors count as set when non-empty, so
+// an explicit "transparent" overrides an inherited color.
+func Merge(base Styles, overs ...Styles) Styles {
+	for _, over := range overs {
+		base = merge(base, over)
+	}
+	return base
+}
+
+func merge(base, over Styles) Styles {
 	if over.FlexDirection != "" {
 		base.FlexDirection = over.FlexDirection
 	}
@@ -42,7 +50,7 @@ func Merge(base, over Styles) Styles {
 	if over.Margin != (properties.Inset{}) {
 		base.Margin = over.Margin
 	}
-	if properties.CalcColor(over.Background).A != 0 {
+	if over.Background != "" {
 		base.Background = over.Background
 	}
 	if over.BackgroundImage != nil {
@@ -54,7 +62,7 @@ func Merge(base, over Styles) Styles {
 	if over.BorderWidth != 0 {
 		base.BorderWidth = over.BorderWidth
 	}
-	if properties.CalcColor(over.BorderColor).A != 0 {
+	if over.BorderColor != "" {
 		base.BorderColor = over.BorderColor
 	}
 	if over.BorderRadius != 0 {
@@ -63,7 +71,7 @@ func Merge(base, over Styles) Styles {
 	if over.Opacity != 0 {
 		base.Opacity = over.Opacity
 	}
-	if properties.CalcColor(over.Color).A != 0 {
+	if over.Color != "" {
 		base.Color = over.Color
 	}
 	if over.FontSize != 0 {
@@ -117,7 +125,7 @@ func Merge(base, over Styles) Styles {
 	if over.MaxHeight != 0 {
 		base.MaxHeight = over.MaxHeight
 	}
-	if properties.CalcColor(over.BoxShadow.Color).A != 0 {
+	if over.BoxShadow.Color != "" {
 		base.BoxShadow = over.BoxShadow
 	}
 	if over.ScrollBar != (properties.ScrollBar{}) {
@@ -137,6 +145,30 @@ func Merge(base, over Styles) Styles {
 	}
 	if over.FontFamily != "" {
 		base.FontFamily = over.FontFamily
+	}
+	if !over.BorderRadii.IsZero() {
+		base.BorderRadii = over.BorderRadii
+	}
+	if over.BackgroundGradient != nil {
+		base.BackgroundGradient = over.BackgroundGradient
+	}
+	if over.TextTransform != "" {
+		base.TextTransform = over.TextTransform
+	}
+	if over.TextOverflow != "" {
+		base.TextOverflow = over.TextOverflow
+	}
+	if over.Transform != (properties.Transform{}) {
+		base.Transform = over.Transform
+	}
+	if over.Display != "" {
+		base.Display = over.Display
+	}
+	if over.Visibility != "" {
+		base.Visibility = over.Visibility
+	}
+	if over.Transition != (properties.Transition{}) {
+		base.Transition = over.Transition
 	}
 	return base
 }

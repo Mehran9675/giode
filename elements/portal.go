@@ -61,12 +61,9 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 		win = gtx.Constraints.Max
 	}
 
-	scratch := gtx
-	scratch.Constraints = layout.Constraints{Max: win}
-	var sOps op.Ops
-	scratch.Ops = &sOps
-	scratch.Source = gtx.Source.Disabled()
-	dims := build().Layout(scratch)
+	mgtx := gtx
+	mgtx.Constraints = layout.Constraints{Max: win}
+	dims := Measure(mgtx, build())
 
 	winF := f32.Pt(float32(win.X), float32(win.Y))
 	size := f32.Pt(float32(dims.Size.X), float32(dims.Size.Y))
@@ -86,14 +83,19 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 // anchored off their own row's position - reports its true screen
 // position rather than whatever was accumulated before the portal
 // that contains it was originally triggered.
+//
+// Portals registered while draining (a submenu opened by its parent
+// menu's row) are drained too, in the same frame.
 func DrainPortals(gtx layout.Context) {
-	entries := portalQueue
-	portalQueue = nil
-	for _, e := range entries {
-		off := op.Offset(e.pos).Push(gtx.Ops)
-		pop := PushOffset(e.pos)
-		e.build().Layout(gtx)
-		pop()
-		off.Pop()
+	for len(portalQueue) > 0 {
+		entries := portalQueue
+		portalQueue = nil
+		for _, e := range entries {
+			off := op.Offset(e.pos).Push(gtx.Ops)
+			pop := PushOffset(e.pos)
+			e.build().Layout(gtx)
+			pop()
+			off.Pop()
+		}
 	}
 }

@@ -30,6 +30,19 @@ func BlockDragHere(gtx layout.Context) {
 	system.ActionInputOp(blockDragAction).Add(gtx.Ops)
 }
 
+// DragArea marks a size-d area at the current paint position as a
+// window drag handle: pressing it and moving drags a frameless window,
+// like an OS title bar. On Windows the area also behaves as the
+// system caption, so double-clicking it maximizes and dragging it to a
+// screen edge snaps the window. Register it before laying out the
+// handle's contents: widgets inside carve themselves out with
+// BlockDrag/BlockDragHere, which only wins when registered later.
+func DragArea(gtx layout.Context, size image.Point) {
+	cl := clip.Rect{Max: size}.Push(gtx.Ops)
+	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
+	cl.Pop()
+}
+
 // BlockDrag is BlockDragHere for a widget that doesn't already have a
 // clip scope open at the point its own area needs to be marked (most
 // widget.Clickable-based components - Button, Checkbox, Tabs, Menu

@@ -19,7 +19,25 @@ giode.Stack(giode.Styles{}, btn)
 | `OnClick(fn func()) *Button` | Click handler. |
 | `Label(label string) *Button` | Replaces the label. |
 | `Variant(v ButtonVariant) *Button` | Visual style: `VariantContained` (default), `VariantOutlined` or `VariantGhost`. |
-| `Click()` | Simulates a click. |
+| `Styles(st Styles) *Button` | Replaces the styles. |
+| `Icon(el Element) *Button` | Element before the label. Icons without their own `Color` follow the label color. |
+| `TrailingIcon(el Element) *Button` | Element after the label (a chevron, an external-link mark). |
+| `Disabled(v bool) *Button` | Dimmed, default cursor, ignores input. |
+| `Loading(v bool) *Button` | A spinner replaces the icon and clicks are ignored. |
+| `IsDisabled()`, `IsLoading()` | Current state. |
+| `Click()` | Simulates a click (ignored while disabled or loading). |
+
+```go
+save := giode.Button("Save").
+	Icon(giode.Icon("save", giode.Styles{Width: 16})).
+	OnClick(func() {
+		save.Loading(true)
+		go func() {
+			err := store.Save()
+			app.Post(func() { save.Loading(false); showResult(err) })
+		}()
+	})
+```
 
 ## Variants
 
@@ -29,8 +47,8 @@ giode.Button("Cancel", giode.Styles{BorderColor: "#3b82f6", Color: "#3b82f6"}).V
 giode.Button("Skip", giode.Styles{Background: "#3b82f6", Color: "white"}).Variant(giode.VariantGhost)
 ```
 
-- `VariantContained` fills with `Background` (or black if unset) at all times - the
-  original, and only, look before `Variant` existed.
+- `VariantContained` fills with `Background` (or `theme.primary` if unset), or with
+  `BackgroundGradient` when set; hover and press shade every gradient stop.
 - `VariantOutlined` is transparent with a visible border (`BorderColor`, or `Background`
   if unset; `BorderWidth` defaults to 1), filling faintly with the border color on
   hover/press.
