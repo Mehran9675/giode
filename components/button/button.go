@@ -36,6 +36,10 @@ type Button struct {
 	variant   Variant
 	onClick   func()
 	clickable widget.Clickable
+
+	icon, trailing elements.Element
+	disabled       bool
+	loading        bool
 }
 
 // New returns a Button with the given label. The styles argument is
@@ -69,14 +73,70 @@ func (b *Button) Variant(v Variant) *Button {
 	return b
 }
 
-// Click simulates a click programmatically.
+// Styles replaces the button styles. It returns b for chaining.
+func (b *Button) Styles(st styles.Styles) *Button {
+	b.st = st
+	return b
+}
+
+// Icon sets an element shown before the label, typically an icon.
+// Icons that set no Color of their own follow the label color. It
+// returns b for chaining; Icon(nil) removes it.
+func (b *Button) Icon(el elements.Element) *Button {
+	b.icon = el
+	return b
+}
+
+// TrailingIcon sets an element shown after the label - a chevron, an
+// external-link mark. It follows the label color like Icon. It returns
+// b for chaining.
+func (b *Button) TrailingIcon(el elements.Element) *Button {
+	b.trailing = el
+	return b
+}
+
+// Disabled dims the button and ignores input: no clicks, no hover,
+// default cursor. It returns b for chaining.
+func (b *Button) Disabled(v bool) *Button {
+	b.disabled = v
+	return b
+}
+
+// Loading shows a spinner in place of the icon and ignores clicks
+// while v is true - for actions in progress. It returns b for
+// chaining.
+func (b *Button) Loading(v bool) *Button {
+	b.loading = v
+	return b
+}
+
+// IsDisabled reports whether the button is disabled.
+func (b *Button) IsDisabled() bool { return b.disabled }
+
+// IsLoading reports whether the button shows its loading state.
+func (b *Button) IsLoading() bool { return b.loading }
+
+// Click simulates a click programmatically. It does nothing while the
+// button is disabled or loading.
 func (b *Button) Click() {
+	if b.disabled || b.loading {
+		return
+	}
 	b.clickable.Click()
+}
+
+// inert reports whether input is ignored.
+func (b *Button) inert() bool {
+	return b.disabled || b.loading
 }
 
 // Layout lays out and updates the button.
 func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
-	if b.clickable.Clicked(gtx) && b.onClick != nil {
+	if b.inert() {
+		// No events reach a disabled or loading button.
+		gtx = gtx.Disabled()
+	}
+	if b.clickable.Clicked(gtx) && b.onClick != nil && !b.inert() {
 		b.onClick()
 		// The handler may have changed state that this frame's view
 		// already read before this click was processed (e.g. a
@@ -93,11 +153,11 @@ func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 	// layoutDrag): without this, pressing the button would be
 	// hijacked into a native window-move instead of a click.
 	kit.BlockDrag(gtx, dims.Size)
-	if gtx.Source.Focused(&b.clickable) || b.clickable.Pressed() {
+	if !b.inert() && (gtx.Source.Focused(&b.clickable) || b.clickable.Pressed()) {
 		// Keyboard activation must reach the clickable even inside a
 		// cached subtree.
 		kit.MarkLive()
 	}
-	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticButton, Label: b.label, Target: b}, dims.Size)
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticButton, Label: b.label, Disabled: b.inert(), Target: b}, dims.Size)
 	return dims
 }
