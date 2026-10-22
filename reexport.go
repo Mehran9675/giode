@@ -90,6 +90,32 @@ func NewState[T any](initial T) *State[T] {
 	return state.New(initial)
 }
 
+// Keyed returns the state stored under (scope, key), creating it with
+// init the first time - persistent per-item state (a Pressable, a text
+// field) for lists that change at runtime. Entries not asked for in a
+// while are dropped, so removed items don't leak. Use stable keys
+// (IDs), not indexes.
+func Keyed[T any](scope, key any, init func() T) T {
+	return elements.Keyed(scope, key, init)
+}
+
+// KeyedCache is a typed map of per-item state that drops entries not
+// asked for in a while; hold one in a stateful component.
+type KeyedCache[K comparable, V any] = elements.KeyedCache[K, V]
+
+// NewKeyedCache returns an empty KeyedCache.
+func NewKeyedCache[K comparable, V any]() *KeyedCache[K, V] {
+	return elements.NewKeyedCache[K, V]()
+}
+
+var (
+	// ForgetKeyed drops a Keyed entry right away.
+	ForgetKeyed = elements.ForgetKeyed
+	// SetKeyedRetention sets how many frames Keyed entries survive
+	// without being asked for.
+	SetKeyedRetention = elements.SetKeyedRetention
+)
+
 // NamedState returns a State registered under name, so tooling - the
 // MCP server's state_list/state_set tools - can read and set it. T
 // must be JSON-encodable for that.

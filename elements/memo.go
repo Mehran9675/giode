@@ -264,6 +264,7 @@ func EndFrame() {
 			delete(memos, k)
 		}
 	}
+	sweepKeyed()
 }
 
 // Memo returns an element that caches build's output under key and
