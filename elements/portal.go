@@ -61,12 +61,9 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 		win = gtx.Constraints.Max
 	}
 
-	scratch := gtx
-	scratch.Constraints = layout.Constraints{Max: win}
-	var sOps op.Ops
-	scratch.Ops = &sOps
-	scratch.Source = gtx.Source.Disabled()
-	dims := build().Layout(scratch)
+	mgtx := gtx
+	mgtx.Constraints = layout.Constraints{Max: win}
+	dims := Measure(mgtx, build())
 
 	winF := f32.Pt(float32(win.X), float32(win.Y))
 	size := f32.Pt(float32(dims.Size.X), float32(dims.Size.Y))

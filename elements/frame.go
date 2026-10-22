@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/styles/properties"
@@ -126,4 +128,20 @@ func ResolveColor(c string) color.NRGBA {
 		c = CurrentColor()
 	}
 	return properties.ResolveColor(c)
+}
+
+// Measure lays el out without painting, taking input, registering
+// portals or recording semantics, and returns its size - for
+// components that must know a child's size before placing it.
+func Measure(gtx layout.Context, el Element) layout.Dimensions {
+	scratch := gtx
+	scratch.Ops = new(op.Ops)
+	scratch.Source = gtx.Source.Disabled()
+	saved := semantics
+	semantics = nil
+	portals := len(portalQueue)
+	dims := el.Layout(scratch)
+	portalQueue = portalQueue[:portals]
+	semantics = saved
+	return dims
 }
