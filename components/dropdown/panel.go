@@ -29,12 +29,11 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 	click := s.itemClick[i]
 	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 		if click.Clicked(gtx) {
-			s.selected = i
-			s.open = false
-			if s.onChange != nil {
-				s.onChange(i)
-			}
+			s.Choose(i)
 			kit.RequestFrame(gtx)
+		}
+		if click.Hovered() {
+			s.active = i
 		}
 		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			rowSt := styles.Styles{
@@ -42,11 +41,13 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 				BorderRadius: 4,
 			}
 			if click.Hovered() {
+				pointer.CursorPointer.Add(gtx.Ops)
+			}
+			if i == s.active {
 				rowSt.Background = s.hover
 				if rowSt.Background == "" {
 					rowSt.Background = properties.CalcColorReverse(defaultHover)
 				}
-				pointer.CursorPointer.Add(gtx.Ops)
 			}
 			return elements.Box(rowSt, elements.Text(s.options[i], styles.Styles{Color: st.Color})).Layout(gtx)
 		})

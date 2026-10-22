@@ -29,6 +29,35 @@ type Select struct {
 	st        styles.Styles
 	// hover overrides the option hover background when set.
 	hover properties.Color
+	// active is the option highlighted in the open list, moved by the
+	// arrow keys and the pointer.
+	active int
+	// focus asks Layout to move keyboard focus: to the list (focusList)
+	// or back to the field (focusField).
+	focus focusTarget
+}
+
+type focusTarget int
+
+const (
+	focusNone focusTarget = iota
+	focusList
+	focusField
+)
+
+// setOpen opens or closes the list. Opening highlights the selection
+// and gives the list keyboard focus; closing returns it to the field.
+func (s *Select) setOpen(open bool) {
+	if open == s.open {
+		return
+	}
+	s.open = open
+	if open {
+		s.active = s.selected
+		s.focus = focusList
+	} else {
+		s.focus = focusField
+	}
 }
 
 // New returns a Select with the given styles and options: Background
@@ -81,7 +110,7 @@ func (s *Select) Choose(i int) {
 		return
 	}
 	s.selected = i
-	s.open = false
+	s.setOpen(false)
 	if s.onChange != nil {
 		s.onChange(i)
 	}
@@ -93,6 +122,16 @@ func (s *Select) OnChange(fn func(index int)) *Select {
 	s.onChange = fn
 	return s
 }
+
+// Open opens the list, as clicking the field would.
+func (s *Select) Open() { s.setOpen(true) }
+
+// Click opens the list, or closes it if open, as clicking the field
+// would. Automation (the MCP server's ui_click) uses it.
+func (s *Select) Click() { s.setOpen(!s.open) }
+
+// Close closes the list without changing the selection.
+func (s *Select) Close() { s.setOpen(false) }
 
 // Opened reports whether the dropdown is open.
 func (s *Select) Opened() bool {

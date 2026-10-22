@@ -3,8 +3,11 @@ package dropdown
 import (
 	"image"
 
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
@@ -13,10 +16,13 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-// Layout lays out the field and, when open, queues the dropdown panel
-// as a portal (see elements.RegisterPortal) anchored just below it, so
-// it paints above everything else regardless of where Layout is
-// called from.
+// Layout lays out the field and, when open, the list just below it,
+// drawn above everything else (see elements.RegisterPopup). Clicking
+// anywhere outside the open list closes it.
+//
+// Keyboard: with the field focused (Tab), Enter, Space or the arrow
+// keys open the list; in the open list Up and Down move the
+// highlight, Enter or Space picks it and Escape closes the list.
 func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	st := styles.Merge(styles.Styles{
 		Background:   properties.CalcColorReverse(defaultBackground),
@@ -28,9 +34,17 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	}, s.st)
 
 	if s.field.Clicked(gtx) {
-		s.open = !s.open
+		s.setOpen(!s.open)
 		kit.RequestFrame(gtx)
 	}
+	s.handleKeys(gtx)
+	switch s.focus {
+	case focusList:
+		gtx.Execute(key.FocusCmd{Tag: s})
+	case focusField:
+		gtx.Execute(key.FocusCmd{Tag: &s.field})
+	}
+	s.focus = focusNone
 	if s.open {
 		// The open panel is a portal; keep enclosing caches live so
 		// it's registered every frame.
@@ -67,16 +81,64 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	// Keep the field clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.
 	kit.BlockDrag(gtx, fieldDims.Size)
+	// The open list takes keyboard focus under this tag. It passes
+	// pointer events through so the field below stays clickable.
+	ps := pointer.PassOp{}.Push(gtx.Ops)
+	cl := clip.Rect{Max: fieldDims.Size}.Push(gtx.Ops)
+	event.Op(gtx.Ops, s)
+	cl.Pop()
+	ps.Pop()
 	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticSelect, Label: s.Value(), Value: s.Value(), Target: s}, fieldDims.Size)
 
 	if s.open && len(s.options) > 0 {
 		fieldWidth := fieldDims.Size.X
 		anchor := elements.AbsolutePosition().Add(image.Pt(0, fieldDims.Size.Y+4))
-		elements.RegisterPortal(gtx, anchor, func() elements.Element {
+		elements.RegisterPopup(gtx, anchor, s, func() elements.Element {
 			return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 				return s.dropdown(gtx, st, fieldWidth)
 			})
-		})
+		}, elements.PopupOptions{OnDismiss: s.Close})
 	}
 	return fieldDims
+}
+
+// handleKeys processes keyboard input for the field and the open list.
+func (s *Select) handleKeys(gtx layout.Context) {
+	names := []key.Name{key.NameUpArrow, key.NameDownArrow, key.NameReturn, key.NameEnter, key.NameSpace, key.NameEscape}
+	filters := []event.Filter{key.FocusFilter{Target: s}}
+	for _, n := range names {
+		filters = append(filters, key.Filter{Focus: s, Name: n})
+	}
+	// On the focused field, the arrow keys open the list too (Enter and
+	// Space already click it).
+	filters = append(filters,
+		key.Filter{Focus: &s.field, Name: key.NameUpArrow},
+		key.Filter{Focus: &s.field, Name: key.NameDownArrow})
+	for {
+		ev, ok := gtx.Event(filters...)
+		if !ok {
+			return
+		}
+		e, ok := ev.(key.Event)
+		if !ok || e.State != key.Press || len(s.options) == 0 {
+			continue
+		}
+		kit.RequestFrame(gtx)
+		if !s.open {
+			if e.Name != key.NameEscape {
+				s.setOpen(true)
+			}
+			continue
+		}
+		switch e.Name {
+		case key.NameUpArrow:
+			s.active = max(0, s.active-1)
+		case key.NameDownArrow:
+			s.active = min(len(s.options)-1, s.active+1)
+		case key.NameReturn, key.NameEnter, key.NameSpace:
+			s.Choose(s.active)
+		case key.NameEscape:
+			s.Close()
+		}
+	}
 }
