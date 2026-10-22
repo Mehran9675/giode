@@ -22,6 +22,9 @@ type BoxElement struct {
 	hoverSt styles.Styles
 	hovered bool
 	hoverAnim
+
+	// press makes the box clickable; see OnClick.
+	press *Pressable
 }
 
 // Box is a container element: children are laid along FlexDirection

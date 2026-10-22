@@ -17,6 +17,21 @@ import (
 // (shadow, fill, gradient, image, border) with the content replayed on
 // top.
 func (b *BoxElement) Layout(gtx layout.Context) layout.Dimensions {
+	if b.press != nil {
+		// OnClick: the Pressable lays the box out over its hit area.
+		b.press.cursor = b.st.Cursor
+		b.press.content = func(PressState) Element { return boxBody{b} }
+		return b.press.Layout(gtx)
+	}
+	return b.layoutBody(gtx)
+}
+
+// boxBody lays out a clickable box's own content inside its Pressable.
+type boxBody struct{ b *BoxElement }
+
+func (bb boxBody) Layout(gtx layout.Context) layout.Dimensions { return bb.b.layoutBody(gtx) }
+
+func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	st := b.resolveStyles(gtx)
 	if st.Display == properties.DisplayNone {
 		return layout.Dimensions{}

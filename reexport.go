@@ -57,6 +57,12 @@ type (
 
 	// MemoCache caches a subtree's painted output across frames; see
 	// Memo.
+	PressState       = elements.PressState
+	ClickEvent       = elements.ClickEvent
+	ClickSource      = elements.ClickSource
+	MouseButton      = elements.MouseButton
+	PressableElement = elements.Pressable
+
 	MemoCache    = elements.MemoCache
 	SemanticNode = elements.SemanticNode
 	SemanticKind = elements.SemanticKind
@@ -115,6 +121,10 @@ var (
 
 	Divider    = elements.Divider
 	Responsive = elements.Responsive
+
+	// Pressable makes any content clickable; its content is rebuilt
+	// with the current PressState so it can restyle itself.
+	Pressable = elements.NewPressable
 
 	// Memo caches the output of build under key, rebuilding only when
 	// its deps, the States it reads, its constraints or the theme
@@ -480,6 +490,14 @@ const (
 
 	TextOverflowClip     = properties.TextOverflowClip
 	TextOverflowEllipsis = properties.TextOverflowEllipsis
+
+	MousePrimary   = elements.MousePrimary
+	MouseSecondary = elements.MouseSecondary
+	MouseMiddle    = elements.MouseMiddle
+
+	ClickPointer      = elements.ClickPointer
+	ClickKeyboard     = elements.ClickKeyboard
+	ClickProgrammatic = elements.ClickProgrammatic
 
 	EaseInOut     = properties.EaseInOut
 	Ease          = properties.Ease

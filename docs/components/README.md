@@ -17,6 +17,7 @@ stateless elements.
 | Dialog | [dialog.md](dialog.md) | external `*bool` |
 | Menu | [menu.md](menu.md) | items, open |
 | Tooltip | [tooltip.md](tooltip.md) | hover |
+| Pressable | [pressable.md](pressable.md) | press state, click events |
 | TitleBar | [titlebar.md](titlebar.md) | window state, buttons |
 | Transition | [transition.md](transition.md) | visibility, progress |
 | Progress | [progress.md](progress.md) | stateless |
