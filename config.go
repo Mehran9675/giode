@@ -154,6 +154,8 @@ type App struct {
 	winState   atomic.Int32
 	winFocused atomic.Bool
 
+	clip clipboardState
+
 	mcp     *mcpBridge
 	uiMu    sync.Mutex
 	uiCalls []func()

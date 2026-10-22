@@ -6,6 +6,7 @@ import (
 	"github.com/mehran9675/giode/components/autocomplete"
 	"github.com/mehran9675/giode/components/button"
 	"github.com/mehran9675/giode/components/checkbox"
+	"github.com/mehran9675/giode/components/copybutton"
 	"github.com/mehran9675/giode/components/dialog"
 	"github.com/mehran9675/giode/components/drawer"
 	"github.com/mehran9675/giode/components/dropdown"
@@ -181,7 +182,10 @@ var (
 // --- Components -----------------------------------------------------------
 
 var (
-	Button     = button.New
+	Button = button.New
+	// CopyButton copies text to the clipboard when clicked and briefly
+	// shows a check mark.
+	CopyButton = copybutton.New
 	IconButton = iconbutton.New
 	Tabs       = tabs.New
 	Scroll     = scroll.New

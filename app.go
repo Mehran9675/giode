@@ -104,6 +104,7 @@ func (a *App) runLoop(view func() Element) error {
 			layoutDrag(a, gtx)
 			view().Layout(gtx)
 			a.winPointer.layout(a, gtx)
+			a.layoutClipboard(gtx)
 			if a.ctxMenu != nil {
 				a.ctxMenu.Layout(gtx)
 			}

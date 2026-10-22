@@ -90,3 +90,14 @@ A few common window features are deliberately absent because Gio does not expose
 hidden windows, closable/minimizable/maximizable flags, window transparency, positioning
 by coordinates, file-drop events, native application menus and power-state callbacks
 (suspend/resume).
+
+## Clipboard
+
+```go
+app.SetClipboard("copied text")             // from any goroutine; applied on the next frame
+app.ReadClipboard(func(text string) { ... }) // fn runs on the UI goroutine
+```
+
+Inside a `Layout`, `kit.WriteClipboard(gtx, text)` copies immediately. For a ready-made
+control, `giode.CopyButton(func() string { return value })` copies when clicked and shows a
+check mark for a moment (`Labels`, `Feedback`, `OnCopy` customize it).

@@ -32,6 +32,8 @@ const (
 	// GlyphRestore is a maximized window's restore button: two
 	// overlapping squares.
 	GlyphRestore
+	// GlyphCopy is a copy-to-clipboard indicator: two stacked pages.
+	GlyphCopy
 )
 
 // glyphLines holds each glyph as polylines on a 24x24 grid.
@@ -45,6 +47,10 @@ var glyphLines = map[Glyph][][]f32.Point{
 	GlyphMinus:        {{{X: 5, Y: 12}, {X: 19, Y: 12}}},
 	GlyphPlus:         {{{X: 5, Y: 12}, {X: 19, Y: 12}}, {{X: 12, Y: 5}, {X: 12, Y: 19}}},
 	GlyphMaximize:     {{{X: 5, Y: 5}, {X: 19, Y: 5}, {X: 19, Y: 19}, {X: 5, Y: 19}, {X: 5, Y: 5}}},
+	GlyphCopy: {
+		{{X: 9, Y: 9}, {X: 19, Y: 9}, {X: 19, Y: 20}, {X: 9, Y: 20}, {X: 9, Y: 9}},
+		{{X: 5, Y: 15}, {X: 5, Y: 4}, {X: 15, Y: 4}, {X: 15, Y: 6}},
+	},
 	GlyphRestore: {
 		{{X: 4, Y: 8}, {X: 16, Y: 8}, {X: 16, Y: 20}, {X: 4, Y: 20}, {X: 4, Y: 8}},
 		{{X: 8, Y: 8}, {X: 8, Y: 4}, {X: 20, Y: 4}, {X: 20, Y: 16}, {X: 16, Y: 16}},
