@@ -427,7 +427,7 @@ func (e *docEl) Layout(gtx layout.Context) layout.Dimensions {
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
 	defer op.Affine(viewBoxTransform(d.viewX, d.viewY, d.viewW, d.viewH, size)).Push(gtx.Ops).Pop()
 
-	current := properties.ResolveColor(e.st.Color)
+	current := elements.ResolveColor(e.st.Color)
 	paintFor := func(v string) (paint.ColorOp, bool) {
 		switch {
 		case v == "none":

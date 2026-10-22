@@ -52,6 +52,7 @@ type MemoCache struct {
 	metric      unit.Metric
 	theme       uint64
 	epoch       uint64
+	color       string
 	deps        []any
 	reads       *state.Tracker
 
@@ -129,6 +130,7 @@ func (c *MemoCache) Layout(gtx layout.Context, build func() Element, deps ...any
 		c.metric == gtx.Metric &&
 		c.theme == properties.ThemeVersion() &&
 		c.epoch == cacheEpoch.Load() &&
+		c.color == CurrentColor() &&
 		depsEqual(c.deps, deps) &&
 		!c.reads.Changed()
 
@@ -193,6 +195,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.metric = gtx.Metric
 	c.theme = properties.ThemeVersion()
 	c.epoch = cacheEpoch.Load()
+	c.color = CurrentColor()
 	c.deps = append(c.deps[:0], deps...)
 	c.valid = true
 

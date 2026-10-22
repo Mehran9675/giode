@@ -10,7 +10,6 @@ import (
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
-	"github.com/mehran9675/giode/styles/properties"
 )
 
 // IconVGIcon is a decoded IconVG icon, reusable across frames.
@@ -81,5 +80,5 @@ func (i *iconvgEl) Layout(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 	gtx.Constraints = layout.Exact(size)
-	return i.icon.Layout(gtx, properties.ResolveColor(i.st.Color))
+	return i.icon.Layout(gtx, elements.ResolveColor(i.st.Color))
 }

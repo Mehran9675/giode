@@ -72,10 +72,12 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	cgtx.Constraints = insetConstraints(gtx.Constraints, padding)
 	contentOff := image.Pt(margin.Left+padding.Left, margin.Top+padding.Top)
 	popAbs := PushOffset(contentOff)
+	popColor := PushColor(st.Color)
 	dims := b.layoutFlex(cgtx, st, flow)
 	if len(absolute) > 0 {
 		b.layoutAbsolute(cgtx, absolute, dims.Size)
 	}
+	popColor()
 	popAbs()
 	content := macro.Stop()
 

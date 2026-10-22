@@ -9,7 +9,6 @@ import (
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/styles"
-	"github.com/mehran9675/giode/styles/properties"
 )
 
 // Glyph renders one of the built-in indicator shapes (chevrons, check,
@@ -26,7 +25,7 @@ func Glyph(g kit.Glyph, st ...styles.Styles) Element {
 		if size <= 0 {
 			size = 16
 		}
-		return kit.DrawGlyph(gtx, g, size, properties.ResolveColor(s.Color))
+		return kit.DrawGlyph(gtx, g, size, ResolveColor(s.Color))
 	})
 }
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
-	"github.com/mehran9675/giode/styles/properties"
 )
 
 // SVG renders SVG path data (commands M, L, H, V, C, S, Q, T, A, Z in
@@ -50,7 +49,7 @@ func (s *svgEl) Layout(gtx layout.Context) layout.Dimensions {
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
 	defer op.Affine(viewBoxTransform(0, 0, s.viewW, s.viewH, size)).Push(gtx.Ops).Pop()
 
-	col := paint.ColorOp{Color: properties.ResolveColor(s.st.Color)}
+	col := paint.ColorOp{Color: elements.ResolveColor(s.st.Color)}
 	if s.stroke > 0 {
 		strokePath(gtx.Ops, s.path, s.stroke, true, col)
 		return layout.Dimensions{Size: size}

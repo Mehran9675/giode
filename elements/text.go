@@ -99,7 +99,7 @@ func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
 		gtx.Ops = new(op.Ops)
 	}
 
-	col := properties.ResolveColor(st.Color)
+	col := ResolveColor(st.Color)
 	colMacro := op.Record(gtx.Ops)
 	paint.ColorOp{Color: col}.Add(gtx.Ops)
 	textColor := colMacro.Stop()

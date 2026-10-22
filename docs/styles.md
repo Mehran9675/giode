@@ -35,6 +35,10 @@ the 148 CSS named colors (`"rebeccapurple"`) or `"transparent"`. Theme tokens
 unparseable value renders white so a typo is visible — validate input with `ParseColor`.
 Parsed colors are cached.
 
+**Inheritance.** Like CSS, a Box's `Color` is inherited: Text, icons and glyphs inside it
+that set no `Color` of their own use it, and the value `"currentColor"` refers to it
+explicitly. A button's icon therefore follows the label color.
+
 Styles compose with `Merge(base, overrides...)` or the method form
 `base.With(override)`.
 
