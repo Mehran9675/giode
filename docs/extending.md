@@ -1,6 +1,6 @@
-# Extending the library
+# Writing your own components
 
-Everything in Giode is an `Element`:
+Anything with a `Layout` method is an element:
 
 ```go
 type Element interface {
@@ -8,192 +8,159 @@ type Element interface {
 }
 ```
 
-Any type with a `Layout` method is a first-class Giode component — it can be returned
-from a view, placed inside a `Box`/`Row`/`Stack` and re-exported next to the built-ins. On top of
-that interface, Giode offers a small kit of helpers that the built-in components
-themselves are made of.
+So a type of your own can go anywhere a built-in can: in a `Box`, returned from a view,
+inside another component. The built-in components are written exactly this way, from the
+same pieces described here.
 
-## Quick starts
+## Which approach
 
-| Need | Use |
+| You need | Use |
 | --- | --- |
-| One-off raw Gio code | `giode.Raw(func(gtx layout.Context) layout.Dimensions { ... })` |
-| Stateless visual | A struct with a `Layout` method built from `Box`/`Row`/`Stack`/`Text`/icons |
-| Stateful interactive component | A handle type holding Gio state (`widget.Clickable`, `widget.Editor`, `gesture.*`), created once with a `New` constructor |
+| A bit of raw Gio drawing or layout | `giode.Raw(func(gtx layout.Context) layout.Dimensions { ... })` |
+| Reusable visuals, no state | A function returning elements, or a struct with a `Layout` method built from `Box`, `Text` and icons |
+| Something clickable | [Pressable](components/pressable.md) around your visuals |
+| Other interactive state | A struct holding Gio state (`widget.Editor`, `gesture.Drag`, ...), created once |
 
-## The component recipe
+## A component step by step
 
-1. **Define a handle type.** Hold all persistent state in it. Create it once before
-   `Run` and lay it out every frame — never construct it inside the view function.
+1. **Make a struct for the state.** Users create it once with a `New...` function and lay it
+   out every frame, like the built-ins.
+2. **Build the visuals from elements** (`Box`, `Row`, `Text`, icons), dropping to raw Gio
+   where needed.
+3. **Accept `Styles`** as an optional last constructor argument, and apply your defaults
+   with `styles.Merge(defaults, userStyles)` so users can override them.
+4. **Return the struct from setters** (`OnChange`, `Label`, ...) so calls chain.
+5. **Report changes** that happen without input with `kit.RequestFrame` (see
+   [Rendering performance](performance.md#components-inside-a-memo)).
 
-2. **Hold Gio state directly.** Gio's `widget.Clickable`, `widget.Bool`, `widget.Editor`
-   and `gesture.*` types are the building blocks of interactivity. They carry their own
-   event queues; just call their `Clicked`/`Update`/`Layout` methods each frame.
-
-3. **Build the visuals out of elements** (`Box`, `Row`, `Stack`, `Text`, icons) and drop to raw
-   Gio ops where needed. This is exactly how the built-in components are written.
-
-4. **Take `styles.Styles` as a constructor argument** (optionally variadic, as `Text`
-   and the built-in components do), not a chained setter, and merge defaults with
-   `styles.Merge(styles.Styles{...defaults...}, userStyles)` so users can override the
-   relevant properties.
-
-5. **Chain your setters**: return the component itself from `OnClick`-style methods.
-
-## Kit helpers
-
-The `components/kit` package (re-exported from the root) provides the shared pieces
-component authors need:
-
-| Helper | Description |
-| --- | --- |
-| `kit.Scale(c, f)` | Scales a color's channels by `f`, clamped. |
-| `kit.Hovered(c)` | Hover shading: slightly lighter. |
-| `kit.Pressed(c)` | Pressed shading: slightly darker. |
-| `kit.Alpha(c, a)` | Multiplies a color's alpha. |
-| `kit.HoverTracker` | Embeddable hover-tracking building block; gives a stateless element its own `OnHover`/`Hovered()`, the same way `Text`/`Divider`/`Image`/`Progress`/`Spinner` do. |
-| `kit.ClampPos(win, size, pos, margin)` | Keeps an overlay panel inside a window; flips above the anchor when it would overflow the bottom edge. |
-| `kit.Margin` | Default overlay-to-edge distance (8px). |
-| `kit.BlockDrag(gtx, size)` / `kit.BlockDragHere(gtx)` | Keeps a clickable/draggable/scrollable component working inside a frameless, draggable window (`Config{Frameless: true, Draggable: true}`): without it, a press on the component would be hijacked into moving the window instead of reaching the component. Call once after laying the component's own visual out, passing its measured size (`BlockDrag`), or inline if a clip scope for the component's own pointer/gesture registration is already open (`BlockDragHere`) — see `components/button`, `components/slider` for each pattern. |
-
-## Rendering above everything: portals
-
-`elements.RegisterPortal(gtx, anchor, build)` queues `build` to be laid out and painted
-after the rest of the view, regardless of how deeply nested the caller is in the element
-tree — the mechanism behind `Tooltip`, `Menu`'s panel and `Dropdown`'s options list. The
-app drains the queue once per frame via `elements.DrainPortals(gtx)` (already wired into
-`App.Run`), so a component author never calls that part themselves.
-
-`anchor` is a window-absolute point, typically `elements.AbsolutePosition()` (the
-accumulated offset at the current point in the layout traversal), optionally offset by
-the trigger's own size:
+## Example: a star rating
 
 ```go
-anchor := elements.AbsolutePosition().Add(image.Pt(0, triggerHeight+4))
-elements.RegisterPortal(gtx, anchor, func() elements.Element {
-	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
-		return myPanel(gtx)
-	})
-})
-```
-
-`RegisterPortal` measures `build` once on a disabled scratch context to size it, then
-clamps the position inside the window with `kit.ClampPos` — the same technique `Menu`'s
-own panel sizing uses.
-
-`AbsolutePosition` is exact for a `Box`'s own content offset and for a
-left/top-anchored absolutely positioned child; it's an approximation (the shared
-container's origin, not the individual child's own offset) for one of several children
-distributed by a flex container (a `Row`/`Stack` with more than one child), since a flex
-container only knows where each child lands after measuring all of them. A custom
-element that positions its own children with `op.Offset` should call
-`elements.PushOffset(off)` (returns a pop func) around the same child so
-`AbsolutePosition`/`RegisterPortal` stay correct for content placed inside it.
-
-## Worked example: a star rating
-
-```go
-package main
+package rating
 
 import (
 	"gioui.org/layout"
-	"gioui.org/widget"
 
-	"github.com/mehran9675/giode"
 	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 )
 
-var gold = "#fac815"
+var star = icon.Path{Data: "M12 2L15 9L22 9.5L16.5 14L18 21L12 17L6 21L7.5 14L2 9.5L9 9Z"}
 
-// Rating is a custom stateful component: five clickable stars.
+// Rating is five clickable stars.
 type Rating struct {
 	value    int
-	stars    [5]widget.Clickable
-	onChange func(v int)
+	stars    [5]*elements.Pressable
+	onChange func(int)
 	st       styles.Styles
 }
 
-func NewRating() *Rating {
-	return &Rating{value: 3}
+func New(st ...styles.Styles) *Rating {
+	r := &Rating{value: 3}
+	if len(st) > 0 {
+		r.st = st[0]
+	}
+	for i := range r.stars {
+		n := i + 1
+		r.stars[i] = elements.NewPressable(func(s elements.PressState) elements.Element {
+			return r.star(n, s)
+		}).Label("Rate " + string(rune('0'+n))).OnClick(func(elements.ClickEvent) {
+			r.value = n
+			if r.onChange != nil {
+				r.onChange(n)
+			}
+		})
+	}
+	return r
 }
 
 func (r *Rating) Value() int { return r.value }
 
-func (r *Rating) OnChange(fn func(v int)) *Rating {
+func (r *Rating) OnChange(fn func(int)) *Rating {
 	r.onChange = fn
 	return r
 }
 
-func (r *Rating) Styles(st styles.Styles) *Rating {
-	r.st = st
-	return r
+func (r *Rating) star(n int, s elements.PressState) elements.Element {
+	col := r.st.Color
+	if col == "" {
+		col = "#facc15"
+	}
+	if n > r.value {
+		col = kit.Alpha(col, 0.25) // unselected stars are dim
+	}
+	if s.Hovered {
+		col = kit.Hovered(col)
+	}
+	return star.Icon(styles.Styles{Color: col, Width: 24})
 }
 
-// Layout implements elements.Element, so a *Rating can be placed
-// anywhere an element is expected.
+// Layout makes *Rating an element.
 func (r *Rating) Layout(gtx layout.Context) layout.Dimensions {
-	// Defaults first, user styles on top.
-	st := styles.Merge(styles.Styles{Gap: 4, Color: gold}, r.st)
-
-	var kids []elements.Element
-	for i := range r.stars {
-		kids = append(kids, &starEl{rating: r, index: i, st: st})
-	}
-	return elements.Row(st, kids...).Layout(gtx)
-}
-
-// starEl is a stateless element for one star; the rating owns the
-// clickable state.
-type starEl struct {
-	rating *Rating
-	index  int
-	st     styles.Styles
-}
-
-func (s *starEl) Layout(gtx layout.Context) layout.Dimensions {
-	click := &s.rating.stars[s.index]
-	if click.Clicked(gtx) {
-		s.rating.value = s.index + 1
-		if s.rating.onChange != nil {
-			s.rating.onChange(s.rating.value)
-		}
-	}
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		col := s.st.Color
-		if s.index >= s.rating.value {
-			col = kit.Alpha(col, 0.25) // unselected stars are dim
-		}
-		return starIcon.Icon(styles.Styles{Color: col, Width: 24, Height: 24}).Layout(gtx) // starIcon: an icon.Path or loaded SVG
-	})
+	st := styles.Merge(styles.Styles{Gap: 4}, r.st)
+	return elements.Row(st, r.stars[0], r.stars[1], r.stars[2], r.stars[3], r.stars[4]).Layout(gtx)
 }
 ```
 
-Usage:
-
 ```go
-rating := NewRating().OnChange(func(v int) { log.Printf("rated %d", v) })
+stars := rating.New().OnChange(func(v int) { log.Printf("rated %d", v) })
 
 app.Run(func() giode.Element {
-	return giode.Box(giode.Styles{Justify: giode.JustifyCenter, Width: -1, Height: -1}, rating)
+	return giode.Box(giode.Styles{Padding: giode.UniformInset(24)}, stars)
 })
 ```
 
-The same recipe applies to any component: an editor-based field holds a
-`widget.Editor`, a dropdown holds a `widget.Clickable` plus `kit.ClampPos` for its panel,
-a toggle holds a `widget.Bool`.
+## Kit helpers
 
-## Publishing your component
+`components/kit` has the helpers the built-in components use:
 
-- Keep the handle type and its constructor in a package of your own; import Giode's
-  `elements`, `styles` and `kit`.
-- To mimic the built-ins, re-export it from the root `giode` package of a fork or wrap
-  your own package in a small facade.
-- Overlays (menus, dropdowns, popovers, tooltips) should render their popup content via
-  `elements.RegisterPortal` rather than painting it in place — see "Rendering above
-  everything: portals" above — so it renders above the rest of the UI regardless of
-  where the component sits in the tree.
+| Helper | Use |
+| --- | --- |
+| `Hovered(c)`, `Pressed(c)`, `Scale(c, f)`, `Alpha(c, a)` | Derive hover/pressed shades and transparency from a color. |
+| `RequestFrame(gtx)`, `RequestFrameAt(gtx, t)`, `MarkLive()` | Ask for another frame; tell enclosing memos the component changed. |
+| `HoverTracker` | Embed in an element to give it `OnHover`, like `Text` and `Divider`. |
+| `BlockDrag(gtx, size)`, `BlockDragHere(gtx)` | Keep the component clickable inside a draggable frameless window or title bar. |
+| `DragArea(gtx, size)` | Mark an area as a window drag handle, for a custom title bar. |
+| `Scrollbar` | The scrollbar used by `Scroll` and `VirtualList`. |
+| `DrawGlyph(gtx, g, size, color)` | The chevrons, check mark and window-button glyphs. |
+| `WriteClipboard(gtx, text)` | Copy text from inside `Layout`. |
+| `ClampPos(win, size, pos, margin)`, `Margin` | Keep a popup inside the window. |
 
-See [architecture.md](architecture.md) for how the built-in components are organized.
+From `elements`, for layout:
+
+| Helper | Use |
+| --- | --- |
+| `Measure(gtx, el)` | Size of an element without drawing it or taking input. |
+| `SizedPx(w, h, el)`, `OffsetPx(off, el)` | Place an element by a size or offset you measured in pixels. |
+| `PushColor(c)`, `ResolveColor(c)` | Pass a text color down to children, and resolve one. |
+| `RecordSemantic(gtx, node, size)` | Show the component to automation such as the [MCP server](mcp.md). |
+
+## Popups: portals
+
+Menus, dropdowns and tooltips have to draw above everything, however deep they sit in the
+tree. `elements.RegisterPortal` queues content to be drawn after the rest of the frame, near
+a point in window coordinates:
+
+```go
+anchor := elements.AbsolutePosition().Add(image.Pt(0, triggerHeight+4))
+elements.RegisterPortal(gtx, anchor, func() elements.Element {
+	return panel
+})
+```
+
+The content is measured first and moved so it stays inside the window, flipping above the
+anchor when there's no room below.
+
+`AbsolutePosition()` is the window position of the element being laid out. It's exact for
+content inside a `Box`, but for one of several children of a `Row` or `Stack` it's the
+container's position, because a flex container places its children only after laying all of
+them out. An element that offsets its children with `op.Offset` should call
+`elements.PushOffset(off)` around them so positions inside stay correct.
+
+## Sharing a component
+
+Put it in a package of your own that imports Giode's `elements`, `styles` and `kit`.
+Popups should use portals so they work wherever the component is placed. See
+[Architecture](architecture.md) for how the built-ins are organized.

@@ -1,8 +1,9 @@
 # MCP server
 
 Giode can run a [Model Context Protocol](https://modelcontextprotocol.io) server inside your
-app, so AI agents can see and drive it while it runs — for testing, automation, or giving an
-assistant hands on your app. Turn it on with one option:
+app. AI agents connected to it can see the UI and use it the way a person would: read what's
+on screen, click, type, take screenshots. That's useful for automated testing, scripted
+demos, or letting an assistant work with your app.
 
 ```go
 app := giode.New(giode.Config{
@@ -11,35 +12,34 @@ app := giode.New(giode.Config{
 })
 ```
 
-The server listens on `http://127.0.0.1:7600/mcp` (Streamable HTTP). Point any MCP client
-at it, for example Claude Code:
+The server listens on `http://127.0.0.1:7600/mcp`. Connect a client to it, for example
+Claude Code:
 
-```bash
+```sh
 claude mcp add --transport http my-app http://127.0.0.1:7600/mcp
 ```
 
-Setting the environment variable `GIODE_MCP=1` enables it in any Giode app without a code
-change; `GIODE_MCP_ADDR` overrides the address.
+To turn the server on in any Giode app without changing code, set the environment
+variable `GIODE_MCP=1`. `GIODE_MCP_ADDR` changes the address.
 
 ## Built-in tools
 
 | Tool | What it does |
 | --- | --- |
-| `ui_snapshot` | The visible UI as nodes: id, kind, label, value, bounds, accepted actions. Filter by `kind` or `query`. |
+| `ui_snapshot` | Lists what's on screen: text, buttons, fields and other controls, each with an id, label, value, position and the actions it accepts. Optional `kind` and `query` filters. |
 | `ui_click` | Clicks a button, tab or menu item, or toggles a checkbox. |
-| `ui_type` | Replaces an input's text, optionally submitting it. |
-| `ui_set_value` | Sets a checkbox (`true`/`false`), slider (0–1) or select (option or index). |
-| `screenshot` | The window as a PNG. |
-| `state_list` / `state_set` | Reads and sets named states (see below). |
-| `set_theme` | Switches light/dark mode. |
-| `window` | Minimize, maximize, fullscreen, center, raise. |
+| `ui_type` | Replaces a text field's content, optionally pressing Enter afterwards. |
+| `ui_set_value` | Sets a checkbox (`true`/`false`), slider (0 to 1) or select (option text or index). |
+| `screenshot` | Returns the window as a PNG image. |
+| `state_list`, `state_set` | Read and change [named states](state.md#named-state). |
+| `set_theme` | Switches between light and dark mode. |
+| `window` | Minimize, maximize, restore, fullscreen, center or raise the window. |
 
-Actions run on the UI thread, exactly as if the user did them: handlers fire and the UI
-updates.
+Actions go through the same code as real input: click handlers run and the UI updates.
 
-## Your own tools
+## Adding tools
 
-Describe a tool with a typed Go function; its input struct becomes the JSON schema:
+Write a tool as a Go function. The fields of its input struct become the tool's parameters:
 
 ```go
 app.MCPTool(mcp.Func("add_todo", "Adds an item to the todo list.",
@@ -52,40 +52,45 @@ app.MCPTool(mcp.Func("add_todo", "Adds an item to the todo list.",
 	}))
 ```
 
-Fields are required unless tagged `omitempty`; `description` and `enum:"a,b"` tags document
-them. Return a string, any JSON-encodable value, or an `*mcp.Result` (e.g. `mcp.Image`).
-Handlers run on server goroutines: change the UI through `State` (safe from any goroutine)
-or `app.RunOnUI(ctx, fn)`.
+- A parameter is required unless its `json` tag has `omitempty`.
+- `description:"..."` and `enum:"a,b,c"` tags describe a parameter to the agent.
+- Return a string, any value that encodes to JSON, or an `*mcp.Result` (for example
+  `mcp.Image(png, "image/png")`). Returning an error reports a failed tool call.
 
-## Named state
+Tools run on the server's goroutines, not the UI goroutine. Change UI data through `State`
+(safe from any goroutine), `app.Post(fn)` or `app.RunOnUI(ctx, fn)`; see
+[Threading](threading.md).
 
-States created with `giode.NamedState` are visible to `state_list` and settable through
-`state_set`:
+## Making controls visible to agents
 
-```go
-var todos = giode.NamedState("todos", []Todo{})
-```
+Built-in components appear in `ui_snapshot` automatically. Controls without visible text
+need a name: `IconButton(...).Label("Delete")`, `Input.Text(...).Label("Email")`,
+`Pressable(...).Label("Open")`.
 
-## Labels for automation
+A component of your own appears when it calls `elements.RecordSemantic` in its `Layout`, and
+the tools can act on it when it has the matching method: `Click()`, `ChangeText(string)`,
+`Toggle()` with `Checked()`, `Change(float32)`, or `Options()` with `Choose(int)`.
 
-Text-less controls should get a name: `IconButton(...).Label("Delete")`,
-`Input.Text(...).Label("Email")`. Custom components join the snapshot with
-`elements.RecordSemantic`, and become actionable by implementing `Click()`,
-`ChangeText(string)`, `Toggle()`/`Checked()`, `Change(float32)` or
-`Options()`/`Choose(int)`.
-
-## Options and security
+## Options
 
 ```go
-MCPOptions: giode.MCPOptions{
-	Addr:     "127.0.0.1:7600", // listen address
-	Token:    "secret",         // require "Authorization: Bearer secret"
-	Stdio:    false,            // serve stdin/stdout instead, for clients that launch the app
-	ReadOnly: false,            // only snapshot/screenshot/state_list
-	DisableBuiltinTools: false, // only your own tools
-},
+giode.Config{
+	MCP: true,
+	MCPOptions: giode.MCPOptions{
+		Addr:     "127.0.0.1:7600", // listen address
+		Token:    "secret",         // require "Authorization: Bearer secret"
+		Stdio:    false,            // use stdin/stdout instead, for clients that start the app
+		ReadOnly: false,            // only the tools that look, none that act
+		// DisableBuiltinTools, Name, Version, Instructions, AllowedOrigins, Timeout
+	},
+}
 ```
 
-The server binds to loopback by default and rejects browser requests from non-localhost
-origins (DNS-rebinding protection). Set `Token` before binding to any other interface. The
-`mcp` package is independent of the UI and can serve tools on its own.
+## Security
+
+The server only listens on the loopback interface by default, so other machines can't
+reach it. It rejects requests from web pages on other origins, so a website open in your
+browser can't talk to it. If you bind it to another interface, set `Token`.
+
+The `mcp` package doesn't depend on the rest of Giode and can serve tools on its own, over
+HTTP (`Server.ServeHTTP`, `ListenAndServe`) or stdio (`ServeStdio`).

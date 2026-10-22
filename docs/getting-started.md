@@ -6,9 +6,11 @@
 go get github.com/mehran9675/giode
 ```
 
-Requires Go 1.22+. Windows, macOS, Linux and mobile are supported through Gio.
+Giode needs Go 1.26 or newer. It runs wherever Gio does: Windows, macOS and Linux, with
+mobile support through Gio. On Linux, Gio needs a few system packages (Wayland, X11 and
+Vulkan development headers); see [Gio's install notes](https://gioui.org/doc/install).
 
-## Hello world
+## A first app
 
 ```go
 package main
@@ -16,69 +18,71 @@ package main
 import (
 	"fmt"
 	"image"
+	"log"
 
 	"github.com/mehran9675/giode"
 )
 
 func main() {
-	giode.UseGofont() // embed a font for text
+	giode.UseGofont() // load the Go fonts for text
 
 	count := 0
-	btn := giode.Button("Click me",
-		giode.Styles{
-			Background:   "#3b82f6",
-			Color:        "#ffffff",
-			BorderRadius: 8,
-		},
-	).OnClick(func() { count++ })
+	btn := giode.Button("Click me").OnClick(func() { count++ })
 
 	app := giode.New(giode.Config{
 		Title:      "Hello",
 		Size:       image.Pt(800, 600),
 		Resizable:  true,
-		Background: "#0f172a",
+		Background: "theme.background",
 	})
 
-	if err := app.Run(func() giode.Element {
+	err := app.Run(func() giode.Element {
 		return giode.Stack(giode.Styles{
-			Align:   giode.AlignCenter,
-			Justify: giode.JustifyCenter,
-			Width:   -1,
-			Height:  -1,
+			Width: -1, Height: -1, // fill the window
+			Align: giode.AlignCenter, Justify: giode.JustifyCenter, Gap: 12,
 		},
-			giode.Text(fmt.Sprintf("Clicks: %d", count), giode.Styles{Color: "#f8fafc"}),
+			giode.Text(fmt.Sprintf("Clicks: %d", count), giode.Styles{Color: "theme.text"}),
 			btn,
 		)
-	}); err != nil {
-		panic(err)
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 ```
 
-## The two kinds of elements
+The function passed to `Run` is the **view**. It runs every time the window needs a new
+frame (on input, resize or a state change) and returns the whole UI.
 
-Immediate mode rebuilds the UI every frame. Giode handles the two consequences explicitly:
+## Elements and components
 
-- **Stateless elements** (`Box`, `Row`, `Stack`, `Text`, `Divider`, `Responsive`, `Image`,
-  `Progress`, `Spinner`, icons) are cheap to build inside the view function every frame.
-- **Stateful components** (`Button`, `Input.Text`, `Input.Checkbox`, `Input.Slider`,
-  `Input.Select`, `Tabs`, `Scroll`, `Drawer`, `Dialog`, `Menu`, `Router`) hold their
-  persistent state. Create them **once, before `Run`**, and lay them out every frame:
+Because the view is rebuilt every frame, Giode has two kinds of building blocks:
+
+- **Elements** hold no state: `Box`, `Row`, `Stack`, `Text`, `Divider`, `Image`, `Progress`,
+  icons. Create them inside the view, every frame.
+- **Components** remember things between frames: `Button` remembers whether it's pressed, a
+  text field its text, `Scroll` its offset. Create them **once**, outside the view, and lay
+  them out every frame:
 
 ```go
-name := giode.Input.Text("Name")  // once
-...
-app.Run(func() giode.Element {    // every frame
-	return giode.Stack(giode.Styles{}, name)
+name := giode.Input.Text("Your name") // once
+
+app.Run(func() giode.Element {
+	return giode.Stack(giode.Styles{}, name) // every frame
 })
 ```
 
-Creating a stateful component inside the view function resets it every frame. The same
-applies to elements with hover styles: `Box(...).OnHover(...)` stores hover state in the
-element, so create it once and reuse it.
+A component created inside the view is a new one every frame, so it forgets everything:
+clicks don't register and typed text disappears. The same goes for an element with hover
+styles (`Box(...).OnHover(...)`), which keeps its hover state.
 
-## Lifecycle
+For lists whose items come and go, create per-item components with
+[`Keyed`](state.md#per-item-state-for-dynamic-lists).
 
-`Run` blocks for the lifetime of the app and terminates the process when the window
-closes. Hook into the lifecycle with `Config.OnStartup`, `OnReady`, `OnShutdown` and
-`OnBeforeClose`; see [Window configuration](window.md).
+## Next steps
+
+- [Elements](elements.md) and [Style properties](styles.md) for layout and styling.
+- [Components](components/README.md) for the available widgets.
+- [Window configuration](window.md) for size limits, frameless windows and lifecycle
+  callbacks.
+- [Threading](threading.md) before you load data in the background.

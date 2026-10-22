@@ -1,70 +1,62 @@
 # Giode
 
-Giode is a UI library built on [Gio](https://gioui.org) that brings retained-mode ease to
-immediate-mode UI. Interfaces are described with composable functions, styled with CSS-like
-properties and wired up with plain Go callbacks — no webview, full performance, and raw Gio
-stays reachable everywhere.
+Giode is a desktop UI library for Go, built on [Gio](https://gioui.org). You describe the
+interface with plain functions, style it with CSS-like properties and handle events with Go
+callbacks. It renders natively through Gio (no web view), and raw Gio is available at every
+level when you need it.
 
-## Features
+```go
+app := giode.New(giode.Config{Title: "Hello", Resizable: true, Background: "theme.background"})
+count := 0
+inc := giode.Button("Add one").OnClick(func() { count++ })
 
-- **Window config** — size, min/max, resizable, frameless, draggable, fullscreen, centered,
-  always-on-top, per-axis size bounds, initial window state, window icon, lifecycle
-  callbacks (startup, ready, shutdown, close) and a single-instance lock, plus runtime
-  actions (minimize, maximize, center, raise, close).
-- **Elements** — `Box`, `Row`, `Stack`, `Text`, `Divider`, `Table`/`TableHeader`/
-  `TableRow`/`TableCell`, `Raw`, `Responsive`, most with `OnHover` for pointer-reactive
-  styling.
-- **Components** — Button (contained/outlined/ghost variants), Progress, Spinner, Tabs,
-  Drawer, Dialog, Scroll (with intersection-observer-style `OnReachBottom`/`Visible`),
-  Title, Image, Tooltip, Accordion, Pagination, AppShell (Header/Navbar/Aside/Footer/
-  Main/Section), a Menu with a right-click trigger, a widget-anchored dropdown trigger
-  and hover-nested submenus, and the form controls grouped under `Input`: Text,
-  Checkbox, Slider, Select, AutoComplete.
-- **Portals** — any component can render above everything else regardless of nesting
-  depth via `elements.RegisterPortal` - the mechanism behind Tooltip, Menu's panel and
-  Dropdown/AutoComplete's suggestion list.
-- **Theming** — a `Palette` of semantic colors and a light/dark `Mode`; any `"theme.*"`
-  color token (e.g. `Background: "theme.surface"`) follows `SetMode`/`SetPalette`.
-- **Global state** — `State[T]`, a generic observable value readable/writable from
-  anywhere, including a goroutine outside the render loop.
-- **CSS-like styling** — 40+ properties, each defined in its own file, extensible by design.
-- **Routing** — `NewRouter`, `Push`/`Navigate`/`Back`, `Link`.
-- **Breakpoints** — `Responsive` switches views when the available width crosses a threshold.
-- **Icons** — Material set, SVG path data, a full `.svg` file loader, IconVG, plain images.
-- **Component kit** — create your own components with the same helpers the built-ins use.
-- **Low-level escape hatches** — `Raw`, `RunRaw`, `App.Window()`.
+app.Run(func() giode.Element {
+	return giode.Stack(giode.Styles{Gap: 12, Padding: giode.UniformInset(24)},
+		giode.Text(fmt.Sprintf("Count: %d", count)),
+		inc,
+	)
+})
+```
 
-## Documentation
+## What's included
 
-- [Getting started](getting-started.md)
-- [Window configuration](window.md)
-- [Elements](elements.md)
-- [Style properties](styles.md)
-- [Components](components/)
-- [Global state](state.md)
-- [Routing](routing.md)
-- [Extending the library](extending.md)
-- [Architecture](architecture.md)
-- [Low-level access](low-level.md)
+- **Layout and styling.** `Box`, `Row` and `Stack` are flex containers. `Styles` covers
+  sizes, padding, gaps, borders, rounded corners, shadows, gradients, transforms, text
+  styling and hover transitions. Sizes are in dp, so layouts keep their physical size on
+  HiDPI screens.
+- **Components.** Buttons, text fields, checkboxes, sliders, selects, autocomplete, tabs,
+  dialogs, drawers, menus, tooltips, accordions, pagination, tables, a virtualized list, a
+  tree view, toasts, a custom window title bar, transitions and an app-shell layout.
+- **Theming.** Light and dark palettes with semantic colors (`"theme.primary"`,
+  `"theme.surface"`, ...) that follow `SetMode`.
+- **State.** `State[T]` is an observable value you can set from any goroutine. `Keyed` gives
+  each item of a changing list its own persistent state.
+- **Efficient redraws.** `Memo` caches parts of the UI and rebuilds them only when what they
+  depend on changes.
+- **Window control.** Size limits, frameless windows, window state, single-instance lock,
+  clipboard, file drop (Windows) and lifecycle callbacks.
+- **MCP server.** One config option lets AI agents inspect and drive the running app.
+- **Icons you choose.** No bundled icon set: load SVG files or path data from any set.
+
+## Where to start
+
+- [Getting started](getting-started.md): install and a first app.
+- [Elements](elements.md) and [Style properties](styles.md): building and styling the UI.
+- [Components](components/README.md): the stateful widgets.
+- [State](state.md) and [Threading](threading.md): where data lives and who may change it.
 
 ## Packages
 
-The root package `giode` re-exports the whole API for single-import ergonomics. The
-underlying packages stay importable directly:
+The root package `giode` re-exports everything, so one import is enough. The packages below
+can also be imported directly.
 
 | Package | Contents |
 | --- | --- |
-| `styles/properties` | One file per CSS-like property |
-| `styles` | The `Styles` aggregate, `Merge`, `Hex` |
-| `elements` | Stateless building blocks |
-| `components/*` | Stateful components, one directory each |
-| `components/kit` | Helpers for custom components |
-| `state` | The generic `State[T]` global-state primitive |
-| `router` | Navigation |
-| `fonts` | Font/shaper registry |
-
-## About this documentation
-
-The pages you are reading are Markdown files in this folder, rendered by a Vite site in
-the `web/` directory. See [README.md](README.md) for the structure and how to add pages.
-
+| `elements` | Box, Text, Pressable, Memo, Keyed and the other building blocks |
+| `styles`, `styles/properties` | The `Styles` struct and one file per property |
+| `components/*` | One package per component |
+| `components/kit` | Helpers for writing your own components |
+| `state` | `State[T]` |
+| `router` | Navigation between views |
+| `mcp` | The MCP server, usable on its own |
+| `fonts` | Font registration |

@@ -1,41 +1,72 @@
 # Window configuration
 
-`giode.New(giode.Config{...})` creates the app. The options cover the common window
-settings of desktop applications; unsupported platform features are ignored.
+`giode.New(giode.Config{...})` creates the app and its window. Options a platform can't honor
+are ignored.
 
-## Config fields
+## Config
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `Title` | `string` | `""` | Window title. |
-| `Size` | `image.Point` | 800x600 | Initial window size in dp. |
-| `MinSize` / `MaxSize` | `image.Point` | — | Size bounds when resizable. |
-| `MinWidth` / `MinHeight` / `MaxWidth` / `MaxHeight` | `int` | — | Per-axis size bounds; combine with `MinSize`/`MaxSize` (tighter bound wins). |
-| `Resizable` | `bool` | `false` | Allow user resizing. When false the size is locked to `Size`. |
-| `Frameless` | `bool` | `false` | Remove the OS title bar and borders. |
-| `Draggable` | `bool` | `false` | Drag the window from empty (non-widget) space anywhere. Frameless only. For a custom title bar, use [TitleBar](components/titlebar.md) instead. |
-| `OnFileDrop` | `func(paths []string)` | `nil` | Files dropped onto the window from the file manager, on the UI goroutine. Windows only for now. |
-| `OnWindowStateChange` | `func(WindowState)` | `nil` | Runs when the window is minimized, maximized, made fullscreen or restored. |
-| `Background` | `string` | `"#000000"` | Window background color (any CSS hex). |
-| `Icon` | `[]byte` | `nil` | Window icon, PNG or JPEG bytes. Applied at runtime on Windows. |
-| `WindowStartState` | `WindowStartState` | `WindowStartNormal` | Initial state: `WindowStartMinimized`, `WindowStartMaximized`, `WindowStartFullscreen`. Takes precedence over the flags below. |
-| `Fullscreen` / `Maximized` / `Minimized` | `bool` | `false` | Start in the given state (used when `WindowStartState` is `WindowStartNormal`). |
-| `Center` | `bool` | `false` | Start centered on the screen. |
+| `Size` | `image.Point` | 800×600 | Initial size, in dp. |
+| `Resizable` | `bool` | `false` | Allow resizing. When false, the size is fixed at `Size`. |
+| `MinSize`, `MaxSize` | `image.Point` | none | Size limits for resizable windows. |
+| `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` | `int` | none | Per-axis limits. Combined with `MinSize`/`MaxSize`, the tighter one wins. |
+| `Background` | `string` | `"#000000"` | Window background, any [color](styles.md#colors). |
+| `Frameless` | `bool` | `false` | Remove the OS title bar and borders. Pair with [TitleBar](components/titlebar.md). |
+| `Draggable` | `bool` | `false` | Frameless only: dragging empty space anywhere moves the window. |
+| `WindowStartState` | `WindowStartState` | `WindowStartNormal` | `WindowStartMinimized`, `WindowStartMaximized` or `WindowStartFullscreen`. |
+| `Fullscreen`, `Maximized`, `Minimized` | `bool` | `false` | Older way to pick the start state; `WindowStartState` wins when set. |
+| `Center` | `bool` | `false` | Center on screen at startup. |
 | `AlwaysOnTop` | `bool` | `false` | Keep above other windows. |
-| `Logger` | `Logger` | `nil` | Receives diagnostics; any `*log.Logger` satisfies it. |
-| `LogLevel` | `LogLevel` | `LogLevelDebug` | `LogLevelDebug`, `LogLevelInfo`, `LogLevelWarning`, `LogLevelError`. |
-| `OnStartup` | `func()` | `nil` | Runs before the event loop starts. |
-| `OnReady` | `func()` | `nil` | Runs after the first frame is presented. |
-| `OnShutdown` | `func()` | `nil` | Runs after the window closes. |
-| `OnBeforeClose` | `func()` | `nil` | Runs when a close is requested. It cannot veto the close. |
-| `SingleInstanceLock` | `*SingleInstanceLock` | `nil` | Ensures only one instance runs; see below. |
+| `Icon` | `[]byte` | `nil` | Window icon as PNG or JPEG bytes. Applied at runtime on Windows only. |
+| `OnStartup` | `func()` | `nil` | Before the event loop starts. |
+| `OnReady` | `func()` | `nil` | After the first frame is on screen. |
+| `OnBeforeClose` | `func()` | `nil` | When the window is closing. It can't cancel the close. |
+| `OnShutdown` | `func()` | `nil` | After the window has closed. |
+| `OnWindowStateChange` | `func(WindowState)` | `nil` | After the window is minimized, maximized, made fullscreen or restored, by the app or the user. |
+| `OnFileDrop` | `func([]string)` | `nil` | Paths of files dropped onto the window. Windows only; see [File drop](#file-drop). |
+| `SingleInstanceLock` | `*SingleInstanceLock` | `nil` | Allow only one running instance; see below. |
+| `Logger`, `LogLevel` | `Logger`, `LogLevel` | `nil`, debug | Where Giode's diagnostics go. Any `*log.Logger` works. |
+| `MCP`, `MCPOptions` | `bool`, `MCPOptions` | off | Run the built-in [MCP server](mcp.md). |
+
+`Run(view)` blocks until the window closes, then runs `OnShutdown` and exits the process.
+
+## Window actions and state
+
+```go
+app.Minimize()
+app.Maximize()
+app.Unmaximize()
+app.ToggleMaximize()     // maximize, or restore if maximized
+app.SetFullscreen(true)  // false to leave fullscreen
+app.Center()
+app.Raise()
+app.Close()
+
+app.WindowState() // WindowNormal, WindowMinimized, WindowMaximized or WindowFullscreen
+app.Maximized()
+app.Fullscreen()
+app.Focused()
+```
+
+The state methods report what the platform says, so they also reflect changes the user
+makes (double-clicking the title bar, snapping the window). They're safe to call from any
+goroutine.
+
+## Frameless windows
+
+`Frameless: true` removes the OS title bar. Add [TitleBar](components/titlebar.md) for a
+custom one with drag area and window buttons. For a window with no title bar at all, use
+`Draggable: true` instead, so dragging any empty space moves it; buttons and other
+interactive components inside stay clickable.
 
 ## Single instance
 
 ```go
 app := giode.New(giode.Config{
 	SingleInstanceLock: &giode.SingleInstanceLock{
-		UniqueID: "c9c8fd93-6758-4144-87d1-34bdb0a8bd60",
+		UniqueID: "com.example.myapp",
 		OnSecondInstanceLaunch: func() {
 			fmt.Println("already running")
 		},
@@ -43,65 +74,18 @@ app := giode.New(giode.Config{
 })
 ```
 
-When a second instance launches, its `OnSecondInstanceLaunch` callback runs and the
-instance exits without showing a window. The lock survives crashes (a dead owner's lock
-is reclaimed).
-
-## Runtime window actions
-
-```go
-app.SetFullscreen(true) // or false to leave fullscreen
-app.Minimize()
-app.Maximize()
-app.Unmaximize()
-app.Center()
-app.Raise()
-app.Close()
-```
-
-`app.Window()` returns the underlying `*app.Window` for anything not covered here.
-
-## Draggable windows
-
-`Draggable: true` registers the window background as a native move area only while the
-pointer hovers empty space, so widgets keep receiving clicks. The drag is OS-native: the
-window moves with the mouse like a title-bar drag.
-
-## Window icon
-
-Pass PNG or JPEG bytes and the icon is applied to the window (title bar and taskbar) at
-runtime on Windows:
-
-```go
-icon, _ := os.ReadFile("app.png") // or embed the bytes with go:embed
-app := giode.New(giode.Config{Icon: icon})
-```
-
-The icon shown by file managers comes from the executable, not the running window, and
-is embedded at build time instead:
-
-```sh
-rsrc -ico app.ico -o app.syso   # or goversioninfo / windres
-go build
-```
-
-## Not supported
-
-A few common window features are deliberately absent because Gio does not expose them:
-hidden windows, closable/minimizable/maximizable flags, window transparency, positioning
-by coordinates, file-drop events, native application menus and power-state callbacks
-(suspend/resume).
+A second launch runs `OnSecondInstanceLaunch` and exits without opening a window. If the
+first instance crashed, its stale lock is reclaimed.
 
 ## Clipboard
 
 ```go
-app.SetClipboard("copied text")             // from any goroutine; applied on the next frame
-app.ReadClipboard(func(text string) { ... }) // fn runs on the UI goroutine
+app.SetClipboard("copied text")             // any goroutine; applied on the next frame
+app.ReadClipboard(func(text string) { ... }) // the callback runs on the UI goroutine
 ```
 
-Inside a `Layout`, `kit.WriteClipboard(gtx, text)` copies immediately. For a ready-made
-control, `giode.CopyButton(func() string { return value })` copies when clicked and shows a
-check mark for a moment (`Labels`, `Feedback`, `OnCopy` customize it).
+Inside a `Layout` method, `kit.WriteClipboard(gtx, text)` copies right away.
+[CopyButton](components/copybutton.md) is a ready-made copy control.
 
 ## File drop
 
@@ -113,18 +97,34 @@ giode.Config{
 }
 ```
 
-On Windows the app subclasses its own window and accepts `WM_DROPFILES`, including when it
-runs as administrator (it lets the drop messages through Windows' privilege filter, which
-would otherwise silently block drops from a normal Explorer).
+This works on Windows, including when the app runs as administrator. It doesn't work on
+other platforms yet; setting `OnFileDrop` there logs a warning. On Linux, Gio's event loop
+consumes the drag-and-drop messages, so support needs changes in Gio itself. On macOS it
+needs AppKit code that hasn't been written. There are no drag-enter or drag-leave events for
+highlighting a drop target yet.
 
-Other platforms don't support it yet, and a warning is logged once if `OnFileDrop` is set
-there. Gio's own event loop consumes the X11 and Wayland drag-and-drop protocol messages, so
-Linux support needs changes in Gio itself. macOS support needs AppKit drag registration,
-which is not implemented yet. Drag enter/leave events (for highlighting a drop zone) aren't
-available yet either; they need Windows' COM `IDropTarget` instead of `WM_DROPFILES`.
+## Window icon
 
-## Native window handle
+```go
+//go:embed app.png
+var icon []byte
 
-`app.NativeHandle()` returns the native window handle: the `HWND` on Windows, the `NSView`
-on macOS, the X11 window or `wl_surface` on Linux. `app.NativeView()` returns Gio's full
-platform view event for other integrations. Both are zero until the window exists.
+app := giode.New(giode.Config{Icon: icon})
+```
+
+This sets the title-bar and taskbar icon at runtime on Windows. The icon file managers show
+comes from the executable, so embed it at build time, for example with `rsrc` or
+`goversioninfo` on Windows or the app bundle on macOS.
+
+## Native access
+
+- `app.Window()` returns Gio's `*app.Window`.
+- `app.NativeHandle()` returns the native handle: the `HWND` on Windows, the `NSView` on macOS,
+  the X11 window or Wayland surface on Linux. It's 0 until the window exists.
+- `app.NativeView()` returns Gio's platform view event with all details.
+
+## Not available
+
+Gio doesn't expose these, so Giode can't either: hidden windows, per-button
+close/minimize/maximize flags, transparent windows, positioning the window at given
+coordinates, native application menus, and power events such as suspend and resume.

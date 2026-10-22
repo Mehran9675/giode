@@ -1,72 +1,67 @@
-# Global state
+# State
 
-`giode.State[T]` is a minimal, generic observable value: read and write it from
-anywhere, including a goroutine outside the render loop (a network response, a timer),
-not just from within a `Layout` call.
+Most state lives in components: a text field holds its text, a `Scroll` its offset. For data
+that several parts of the UI read, or that changes outside the UI (a download finishing, a
+timer firing), use `State`.
+
+## State[T]
+
+`State[T]` holds a value of any type. Reading and writing are safe from any goroutine, and
+every write redraws the window.
 
 ```go
-counter := giode.NewState(0)
+var counter = giode.NewState(0)
 
-btn := giode.Button("Increment").OnClick(func() {
+inc := giode.Button("Add one").OnClick(func() {
 	counter.Update(func(v int) int { return v + 1 })
 })
 
-// elsewhere - a goroutine, a network callback, a timer:
 go func() {
-	result := fetchSomething()
-	counter.Set(result)
+	for range time.Tick(time.Second) {
+		counter.Update(func(v int) int { return v + 1 })
+	}
 }()
 
 // in the view:
 giode.Text(fmt.Sprintf("Count: %d", counter.Get()))
 ```
 
-Unlike every other piece of state in giode (a `Button`'s click count, a `Scroll`'s
-offset), which lives inside one component and only ever changes from within a `Layout`
-call, `State` is meant to be shared across the app and written from anywhere - `Set`/
-`Update` request a redraw themselves (via the app window's `Invalidate`, wired up
-automatically by `App.New`), so a background goroutine's update shows up without
-needing its own `gtx.Execute(op.InvalidateCmd{})`.
-
-## API
-
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `NewState[T](initial T) *State[T]` | Creates a State holding `initial`. |
+| `NewState[T](initial T) *State[T]` | Creates a state. |
 | `Get() T` | Current value. |
-| `Set(v T)` | Replaces the value, notifies watchers, requests a redraw. |
-| `Update(fn func(current T) T)` | Atomically replaces the value with `fn(current)` - safe for a read-modify-write under concurrent access (e.g. an increment) where a separate `Get` then `Set` could race. |
-| `Watch(fn func(T)) (unsubscribe func())` | Registers a callback for every future `Set`/`Update`. |
+| `Set(v T)` | Replaces the value, notifies watchers, redraws. |
+| `SetIfChanged(v T) bool` | `Set`, skipped when `v` equals the current value. |
+| `Update(fn func(T) T)` | Read, modify and write in one atomic step. Use it for increments and appends instead of `Get` then `Set`, which can race. |
+| `Watch(fn func(T)) func()` | Calls `fn` after every change, in registration order. Returns a function that stops watching. |
+| `Version() uint64` | Increases with every change. |
 
-`State` is safe for concurrent use - `Get`, `Set`, `Update` and `Watch` can all be called
-from multiple goroutines at once.
+When a slice or map is stored, `Update` should return a new one rather than modifying the
+old one in place, so code still holding the old value doesn't see it change.
 
-## When to reach for it
+**With Memo.** A [`Memo`](performance.md) records which states it read while building, and
+rebuilds when one of them changes. No extra dependency list is needed for state.
 
-Most state still belongs inside one stateful component (a counter local to one page,
-say) - a `State` value's job is specifically being shared across the view, or written
-from outside the render loop:
+## Named state
 
-- A value several unrelated parts of the view need to read (a signed-in user, a color
-  theme flag, a shopping cart count in a header badge).
-- A value updated by a background goroutine - the case its own redraw-triggering exists
-  for.
+`NamedState` registers a state under a name so tools can find it: the
+[MCP server](mcp.md)'s `state_list` and `state_set` read and change it. The value must be
+JSON-encodable for that.
 
-For UI-only interactions confined to one component (a click count next to one button, a
-dropdown's own selection), the component's own field is simpler - see
-[Extending the library](extending.md).
+```go
+var todos = giode.NamedState("todos", []string{})
+```
 
 ## Per-item state for dynamic lists
 
-Stateful components must outlive a frame, which is easy for a fixed UI — create them once —
-but not for a list whose items come and go. `Keyed` gives each item its own state, looked up
-by a stable key:
+Components have to survive from one frame to the next, which is easy when you create them
+once. It's harder for a list whose items come and go at runtime. `Keyed` keeps one
+component per item, looked up by a stable key:
 
 ```go
 func fileRows(files []File) []giode.Element {
 	rows := make([]giode.Element, 0, len(files))
 	for _, f := range files {
-		f := f
 		row := giode.Keyed("files", f.ID, func() *giode.PressableElement {
 			return giode.Pressable(func(s giode.PressState) giode.Element {
 				return fileRow(f, s)
@@ -78,21 +73,27 @@ func fileRows(files []File) []giode.Element {
 }
 ```
 
-- Use IDs, not indexes: with indexes, removing an item hands its state to the next one.
-- The scope (`"files"`) keeps unrelated lists apart when their keys could collide.
-- An entry nobody asked for in 60 frames is dropped (`SetKeyedRetention` changes that; frames
-  only happen when something changes, so it isn't a fixed time). `ForgetKeyed` drops one
+- Key by ID, not by position. With positions as keys, deleting an item hands its state to
+  the item that moves into its place.
+- The first argument (`"files"`) is a scope that keeps different lists apart when their
+  keys could overlap.
+- An entry that hasn't been asked for in 60 frames is dropped, so removed items don't
+  leak. Frames only happen when something changes, so that isn't a fixed time.
+  `SetKeyedRetention(n)` changes the limit and `ForgetKeyed(scope, key)` drops an entry
   right away.
 
-Inside a stateful component, a typed `KeyedCache` does the same without global scopes:
+Inside a component of your own, a `KeyedCache` does the same without a global scope:
 
 ```go
 type fileList struct {
 	rows *giode.KeyedCache[string, *giode.PressableElement]
 }
 
-l.rows = giode.NewKeyedCache[string, *giode.PressableElement]().Retain(120).
+l.rows = giode.NewKeyedCache[string, *giode.PressableElement]().
+	Retain(120).
 	OnEvict(func(id string, p *giode.PressableElement) { /* release resources */ })
 
 row := l.rows.Get(f.ID, func() *giode.PressableElement { ... })
 ```
+
+`KeyedCache` also has `Peek`, `Delete`, `Len` and `Range`.

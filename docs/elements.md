@@ -1,12 +1,13 @@
 # Elements
 
-Elements are the stateless building blocks. They are cheap to create inside the view
-function every frame.
+Elements are the stateless building blocks. Build them inside the view function, every
+frame; they cost very little. Anything with a `Layout(gtx layout.Context) layout.Dimensions`
+method is an element, so components and your own types fit anywhere an element does.
 
-## Box
+## Box, Row and Stack
 
-The flex container. Children are laid along `FlexDirection` (row by default) with
-`Align`, `Justify`, `Gap` and `Wrap`:
+`Box` is a flex container: it lays its children along `FlexDirection` (a row by default),
+spaced by `Gap`, aligned by `Align` and `Justify`.
 
 ```go
 giode.Box(giode.Styles{
@@ -14,124 +15,116 @@ giode.Box(giode.Styles{
 	Align:         giode.AlignCenter,
 	Gap:           12,
 	Padding:       giode.UniformInset(16),
-}, child1, child2)
+	Background:    "theme.surface",
+	BorderRadius:  8,
+}, title, body)
 ```
 
-Box also paints the background stack (color, image, border, shadow) and acts as the
-containing block for absolutely positioned children.
-
-## Row and Stack
-
-Shorthand containers with the flex direction preset:
+`Row` and `Stack` are a `Box` with the direction preset:
 
 ```go
-giode.Row(giode.Styles{Gap: 8, Align: giode.AlignCenter}, a, b, c) // horizontal
-giode.Stack(giode.Styles{Gap: 8}, a, b, c)                        // vertical
+giode.Row(giode.Styles{Gap: 8, Align: giode.AlignCenter}, icon, label) // horizontal
+giode.Stack(giode.Styles{Gap: 8}, header, list, footer)               // vertical
 ```
 
-`Row` sets `FlexDirection` to row, `Stack` to column.
+A box also paints its own background, gradient, border and shadow, and positions
+absolutely positioned children (see [Style properties](styles.md#absolute-positioning)).
 
-## Hover
-
-Every stateless element with something to paint supports `OnHover`: `Box` (and `Row`/
-`Stack`), `Text`, `Divider`, `Image`, `Progress` and `Spinner`. Chain it to apply styles
-while the pointer is over the element:
+**Sizing.** A box is as big as its content unless told otherwise. `Width: -1` or
+`Height: -1` fills the available space, a positive value fixes the size in dp, and
+`FlexGrow` shares the space left over in the parent's direction:
 
 ```go
-card := giode.Box(base, children...).OnHover(giode.Styles{
-	Background:   "#1e40af",
-	BorderColor:  "#3b82f6",
-	BorderWidth:  1,
-	BoxShadow:    giode.BoxShadow{Y: 4, Blur: 12, Color: "#00000060"},
-	Cursor:       giode.CursorPointer,
-})
-
-label := giode.Text("Docs", giode.Styles{Color: "#94a3b8"}).OnHover(giode.Styles{
-	Color:          "#f8fafc",
-	TextDecoration: giode.TextDecorationUnderline,
-	Cursor:         giode.CursorPointer,
-})
+giode.Row(giode.Styles{Width: -1, Wrap: giode.WrapNoWrap},
+	giode.Box(giode.Styles{FlexGrow: 1}, giode.Text("Title")), // takes the spare width
+	closeButton,                                              // pushed to the right edge
+)
 ```
 
-Hover styles merge on top of the base styles for both layout and painting, and can set
-anything the element's own `Styles` support — colors, borders, shadows, padding,
-cursor, and so on (see each element's own page for which properties it actually
-paints). The hover state lives in the element, so **create it once and reuse it** like
-a stateful component; rebuilding it inside the view function resets the hover each
-frame. `Hovered()` reports the state observed on the last frame.
-
-`Responsive` and `Raw` don't support `OnHover` - they're structural (they just delegate
-to another element or to raw Gio), not something that paints its own styles to merge
-into. The stateful components (`Button`, `Input.*`, `Tabs`, ...) already shade
-themselves on hover internally instead of going through `OnHover`.
-
-Component authors: `OnHover` is built on `kit.HoverTracker`, an embeddable building
-block for adding the same capability to a custom stateless element - see
-[Extending the library](extending.md).
-
-## Wrap
-
-By default a `Row` wraps children onto new lines when they overflow (`WrapWrap`), while
-a `Stack` keeps them on a single line (`WrapNoWrap`). Override with the `Wrap` property:
-
-```go
-giode.Row(giode.Styles{Wrap: giode.WrapNoWrap, Gap: 8}, chips...)
-giode.Stack(giode.Styles{Wrap: giode.WrapWrap, Gap: 8}, chips...)
-```
-
-Wrapped lines are stacked on the cross axis and separated by `Gap`.
+**Wrapping.** A `Row` wraps its children onto new lines when they don't fit; a `Stack`
+doesn't. Set `Wrap: giode.WrapNoWrap` or `giode.WrapWrap` to change that. In a wrapping
+row, `FlexGrow` has no effect, so use `WrapNoWrap` for toolbars that should stretch.
 
 ## Text
 
 ```go
-giode.Text("Hello", giode.Styles{Color: "#fff", FontSize: 18})
+giode.Text("Hello", giode.Styles{Color: "theme.text", FontSize: 18, FontWeight: giode.FontWeightBold})
 ```
 
-The styles argument is optional. Supports text alignment, weight, style, family,
-line-height, max-lines and decoration.
+Text wraps to the available width. `MaxLines` limits the line count and
+`TextOverflow: giode.TextOverflowEllipsis` ends cut-off text with "…". Text without a
+`Color` takes the color of the nearest enclosing box that sets one, or black.
 
 ## Divider
 
-A thin horizontal line. Color defaults to a subtle gray, height to 1px:
+A thin horizontal line across the available width: 1dp high and a muted gray by default.
 
 ```go
-giode.Divider(giode.Styles{Color: "#334155"})
+giode.Divider(giode.Styles{Color: "theme.border"})
 ```
 
-## Table
+## Hover styles
 
-Rows of cells with column widths aligned across all of them - see
-[table.md](components/table.md):
-
-```go
-giode.Table(giode.Styles{},
-	giode.TableHeader(giode.Styles{}, giode.TableCell(giode.Styles{}, giode.Text("Name"))),
-	giode.TableRow(giode.Styles{}, giode.TableCell(giode.Styles{}, giode.Text("Ada"))),
-)
-```
-
-## Raw
-
-Drops down to plain Gio at any point of the tree:
+`Box`, `Row`, `Stack`, `Text`, `Divider`, `Image`, `Progress` and `Spinner` accept extra
+styles applied while the pointer is over them:
 
 ```go
-giode.Raw(func(gtx layout.Context) layout.Dimensions {
-	return layout.Dimensions{Size: image.Pt(10, 10)}
+card := giode.Box(base, children...).OnHover(giode.Styles{
+	Background: "theme.border",
+	Cursor:     giode.CursorPointer,
 })
+```
+
+The hover styles are merged over the base styles. Add `Transition` to the base styles to
+animate the change. The element keeps the hover state, so create it once and reuse it, or
+look it up with [`Keyed`](state.md#per-item-state-for-dynamic-lists) inside lists.
+`Hovered()` reports the state.
+
+## Clickable content
+
+To make any content clickable, use [Pressable](components/pressable.md), or call
+`OnClick` on a box:
+
+```go
+row := giode.Box(giode.Styles{Padding: giode.UniformInset(8)}, label).
+	OnClick(func(e giode.ClickEvent) { selectRow(id) })
 ```
 
 ## Responsive
 
-Simplified media queries: renders different views depending on the available width.
+Shows different views depending on the available width:
 
 ```go
 giode.Responsive(
-	giode.Breakpoint{Width: 600, View: func() giode.Element { return phoneView }},
-	giode.Breakpoint{Width: 1024, View: func() giode.Element { return tabletView }},
-	giode.Breakpoint{View: func() giode.Element { return desktopView }}, // fallback
+	giode.Breakpoint{Width: 600, View: phoneView},   // up to 600dp
+	giode.Breakpoint{Width: 1024, View: tabletView}, // up to 1024dp
+	giode.Breakpoint{View: desktopView},             // anything wider
 )
 ```
 
-Breakpoints are evaluated in order; the first with `width >= available` matches. A `Width`
-of zero always matches. Only the matching view is built each frame. Width is measured in
-the layout pixel space of the parent container.
+The first breakpoint whose `Width` (in dp) is at least the available width wins; a zero
+`Width` always matches, so put it last. Only the chosen view is built.
+
+## Memo
+
+`Memo` skips rebuilding a part of the UI when nothing it depends on has changed. See
+[Rendering performance](performance.md).
+
+```go
+giode.Memo("sidebar", func() giode.Element { return sidebar(user) }, user.ID)
+```
+
+## Raw
+
+Raw Gio code anywhere in the tree:
+
+```go
+giode.Raw(func(gtx layout.Context) layout.Dimensions {
+	// any Gio layout, paint or input code
+	return layout.Dimensions{Size: image.Pt(10, 10)}
+})
+```
+
+## Table
+
+Rows of cells whose columns line up. See [Table](components/table.md).

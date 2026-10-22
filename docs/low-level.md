@@ -1,10 +1,8 @@
 # Low-level access
 
-Raw Gio stays reachable at every layer.
+Raw Gio is available at every level.
 
 ## Raw elements
-
-Drop to plain Gio at any point in the tree:
 
 ```go
 giode.Box(giode.Styles{},
@@ -15,64 +13,68 @@ giode.Box(giode.Styles{},
 )
 ```
 
-## Raw run loop
+## A raw view
 
-Skip the element model entirely:
+`RunRaw` skips the element tree and gives you each frame's context directly:
 
 ```go
-app := giode.New(giode.Config{...})
 app.RunRaw(func(gtx layout.Context) layout.Dimensions {
 	// a complete Gio frame
 	return layout.Dimensions{}
 })
 ```
 
-## The window
+## The Gio window
 
-`app.Window()` returns the underlying `*app.Window` for options, actions and events not
-covered by `Config` and the action methods.
+`app.Window()` returns Gio's `*app.Window` for options and actions Giode doesn't wrap.
+`app.NativeHandle()` and `app.NativeView()` give the platform window; see
+[Window configuration](window.md#native-access).
 
-## GLFW and embedded windows
+## Your own window or render loop
 
-Only the root `App` layer depends on `gioui.org/app`. Every element, component, style
-property, the router, icons and fonts are window-agnostic: they only need a
-`layout.Context`. Rendering through a custom window (GLFW, Ebitengine, an embedded
-surface) therefore works unchanged — build the context yourself each frame:
+Only the root package depends on `gioui.org/app`. Elements, components, styles, the router,
+icons and fonts only need a `layout.Context`, so they also render in a window you manage
+yourself (GLFW, an embedded surface). Each frame, do what `App.Run` does:
 
 ```go
-// per frame, mirroring the gioui.org/app loop:
-a.ops.Reset()
+ops.Reset()
 gtx := layout.Context{
-	Ops:         &a.ops,
+	Ops:         &ops,
 	Now:         time.Now(),
-	Source:      a.router.Source(),          // input.Router fed by your window callbacks
+	Source:      router.Source(), // an input.Router fed by your window's events
 	Metric:      unit.Metric{PxPerDp: scale, PxPerSp: scale},
-	Constraints: layout.Exact(image.Pt(fbw, fbh)), // framebuffer size
+	Constraints: layout.Exact(image.Pt(width, height)),
 }
-view().Layout(gtx)                          // any Giode view works as-is
-_ = gpuCtx.Frame(gtx.Ops, gpu.OpenGLRenderTarget{}, image.Pt(fbw, fbh))
-a.router.Frame(gtx.Ops)                     // hit-testing for the next frame
-window.SwapBuffers()
+
+elements.BeginFrame()
+elements.SetWindowSize(gtx.Constraints.Max)
+elements.SetMetric(gtx.Metric)
+view().Layout(gtx)
+elements.DrainPortals(gtx) // popups: menus, tooltips, dropdowns, toasts
+if elements.RunAfterLayout() {
+	requestRedraw()
+}
+renderer.Frame(gtx.Ops) // e.g. gpu.GPU.Frame with your render target
+router.Frame(gtx.Ops)   // hit testing for the next frame's input
+elements.EndFrame()
 ```
 
-Notes for custom loops:
+Notes:
 
-- Queue pointer/key events into `input.Router` in the same pixel space as the layout
-  constraints; priority, pass-through and grab semantics are all handled by the router.
-- The context menu works manually: call `menu.Context(gtx)` **before** the view and
-  `menu.Layout(gtx)` **after** it (the equivalent of `SetContextMenu`).
-- `Config.Draggable` relies on Gio's window driver (`system.ActionInputOp(ActionMove)`)
-  and is a no-op under GLFW — use native window dragging there instead.
-- The `Config` window options and the `App` action methods (fullscreen, minimize,
-  center, always-on-top, …) are `app.Window`-only.
-- Animations (Spinner, Drawer, Dialog) request frames with `op.InvalidateCmd`. A
-  continuous render loop ignores that naturally; an event-driven loop must poll
-  `router.WakeupTime()` or the animations freeze.
+- Feed pointer and key events to the `input.Router` in pixels, in the same space as the
+  constraints.
+- `State` writes call the function registered with `state.SetInvalidator`; set it to your
+  redraw request. Do the same for the theme with `properties.SetThemeChangeHook`.
+- Animations request frames with Gio's invalidate command. In an event-driven loop, check
+  `router.WakeupTime()` after each frame and schedule the next one, or animations stop.
+- A context menu needs `menu.Context(gtx)` before the view and `menu.Layout(gtx)` after
+  it; `App.SetContextMenu` does this for you.
+- `Config.Draggable`, `TitleBar`'s drag area and the window actions rely on Gio's window
+  and do nothing elsewhere.
 
-## Direct package imports
+## Importing packages directly
 
-The root package is a re-export convenience. Everything is also importable from its
-natural package:
+The root package only re-exports. Everything can be imported from its own package:
 
 ```go
 import (
