@@ -192,8 +192,14 @@ function mdToHtml(text) {
 			while (i < lines.length) {
 				const m = lines[i].match(/^\s*([-*]|\d+\.)\s+(.*)$/);
 				if (!m) break;
-				items.push(`<li>${inline(m[2].trim())}</li>`);
+				let text = m[2].trim();
 				i++;
+				// Indented lines that follow continue the item's text.
+				while (i < lines.length && /^\s+\S/.test(lines[i]) && !/^\s*([-*]|\d+\.)\s/.test(lines[i])) {
+					text += " " + lines[i].trim();
+					i++;
+				}
+				items.push(`<li>${inline(text)}</li>`);
 			}
 			out.push(`<${ordered ? "ol" : "ul"}>${items.join("")}</${ordered ? "ol" : "ul"}>`);
 			continue;
@@ -217,23 +223,45 @@ function mdToHtml(text) {
 
 // --- Routing ---------------------------------------------------------------
 
-function currentRoute() {
+// The location hash is "#/<route>" or "#/<route>#<heading id>".
+function parseHash() {
 	const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
-	const p = h.replace(/^\/+|\/+$/g, "").replace(/\.md$/, "");
-	return p || "index";
+	const cut = h.indexOf("#");
+	const path = cut < 0 ? h : h.slice(0, cut);
+	const anchor = cut < 0 ? "" : h.slice(cut + 1);
+	const route = path.replace(/^\/+|\/+$/g, "").replace(/\.md$/, "") || "index";
+	return { route, anchor };
 }
 
-// Resolve a markdown link relative to the current page into a route.
+function currentRoute() {
+	return parseHash().route;
+}
+
+// Routes whose page is a folder's README.md: links inside them are
+// relative to that folder rather than to its parent.
+const folderRoutes = new Set();
+
+// Resolve a markdown link on the current page into "<route>" or
+// "<route>#<anchor>". It returns null for external links.
 function routeForHref(href, current) {
-	if (!href || /^https?:|^mailto:|^#/.test(href)) return null;
-	let t = href.replace(/\.md$/, "").replace(/\/+$/, "");
-	if (t.startsWith("../")) t = t.replace(/^(\.\.\/)+/, "");
-	if (t.startsWith("./")) t = t.slice(2);
-	if (t === "") return current;
-	const dir = current.includes("/") ? current.slice(0, current.lastIndexOf("/")) : "";
-	if (!t.startsWith("/")) t = dir ? dir + "/" + t : t;
-	t = t.replace(/\/+$/, "");
-	return t || "index";
+	if (!href || /^[a-z]+:/i.test(href)) return null;
+	const cut = href.indexOf("#");
+	const path = cut < 0 ? href : href.slice(0, cut);
+	const anchor = cut < 0 ? "" : href.slice(cut + 1);
+	let route = current;
+	if (path !== "") {
+		const base = folderRoutes.has(current) ? current.split("/") :
+			current.split("/").slice(0, -1);
+		const parts = path.startsWith("/") ? [] : base.filter(Boolean);
+		for (const seg of path.replace(/\.md$/, "").split("/")) {
+			if (seg === "" || seg === ".") continue;
+			if (seg === "..") parts.pop();
+			else parts.push(seg);
+		}
+		if (parts[parts.length - 1] === "README") parts.pop();
+		route = parts.join("/") || "index";
+	}
+	return anchor ? route + "#" + anchor : route;
 }
 
 // --- Loading ---------------------------------------------------------------
@@ -251,6 +279,7 @@ async function fetchDoc(path) {
 			const r = await fetch(c);
 			if (r.ok) {
 				text = await r.text();
+				if (c.endsWith("/README.md")) folderRoutes.add(path);
 				break;
 			}
 		} catch (e) {
@@ -296,21 +325,24 @@ function wireCopy(root) {
 }
 
 async function render() {
-	const route = currentRoute();
+	const { route, anchor } = parseHash();
 	const text = await fetchDoc(route);
 	if (text === null) {
 		content.innerHTML = `<div class="missing"><h1>Page not found</h1>` +
 			`<p>No documentation for <code>${escapeHtml(route)}</code>. <a href="#/">Back to the overview</a>.</p></div>`;
-		document.title = "Not found — Giode";
+		document.title = "Not found | Giode";
 	} else {
 		content.innerHTML = mdToHtml(text);
-		document.title = pageTitle(text) + " — Giode";
+		const title = pageTitle(text);
+		document.title = title === "Giode" ? title : title + " | Giode";
 		wireLinks(content, route);
 		wireCopy(content);
 	}
 	buildNav(route);
 	closeMenu();
-	window.scrollTo(0, 0);
+	const target = anchor && document.getElementById(anchor);
+	if (target) target.scrollIntoView();
+	else window.scrollTo(0, 0);
 }
 
 function buildNav(route) {
