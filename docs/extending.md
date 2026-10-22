@@ -141,23 +141,43 @@ From `elements`, for layout:
 
 Menus, dropdowns and tooltips have to draw above everything, however deep they sit in the
 tree. `elements.RegisterPortal` queues content to be drawn after the rest of the frame, near
-a point in window coordinates:
+a window position:
 
 ```go
-anchor := elements.AbsolutePosition().Add(image.Pt(0, triggerHeight+4))
-elements.RegisterPortal(gtx, anchor, func() elements.Element {
-	return panel
-})
+anchor := elements.AbsolutePosition().Add(image.Pt(0, dims.Size.Y+4)) // just below me
+elements.RegisterPortal(gtx, anchor, func() elements.Element { return panel })
 ```
 
-The content is measured first and moved so it stays inside the window, flipping above the
-anchor when there's no room below.
+When the content is drawn it's kept inside the window, flipping above the anchor when
+there's no room below.
 
-`AbsolutePosition()` is the window position of the element being laid out. It's exact for
-content inside a `Box`, but for one of several children of a `Row` or `Stack` it's the
-container's position, because a flex container places its children only after laying all of
-them out. An element that offsets its children with `op.Offset` should call
-`elements.PushOffset(off)` around them so positions inside stay correct.
+`RegisterPopup` does the same for content that should close when the user clicks
+elsewhere. It puts a transparent layer under the content that calls `OnDismiss` on a press
+outside it:
+
+```go
+elements.RegisterPopup(gtx, anchor, s, func() elements.Element { return list },
+	elements.PopupOptions{OnDismiss: s.Close})
+```
+
+By default the outside press doesn't reach the UI below, as with native menus. Set
+`PassThrough: true` to let it through, for example for suggestions under a text field.
+
+**Positions inside containers.** `AbsolutePosition()` is the window position of the element
+being laid out, as far as is known at that moment. A `Row`, `Stack`, `Scroll` or `Tabs`
+only decides where a child goes after laying it out, so anchors (and semantic nodes)
+recorded inside a child are moved there afterwards. This happens automatically for
+everything registered with `RegisterPortal`, `RegisterPopup` and `RecordSemantic`. Two
+cases need a hand:
+
+- A position you compute now and use elsewhere, such as a trigger whose menu is laid out
+  in another part of the tree: store it with `elements.TrackPosition(&field, pos)` so it's
+  corrected too. For an already-final window position, like the pointer position of a
+  right-click, use `RegisterPortalAt`, which nothing moves.
+- A container of your own that places a child with `op.Offset` after laying it out: take
+  `mark := elements.MarkPositions()` before the child's `Layout` and call
+  `elements.ShiftPositions(mark, offset)` once the offset is known. A container that knows
+  the offset beforehand can call `elements.PushOffset(offset)` around the child instead.
 
 ## Sharing a component
 

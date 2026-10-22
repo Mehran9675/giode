@@ -89,14 +89,20 @@ size := giode.Input.Select(giode.Styles{Width: 160}, "Small", "Medium", "Large")
 | `Selected() int`, `Value() string` | Selected index and text. |
 | `SetSelected(i)` | Selects without calling `OnChange`. |
 | `Choose(i)` | Selects and calls `OnChange`, as picking from the list would. |
+| `Open()`, `Close()`, `Click()` | Open or close the list from code. |
 | `Options() []string` | The options. |
 | `OnChange(fn)` | Called when the user picks an option. |
 | `HoverColor(c)` | Background of the option under the pointer. |
 | `Opened() bool` | Whether the list is open. |
 
+The list opens just below the field (above it near the bottom of the window) and draws over
+everything else. Clicking anywhere outside it closes it without changing the selection.
+
+Keyboard: Tab to the field, then Enter, Space or an arrow key opens the list. In the open
+list, Up and Down move the highlight, Enter or Space picks it, and Escape closes the list.
+
 Styles: `Background` (field and list), `Color` (text), `BorderColor`, `BorderRadius`,
-`Width` (field width, in dp). The list opens below the field and draws above everything
-else.
+`Width` (field width, in dp).
 
 ## AutoComplete
 
@@ -113,5 +119,6 @@ city := giode.Input.AutoComplete("City", []string{"Paris", "London", "Tokyo"}).
 | `OnSelect(fn)` | Called when a suggestion is clicked. |
 
 Suggestions are the options containing the typed text (ignoring case), shown below the
-field. They're picked by clicking; there's no keyboard selection yet. Styles are the same
-as for Select.
+field. They're picked by clicking; there's no keyboard selection yet. Clicking elsewhere
+hides them until the text changes, and the click still goes through, so clicking back into
+the field places the caret. Styles are the same as for Select.
