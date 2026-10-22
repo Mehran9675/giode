@@ -81,6 +81,7 @@ type AppShellConfig = appshell.Config
 type AppShellSlot = appshell.Slot
 
 type ButtonVariant = button.Variant
+type ButtonElement = button.Button
 type IconButtonVariant = iconbutton.Variant
 
 // State is a minimal global-state primitive: an observable value
