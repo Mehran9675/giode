@@ -66,14 +66,21 @@ function escapeHtml(s) {
 }
 
 // Inline formatting: code, links, bold, italic. The input is escaped
-// first, so the tags added here are the only HTML in the output.
+// first, so the tags added here are the only HTML in the output. Code
+// spans are set aside before the other rules run, so text like
+// `NewState[T](v)` or `a*b*c` inside backticks isn't turned into a
+// link or emphasis.
 function inline(s) {
 	s = escapeHtml(s);
-	s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+	const code = [];
+	s = s.replace(/`([^`]+)`/g, (_, c) => {
+		code.push(c);
+		return `\u0000${code.length - 1}\u0000`;
+	});
 	s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${u}">${t}</a>`);
 	s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 	s = s.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, "$1<em>$2</em>");
-	return s;
+	return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${code[i]}</code>`);
 }
 
 function slug(s) {
