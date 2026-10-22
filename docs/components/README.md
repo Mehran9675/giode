@@ -18,6 +18,7 @@ stateless elements.
 | Menu | [menu.md](menu.md) | items, open |
 | Tooltip | [tooltip.md](tooltip.md) | hover |
 | VirtualList | [virtuallist.md](virtuallist.md) | visible range, focused index |
+| Toaster | [toaster.md](toaster.md) | toasts showing |
 | Pressable | [pressable.md](pressable.md) | press state, click events |
 | TitleBar | [titlebar.md](titlebar.md) | window state, buttons |
 | Transition | [transition.md](transition.md) | visibility, progress |

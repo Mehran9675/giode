@@ -24,6 +24,7 @@ import (
 	"github.com/mehran9675/giode/components/tabs"
 	"github.com/mehran9675/giode/components/title"
 	"github.com/mehran9675/giode/components/titlebar"
+	"github.com/mehran9675/giode/components/toaster"
 	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/components/transition"
 	"github.com/mehran9675/giode/components/virtuallist"
@@ -374,6 +375,33 @@ const (
 
 // App implements the window controls a TitleBar drives.
 var _ titlebar.Window = (*App)(nil)
+
+// --- Toasts -----------------------------------------------------------------------
+
+// Toaster shows small notifications in a corner of the window that
+// disappear on their own. Lay it out once per frame anywhere; call
+// Show from any goroutine.
+var Toaster = toaster.New
+
+type (
+	ToasterElement = toaster.Toaster
+	ToastKind      = toaster.Kind
+	ToastPlacement = toaster.Placement
+)
+
+const (
+	ToastInfo    = toaster.Info
+	ToastSuccess = toaster.Success
+	ToastWarning = toaster.Warning
+	ToastError   = toaster.Error
+
+	ToastBottomRight  = toaster.BottomRight
+	ToastBottomLeft   = toaster.BottomLeft
+	ToastBottomCenter = toaster.BottomCenter
+	ToastTopRight     = toaster.TopRight
+	ToastTopLeft      = toaster.TopLeft
+	ToastTopCenter    = toaster.TopCenter
+)
 
 // --- Virtual list ---------------------------------------------------------------
 

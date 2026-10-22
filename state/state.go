@@ -32,6 +32,15 @@ func SetInvalidator(fn func()) {
 	invalidate.Store(&fn)
 }
 
+// RequestRedraw asks the app for a new frame. It is safe to call from
+// any goroutine; components that change on their own outside a frame
+// (a toast shown from a background goroutine) use it.
+func RequestRedraw() {
+	if fn := invalidate.Load(); fn != nil {
+		(*fn)()
+	}
+}
+
 // State is an observable value of type T, safe for concurrent use:
 // read and write it from anywhere, including a goroutine outside the
 // render loop, not just from within a Layout call. Create it once,
