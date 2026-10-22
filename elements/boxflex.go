@@ -33,6 +33,12 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		}
 		return st.Height == 0 && st.HeightPct == 0
 	}
+	// Like CSS, children only grow (FlexGrow, Width -1) when the
+	// container's size along the axis is definite: set by its styles,
+	// or fixed by its parent. A container sizing itself to its content
+	// has no spare space to share; growing children would instead take
+	// all the space it may grow into (a menu as wide as the window).
+	definite := !hugMain() || minConstraint(gtx.Constraints, axis) == mainMax
 	if hugMain() {
 		if axis == layout.Horizontal {
 			gtx.Constraints.Min.X = 0
@@ -66,7 +72,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		if track != nil {
 			w = track.wrap(i, w)
 		}
-		if wt := flexWeightOf(child, axis); wt > 0 && flexPercentOf(child, axis) == 0 {
+		if wt := flexWeightOf(child, axis); wt > 0 && definite && flexPercentOf(child, axis) == 0 {
 			kids = append(kids, layout.Flexed(float32(wt), w))
 		} else {
 			kids = append(kids, layout.Rigid(w))
