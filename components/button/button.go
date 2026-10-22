@@ -15,15 +15,15 @@ import (
 type Variant string
 
 const (
-	// VariantContained fills the button with Background (or black if
-	// unset) at all times - the default, and today's only look before
-	// Variant existed.
+	// VariantContained fills the button with Background
+	// (theme.primary when unset), or BackgroundGradient. It is the
+	// default.
 	VariantContained Variant = "contained"
 	// VariantOutlined is transparent with a visible border, filling
 	// faintly with the border color on hover/press.
 	VariantOutlined Variant = "outlined"
-	// VariantGhost is fully transparent at rest - only the label is
-	// visible - filling faintly with Background on hover/press.
+	// VariantGhost shows only the label at rest, filling faintly with
+	// Background on hover/press.
 	VariantGhost Variant = "ghost"
 )
 

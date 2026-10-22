@@ -17,14 +17,14 @@ import (
 type Variant string
 
 const (
-	// VariantContained fills the button with Background (or black if
-	// unset) at all times - the default.
+	// VariantContained fills the button with Background
+	// (theme.primary when unset). It is the default.
 	VariantContained Variant = "contained"
 	// VariantOutlined is transparent with a visible border, filling
 	// faintly with the border color on hover/press.
 	VariantOutlined Variant = "outlined"
-	// VariantGhost is fully transparent at rest - only the icon is
-	// visible - filling faintly with Color on hover/press.
+	// VariantGhost shows only the icon at rest, filling faintly with
+	// Color on hover/press.
 	VariantGhost Variant = "ghost"
 )
 
@@ -42,7 +42,8 @@ type Button struct {
 
 // New returns a Button laying out icon. The styles argument is
 // optional: Background is the fill, Color the hover/press tint of the
-// transparent variants. The icon carries its own color and size.
+// transparent variants. An icon that sets no color of its own takes
+// Color.
 func New(icon elements.Element, st ...styles.Styles) *Button {
 	b := &Button{icon: icon}
 	if len(st) > 0 {
