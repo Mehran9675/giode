@@ -22,7 +22,12 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	// axis: Gio passes the parent's cross minimum through to rigid
 	// children, which would otherwise inflate hug-sized containers
 	// via the spacing distribution.
+	// A growing box (FlexGrow) fills the space its parent hands it,
+	// like CSS flex-grow, rather than shrinking back to its content.
 	hugMain := func() bool {
+		if st.FlexGrow > 0 {
+			return false
+		}
 		if axis == layout.Horizontal {
 			return st.Width == 0 && st.WidthPct == 0
 		}
@@ -238,9 +243,12 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 	// up as wide as its content. Justify must not push the content
 	// across that unused space.
 	hugMain := false
-	if axis == layout.Horizontal {
+	switch {
+	case st.FlexGrow > 0:
+		// Growing boxes fill what they're given; see layoutFlex.
+	case axis == layout.Horizontal:
 		hugMain = st.Width == 0 && st.WidthPct == 0
-	} else {
+	default:
 		hugMain = st.Height == 0 && st.HeightPct == 0
 	}
 

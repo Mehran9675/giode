@@ -244,3 +244,23 @@ func TestRow_AlignCenterDoesNotStretchChildren(t *testing.T) {
 	}
 	EndSemantics()
 }
+
+func TestRow_FlexGrowBoxFills(t *testing.T) {
+	BeginSemantics()
+	gtx := layout.Context{Ops: new(op.Ops), Constraints: layout.Constraints{Max: image.Pt(400, 100)}}
+	fixed := func(w int, label string) Element {
+		return Raw(func(gtx layout.Context) layout.Dimensions {
+			RecordSemantic(gtx, SemanticNode{Kind: SemanticCustom, Label: label}, image.Pt(w, 10))
+			return layout.Dimensions{Size: image.Pt(w, 10)}
+		})
+	}
+	Row(styles.Styles{Width: -1, Wrap: properties.WrapNoWrap},
+		Box(styles.Styles{FlexGrow: 1}, fixed(50, "grow")),
+		fixed(60, "end"),
+	).Layout(gtx)
+	for _, n := range EndSemantics() {
+		if n.Label == "end" && n.Bounds.Min.X != 340 {
+			t.Errorf("item after a FlexGrow box at x=%d, want 340 (pushed to the end)", n.Bounds.Min.X)
+		}
+	}
+}
