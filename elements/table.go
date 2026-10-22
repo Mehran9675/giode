@@ -55,7 +55,7 @@ func (r *tableRowElement) layout(gtx layout.Context, widths []int) layout.Dimens
 		cells = make([]Element, len(r.cells))
 		for i, c := range r.cells {
 			if i < len(widths) {
-				c = Box(styles.Styles{Width: properties.Width(widths[i])}, c)
+				c = SizedPx(widths[i], 0, c) // measured widths are pixels
 			}
 			cells[i] = c
 		}

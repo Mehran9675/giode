@@ -5,6 +5,7 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
@@ -12,13 +13,18 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
+// defaultPanelPadding is the panel's padding in dp when New is given
+// none.
+const defaultPanelPadding = 6
+
 // panel lays out the menu body and processes item clicks.
 func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
+	margin := gtx.Dp(unit.Dp(kit.Margin))
 	st := styles.Merge(styles.Styles{
 		FlexDirection: properties.FlexDirectionColumn,
 		Background:    properties.CalcColorReverse(defaultBackground),
 		BorderRadius:  8,
-		Padding:       properties.UniformInset(6),
+		Padding:       properties.UniformInset(defaultPanelPadding),
 		Color:         properties.CalcColorReverse(defaultText),
 	}, m.styles)
 	st.FlexDirection = properties.FlexDirectionColumn
@@ -31,16 +37,51 @@ func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
 	// cleared or the panel would be forced to fill the window.
 	win := gtx.Constraints.Max
 	gtx.Constraints.Min = image.Point{}
-	gtx.Constraints.Max.X = win.X - 2*kit.Margin
-	gtx.Constraints.Max.Y = win.Y - 2*kit.Margin
+	gtx.Constraints.Max.X = win.X - 2*margin
+	gtx.Constraints.Max.Y = win.Y - 2*margin
 
 	width := m.measureWidth(gtx, st)
 
-	children := make([]elements.Element, 0, len(m.items))
+	rows := make([]elements.Element, 0, len(m.items))
 	for i := range m.items {
-		children = append(children, m.row(&m.items[i], i, width, st))
+		rows = append(rows, m.row(&m.items[i], i, width, st))
 	}
-	return elements.Box(st, children...).Layout(gtx)
+	return elements.Box(st, elements.Raw(func(gtx layout.Context) layout.Dimensions {
+		return stackRows(gtx, rows)
+	})).Layout(gtx)
+}
+
+// panelPaddingTop is the panel's top padding in dp: the Padding given
+// to New, or the default.
+func (m *Menu) panelPaddingTop() int {
+	if m.styles.Padding != (properties.Inset{}) {
+		return m.styles.Padding.Top
+	}
+	return defaultPanelPadding
+}
+
+// stackRows lays the rows out one under the other. It does the stacking
+// itself rather than through a column Box because a flex container
+// does not report each child's own position to
+// elements.AbsolutePosition, only the container's origin: every row,
+// and so every submenu anchored off a row, would see the top of the
+// panel as its position.
+func stackRows(gtx layout.Context, rows []elements.Element) layout.Dimensions {
+	gtx.Constraints.Min.Y = 0
+	var size image.Point
+	for _, row := range rows {
+		cgtx := gtx
+		cgtx.Constraints.Max.Y = max(0, gtx.Constraints.Max.Y-size.Y)
+		off := image.Pt(0, size.Y)
+		trans := op.Offset(off).Push(gtx.Ops)
+		pop := elements.PushOffset(off)
+		dims := row.Layout(cgtx)
+		pop()
+		trans.Pop()
+		size.X = max(size.X, dims.Size.X)
+		size.Y += dims.Size.Y
+	}
+	return layout.Dimensions{Size: size}
 }
 
 // measureWidth lays each row out on a scratch context to find the

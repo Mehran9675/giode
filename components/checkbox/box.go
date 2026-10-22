@@ -6,8 +6,8 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 
-	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
@@ -31,17 +31,18 @@ const (
 // outlined when not.
 func (c *Checkbox) box() elements.Element {
 	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
-		size := c.boxSize()
+		st := c.st.Px(gtx.Metric)
+		size := c.boxSize(gtx)
 		gtx.Constraints.Min = size
 		gtx.Constraints.Max = size
 
-		radius := int(c.st.BorderRadius)
+		radius := int(st.BorderRadius)
 		if radius == 0 {
-			radius = defaultRadius
+			radius = gtx.Dp(unit.Dp(defaultRadius))
 		}
-		borderWidth := c.st.BorderWidth
+		borderWidth := int(st.BorderWidth)
 		if borderWidth == 0 {
-			borderWidth = defaultBorderWidth
+			borderWidth = gtx.Dp(unit.Dp(defaultBorderWidth))
 		}
 
 		checked := c.bool.Value
@@ -57,12 +58,21 @@ func (c *Checkbox) box() elements.Element {
 		defer clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops).Pop()
 		if checked {
 			paint.Fill(gtx.Ops, properties.CalcColor(fill))
-			iconSt := styles.Merge(styles.Styles{
-				Color:  defaultIcon,
-				Width:  properties.Width(size.X),
-				Height: properties.Height(size.Y),
-			}, c.iconSt)
-			icon.Material(c.iconName, iconSt).Layout(gtx)
+			if c.icon != nil {
+				// Icon sizes are in dp: convert the box's pixel size.
+				dpSize := properties.Width(float32(size.X) / max(gtx.Metric.PxPerDp, 1))
+				iconSt := styles.Merge(styles.Styles{
+					Color:  defaultIcon,
+					Width:  dpSize,
+					Height: properties.Height(dpSize),
+				}, c.iconSt)
+				gtx.Constraints = layout.Exact(size)
+				c.icon.Icon(iconSt).Layout(gtx)
+			} else {
+				col := properties.ResolveColor(stOrDefault(c.iconSt.Color, defaultIcon))
+				gtx.Constraints = layout.Exact(size)
+				kit.DrawGlyph(gtx, kit.GlyphCheck, unit.Dp(float32(size.X)/max(gtx.Metric.PxPerDp, 1)), col)
+			}
 		} else {
 			properties.PaintBorder(gtx.Ops, size, properties.BorderWidth(borderWidth), border, properties.BorderRadius(radius))
 		}
@@ -70,9 +80,9 @@ func (c *Checkbox) box() elements.Element {
 	})
 }
 
-// boxSize resolves the indicator size from Width/Height, defaulting
-// to a square 18x18 box.
-func (c *Checkbox) boxSize() image.Point {
+// boxSize resolves the indicator size in pixels from Width/Height (in
+// dp), defaulting to a square 18x18dp box.
+func (c *Checkbox) boxSize(gtx layout.Context) image.Point {
 	w := int(c.st.Width)
 	h := int(c.st.Height)
 	if w <= 0 {
@@ -81,7 +91,7 @@ func (c *Checkbox) boxSize() image.Point {
 	if h <= 0 {
 		h = defaultBoxSize
 	}
-	return image.Pt(w, h)
+	return image.Pt(gtx.Dp(unit.Dp(w)), gtx.Dp(unit.Dp(h)))
 }
 
 // stOrDefault returns c unless it is unset, in which case it returns

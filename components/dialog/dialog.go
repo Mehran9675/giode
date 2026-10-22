@@ -2,6 +2,8 @@
 package dialog
 
 import (
+	"image"
+
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/elements"
@@ -22,6 +24,12 @@ type Dialog struct {
 	content func() elements.Element
 	st      styles.Styles
 	scrim   widget.Clickable
+	// panel takes the clicks on the panel's own empty space, which
+	// would otherwise fall through to the scrim and close the dialog.
+	panel widget.Clickable
+	// size is the panel's size last frame, used to center it before
+	// laying it out (see Layout).
+	size image.Point
 }
 
 // New returns a Dialog bound to open: it is visible whenever *open is

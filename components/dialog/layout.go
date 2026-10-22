@@ -24,7 +24,7 @@ func (d *Dialog) Layout(gtx layout.Context) layout.Dimensions {
 
 	if d.scrim.Clicked(gtx) {
 		*d.open = false
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 		return layout.Dimensions{}
 	}
 	d.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -44,25 +44,41 @@ func (d *Dialog) Layout(gtx layout.Context) layout.Dimensions {
 		st.Padding = properties.UniformInset(20)
 	}
 
-	// Measure the panel, then center it. The panel must hug its
-	// content, so its minimum is cleared: Gio's Flex zeros a rigid
-	// child's minimum on the main axis but never on the cross axis, so
-	// Dialog (however it's placed in the tree) can inherit a cross-axis
-	// minimum equal to the full available width, forcing the panel to
-	// fill it instead of hugging.
-	macro := op.Record(gtx.Ops)
 	panelGtx := gtx
 	panelGtx.Constraints.Min = image.Point{}
 	panelGtx.Constraints.Max.X = win.X - 2*kit.Margin
 	panelGtx.Constraints.Max.Y = win.Y - 2*kit.Margin
-	dims := elements.Box(st, d.content()).Layout(panelGtx)
-	panel := macro.Stop()
 
-	x := (win.X - dims.Size.X) / 2
-	y := (win.Y - dims.Size.Y) / 2
-	off := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
-	panel.Add(gtx.Ops)
+	// The panel must hug its content, so its minimum is cleared above:
+	// Gio's Flex zeros a rigid child's minimum on the main axis but
+	// never on the cross axis, so Dialog (however it's placed in the
+	// tree) can inherit a cross-axis minimum equal to the full
+	// available width, forcing the panel to fill it instead of hugging.
+	//
+	// The panel is centered using last frame's size and laid out in
+	// place, with elements.AbsolutePosition tracking the offset, so
+	// content that opens a portal (a Select's option list) anchors it
+	// at its true position. Laying it out first and moving it after
+	// would leave those portals at the uncentered position. On the
+	// first frame, and whenever the size changes, the panel is
+	// measured first and another frame is requested.
+	if d.size == (image.Point{}) {
+		macro := op.Record(gtx.Ops)
+		mgtx := panelGtx
+		mgtx.Source = gtx.Source.Disabled()
+		d.size = elements.Box(st, d.content()).Layout(mgtx).Size
+		macro.Stop()
+	}
+	pos := image.Pt((win.X-d.size.X)/2, (win.Y-d.size.Y)/2)
+	off := op.Offset(pos).Push(gtx.Ops)
+	pop := elements.PushOffset(pos)
+	dims := d.panel.Layout(panelGtx, elements.Box(st, d.content()).Layout)
+	pop()
 	off.Pop()
+	if dims.Size != d.size {
+		d.size = dims.Size
+		kit.RequestFrame(gtx)
+	}
 
 	return layout.Dimensions{Size: win}
 }

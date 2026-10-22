@@ -5,9 +5,9 @@ package checkbox
 import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/widget"
 
+	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
@@ -21,7 +21,7 @@ type Checkbox struct {
 	bool     widget.Bool
 	onChange func(checked bool)
 	st       styles.Styles
-	iconName string
+	icon     icon.Source
 	iconSt   styles.Styles
 }
 
@@ -31,18 +31,20 @@ type Checkbox struct {
 // the unchecked border, BorderWidth and BorderRadius the border, and
 // Width/Height size the box (default 18x18).
 func New(label string, st ...styles.Styles) *Checkbox {
-	c := &Checkbox{label: label, iconName: "check"}
+	c := &Checkbox{label: label}
 	if len(st) > 0 {
 		c.st = st[0]
 	}
 	return c
 }
 
-// Icon replaces the material icon shown when checked (default
-// "check"). The styles argument is optional and overrides the icon's
-// Color (default white) and size (defaults to the box size).
-func (c *Checkbox) Icon(name string, st ...styles.Styles) *Checkbox {
-	c.iconName = name
+// Icon replaces the check mark shown when checked with any icon.Source
+// (a loaded SVG, a registered icon, path data). The styles argument is
+// optional and overrides the icon's Color (default white) and size
+// (defaults to the box size). Icon(nil) restores the built-in check
+// mark.
+func (c *Checkbox) Icon(src icon.Source, st ...styles.Styles) *Checkbox {
+	c.icon = src
 	if len(st) > 0 {
 		c.iconSt = st[0]
 	}
@@ -70,7 +72,7 @@ func (c *Checkbox) OnChange(fn func(checked bool)) *Checkbox {
 func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
 	if c.bool.Update(gtx) && c.onChange != nil {
 		c.onChange(c.bool.Value)
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 	}
 	st := styles.Merge(styles.Styles{Color: defaultText}, c.st)
 	dims := c.bool.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -89,5 +91,21 @@ func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
 	// Keep the checkbox clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.
 	kit.BlockDrag(gtx, dims.Size)
+	if gtx.Source.Focused(&c.bool) {
+		kit.MarkLive()
+	}
+	value := "false"
+	if c.bool.Value {
+		value = "true"
+	}
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticCheckbox, Label: c.label, Value: value, Target: c}, dims.Size)
 	return dims
+}
+
+// Toggle flips the state and invokes OnChange, as a click would.
+func (c *Checkbox) Toggle() {
+	c.bool.Value = !c.bool.Value
+	if c.onChange != nil {
+		c.onChange(c.bool.Value)
+	}
 }

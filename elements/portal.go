@@ -86,14 +86,19 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 // anchored off their own row's position - reports its true screen
 // position rather than whatever was accumulated before the portal
 // that contains it was originally triggered.
+//
+// Portals registered while draining (a submenu opened by its parent
+// menu's row) are drained too, in the same frame.
 func DrainPortals(gtx layout.Context) {
-	entries := portalQueue
-	portalQueue = nil
-	for _, e := range entries {
-		off := op.Offset(e.pos).Push(gtx.Ops)
-		pop := PushOffset(e.pos)
-		e.build().Layout(gtx)
-		pop()
-		off.Pop()
+	for len(portalQueue) > 0 {
+		entries := portalQueue
+		portalQueue = nil
+		for _, e := range entries {
+			off := op.Offset(e.pos).Push(gtx.Ops)
+			pop := PushOffset(e.pos)
+			e.build().Layout(gtx)
+			pop()
+			off.Pop()
+		}
 	}
 }

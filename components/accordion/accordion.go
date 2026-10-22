@@ -5,10 +5,8 @@ package accordion
 import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/widget"
 
-	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
@@ -100,7 +98,7 @@ func (a *Accordion) Layout(gtx layout.Context) layout.Dimensions {
 	for i, it := range a.items {
 		if it.click.Clicked(gtx) {
 			a.SetExpanded(i, !it.expanded)
-			gtx.Execute(op.InvalidateCmd{})
+			kit.RequestFrame(gtx)
 		}
 		children = append(children, a.header(it, st))
 		if it.expanded {
@@ -123,13 +121,13 @@ func (a *Accordion) header(it *item, st styles.Styles) elements.Element {
 				hst.Background = defaultHover
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
-			chevron := "chevron-right"
+			chevron := kit.GlyphChevronRight
 			if it.expanded {
-				chevron = "chevron-down"
+				chevron = kit.GlyphChevronDown
 			}
 			row := elements.Row(styles.Styles{Align: properties.AlignCenter, Justify: properties.JustifySpaceBetween, Width: -1},
 				elements.Text(it.label, styles.Styles{Color: st.Color}),
-				icon.Material(chevron, styles.Styles{Color: st.Color, Width: 16, Height: 16}),
+				elements.Glyph(chevron, styles.Styles{Color: st.Color, Width: 16}),
 			)
 			return elements.Box(hst, row).Layout(gtx)
 		})

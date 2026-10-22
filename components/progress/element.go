@@ -39,9 +39,10 @@ func (p *ProgressElement) Layout(gtx layout.Context) layout.Dimensions {
 		st = styles.Merge(p.st, p.hoverSt)
 	}
 
+	st = st.Px(gtx.Metric)
 	height := int(st.Height)
 	if height <= 0 {
-		height = 8
+		height = gtx.Dp(8)
 	}
 	track := st.Background
 	if properties.CalcColor(track).A == 0 {

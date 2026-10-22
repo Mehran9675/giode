@@ -13,7 +13,8 @@ settings of desktop applications; unsupported platform features are ignored.
 | `MinWidth` / `MinHeight` / `MaxWidth` / `MaxHeight` | `int` | — | Per-axis size bounds; combine with `MinSize`/`MaxSize` (tighter bound wins). |
 | `Resizable` | `bool` | `false` | Allow user resizing. When false the size is locked to `Size`. |
 | `Frameless` | `bool` | `false` | Remove the OS title bar and borders. |
-| `Draggable` | `bool` | `false` | Drag the window from empty (non-widget) space. Frameless only. |
+| `Draggable` | `bool` | `false` | Drag the window from empty (non-widget) space anywhere. Frameless only. For a custom title bar, use [TitleBar](components/titlebar.md) instead. |
+| `OnWindowStateChange` | `func(WindowState)` | `nil` | Runs when the window is minimized, maximized, made fullscreen or restored. |
 | `Background` | `string` | `"#000000"` | Window background color (any CSS hex). |
 | `Icon` | `[]byte` | `nil` | Window icon, PNG or JPEG bytes. Applied at runtime on Windows. |
 | `WindowStartState` | `WindowStartState` | `WindowStartNormal` | Initial state: `WindowStartMinimized`, `WindowStartMaximized`, `WindowStartFullscreen`. Takes precedence over the flags below. |

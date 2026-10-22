@@ -166,7 +166,7 @@ func (s *starEl) Layout(gtx layout.Context) layout.Dimensions {
 		if s.index >= s.rating.value {
 			col = kit.Alpha(col, 0.25) // unselected stars are dim
 		}
-		return icon.Material("star", styles.Styles{Color: col, Width: 24, Height: 24}).Layout(gtx)
+		return starIcon.Icon(styles.Styles{Color: col, Width: 24, Height: 24}).Layout(gtx) // starIcon: an icon.Path or loaded SVG
 	})
 }
 ```

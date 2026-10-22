@@ -12,7 +12,7 @@ import (
 // once with App.SetContextMenu and the app renders it automatically.
 func NewShowcaseMenu() *giodemenu.Menu {
 	return giode.Menu().
-		IconItem("star", "Starred action", func() { log.Println("starred") }).
+		IconItem(mustIcon("star"), "Starred action", func() { log.Println("starred") }).
 		Item("Plain action", func() { log.Println("clicked") }).
 		Separator().
 		DisabledItem("Disabled")
@@ -60,4 +60,13 @@ func (p *dropdownMenuPage) View() giode.Element {
 		p.trigger,
 		p.menu,
 	)
+}
+
+// mustIcon looks up an icon registered in icons.go.
+func mustIcon(name string) giode.IconSource {
+	src, ok := giode.LookupIcon(name)
+	if !ok {
+		panic("missing icon " + name)
+	}
+	return src
 }

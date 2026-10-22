@@ -5,8 +5,8 @@ import (
 
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/unit"
 
-	"github.com/mehran9675/giode/components/icon"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
@@ -29,29 +29,45 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 
 	if s.field.Clicked(gtx) {
 		s.open = !s.open
+		kit.RequestFrame(gtx)
+	}
+	if s.open {
+		// The open panel is a portal; keep enclosing caches live so
+		// it's registered every frame.
+		kit.MarkLive()
 	}
 
 	// Field.
 	fieldDims := s.field.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		if s.st.Width > 0 {
-			gtx.Constraints.Min.X = int(s.st.Width)
-			gtx.Constraints.Max.X = int(s.st.Width)
+			w := gtx.Dp(unit.Dp(s.st.Width))
+			gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 		}
 		fieldSt := st
 		if s.field.Hovered() {
 			fieldSt.BorderColor = kit.Hovered(st.BorderColor)
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
-		row := elements.Row(styles.Styles{Align: properties.AlignCenter},
-			elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(s.Value())),
+		// With a fixed width the label fills the space left of the
+		// chevron, pushing it to the right edge. The row must not wrap:
+		// FlexGrow is ignored on wrapped lines.
+		rowSt := styles.Styles{Align: properties.AlignCenter, Wrap: properties.WrapNoWrap}
+		labelSt := styles.Styles{FlexGrow: 1}
+		if s.st.Width > 0 {
+			rowSt.Width = -1
+			labelSt.Width = -1
+		}
+		row := elements.Row(rowSt,
+			elements.Box(labelSt, elements.Text(s.Value(), styles.Styles{Color: st.Color, FontSize: st.FontSize})),
 			elements.Box(styles.Styles{Width: 4}),
-			icon.Material("chevron-down", styles.Styles{Color: st.Color, Width: 16, Height: 16}),
+			elements.Glyph(kit.GlyphChevronDown, styles.Styles{Color: st.Color, Width: 16}),
 		)
 		return elements.Box(fieldSt, row).Layout(gtx)
 	})
 	// Keep the field clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.
 	kit.BlockDrag(gtx, fieldDims.Size)
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticSelect, Label: s.Value(), Value: s.Value(), Target: s}, fieldDims.Size)
 
 	if s.open && len(s.options) > 0 {
 		fieldWidth := fieldDims.Size.X

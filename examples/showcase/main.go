@@ -20,6 +20,8 @@ var textStyle = giode.Styles{Color: "white", FontSize: 24, TextAlign: giode.Text
 
 func main() {
 	giode.UseGofont()
+	// The gallery has a dark background; theme tokens follow it.
+	giode.SetMode(giode.ModeDark)
 
 	app := giode.New(giode.Config{
 		Title:     "GIODE SHOWCASE",

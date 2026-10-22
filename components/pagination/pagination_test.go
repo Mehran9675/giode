@@ -95,12 +95,12 @@ func TestPagination_ClickPrevChangesCurrentAndFiresOnChange(t *testing.T) {
 
 	frame() // register the row's clickable areas
 
-	// "prev" is always the first element in the row, so a point near
-	// the top-left corner reliably lands on it regardless of exact
-	// font-driven button widths.
-	press(f32.Pt(8, 8))
+	// "prev" is always the first element in the row, vertically
+	// centered, so a point near the left edge at mid-height reliably
+	// lands on it regardless of exact font-driven button sizes.
+	press(f32.Pt(8, 30))
 	frame()
-	release(f32.Pt(8, 8))
+	release(f32.Pt(8, 30))
 	frame()
 
 	if p.Current() != 1 {

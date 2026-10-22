@@ -25,7 +25,8 @@ type TextElement struct {
 	st  styles.Styles
 
 	kit.HoverTracker
-	hoverSt styles.Styles
+	hoverSt     styles.Styles
+	lastHovered bool
 }
 
 // Text renders a string with the given styles. The styles argument is
@@ -80,12 +81,24 @@ func (t *TextElement) resolveStyles() styles.Styles {
 
 // Layout shapes and paints the text with its decoration.
 func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
-	t.Update(gtx)
+	if t.Update(gtx) != t.lastHovered {
+		t.lastHovered = !t.lastHovered
+		kit.MarkLive()
+	}
 	st := t.resolveStyles()
-
-	if fonts.Shaper() == nil {
+	if st.Display == properties.DisplayNone {
 		return layout.Dimensions{}
 	}
+
+	shaper := fonts.Shaper()
+	if shaper == nil {
+		return layout.Dimensions{}
+	}
+	if st.Visibility == properties.VisibilityHidden {
+		// Measure without painting: keep the space, drop the ops.
+		gtx.Ops = new(op.Ops)
+	}
+
 	col := properties.ResolveColor(st.Color)
 	colMacro := op.Record(gtx.Ops)
 	paint.ColorOp{Color: col}.Add(gtx.Ops)
@@ -96,13 +109,24 @@ func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
 		Style:    st.FontStyle.Style(),
 		Typeface: font.Typeface(st.FontFamily),
 	}
-	dims := widget.Label{
+	label := widget.Label{
 		Alignment:  st.TextAlign.LayoutAlignment(),
 		MaxLines:   int(st.MaxLines),
 		LineHeight: unit.Sp(st.LineHeight),
-	}.Layout(gtx, fonts.Shaper(), face, properties.ResolveFontSize(st.FontSize), t.str, textColor)
+	}
+	if st.TextOverflow == properties.TextOverflowEllipsis {
+		label.Truncator = "…"
+		if label.MaxLines == 0 {
+			label.MaxLines = 1
+		}
+	}
+	str := st.TextTransform.Apply(t.str)
+	dims := label.Layout(gtx, shaper, face, properties.ResolveFontSize(st.FontSize), str, textColor)
 
 	paintDecoration(gtx, dims.Size, st.TextDecoration, col)
+	if st.Visibility != properties.VisibilityHidden {
+		recordSemantic(gtx, SemanticText, str, "", dims.Size)
+	}
 	t.RegisterArea(gtx, image.Pt(0, 0), dims.Size, st.Cursor)
 	return dims
 }
@@ -112,12 +136,13 @@ func paintDecoration(gtx layout.Context, size image.Point, deco properties.TextD
 	if deco == properties.TextDecorationNone || deco == "" {
 		return
 	}
+	th := max(1, gtx.Dp(1))
 	var line image.Rectangle
 	switch deco {
 	case properties.TextDecorationLineThrough:
-		line = image.Rect(0, size.Y/2, size.X, size.Y/2+1)
+		line = image.Rect(0, size.Y/2, size.X, size.Y/2+th)
 	default:
-		line = image.Rect(0, size.Y-1, size.X, size.Y)
+		line = image.Rect(0, size.Y-th, size.X, size.Y)
 	}
 	if line.Dx() <= 0 {
 		return

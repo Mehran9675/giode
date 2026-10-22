@@ -83,9 +83,12 @@ func (s *starEl) Layout(gtx layout.Context) layout.Dimensions {
 		if s.index >= s.rating.value {
 			col = kit.Alpha(col, 0.25) // unselected stars are dim
 		}
-		return icon.Material("star", styles.Styles{Color: col, Width: 24, Height: 24}).Layout(gtx)
+		return starIcon.Icon(styles.Styles{Color: col, Width: 24, Height: 24}).Layout(gtx)
 	})
 }
+
+// starIcon is the app's own icon: Giode bundles no icon set.
+var starIcon = icon.Path{Data: "M12 2L15 9L22 9.5L16.5 14L18 21L12 17L6 21L7.5 14L2 9.5L9 9Z"}
 
 func main() {
 	giode.UseGofont()

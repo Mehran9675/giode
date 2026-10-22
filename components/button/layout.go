@@ -10,7 +10,12 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
-var defaultBackground = "#000000"
+// Unstyled buttons follow the theme: a primary fill with on-primary
+// text, or primary text and border for the transparent variants.
+var (
+	defaultBackground = "theme.primary"
+	defaultLabel      = "theme.onprimary"
+)
 
 // layoutVisual renders the button face inside the clickable region.
 func (b *Button) layoutVisual(gtx layout.Context) layout.Dimensions {
@@ -68,8 +73,15 @@ func (b *Button) layoutVisual(gtx layout.Context) layout.Dimensions {
 		st.Background = accent
 	}
 
+	labelColor := st.Color
+	if labelColor == "" {
+		labelColor = defaultLabel
+		if b.variant == VariantOutlined || b.variant == VariantGhost {
+			labelColor = accent
+		}
+	}
 	label := elements.Text(b.label, styles.Styles{
-		Color:     st.Color,
+		Color:     labelColor,
 		FontSize:  st.FontSize,
 		TextAlign: st.TextAlign,
 	})

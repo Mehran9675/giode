@@ -211,14 +211,14 @@ func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
 	if s.contentH <= s.viewportH || s.viewportH <= 0 {
 		return
 	}
-	sb := s.st.ScrollBar
+	sb := s.st.Px(gtx.Metric).ScrollBar
 	barWidth := sb.Width
 	if barWidth <= 0 {
-		barWidth = defaultBarWidth
+		barWidth = gtx.Dp(defaultBarWidth)
 	}
 	minThumb := sb.MinThumbLength
 	if minThumb <= 0 {
-		minThumb = defaultThumbLen
+		minThumb = gtx.Dp(defaultThumbLen)
 	}
 	radius := sb.Radius
 	if radius <= 0 {

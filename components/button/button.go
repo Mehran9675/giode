@@ -4,10 +4,10 @@ package button
 
 import (
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 )
 
@@ -83,7 +83,7 @@ func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 		// counter formatted into a Text earlier in the tree); request
 		// another frame so the change shows up right away instead of
 		// waiting for an unrelated event to trigger a repaint.
-		gtx.Execute(op.InvalidateCmd{})
+		kit.RequestFrame(gtx)
 	}
 	dims := b.clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return b.layoutVisual(gtx)
@@ -93,5 +93,11 @@ func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 	// layoutDrag): without this, pressing the button would be
 	// hijacked into a native window-move instead of a click.
 	kit.BlockDrag(gtx, dims.Size)
+	if gtx.Source.Focused(&b.clickable) || b.clickable.Pressed() {
+		// Keyboard activation must reach the clickable even inside a
+		// cached subtree.
+		kit.MarkLive()
+	}
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticButton, Label: b.label, Target: b}, dims.Size)
 	return dims
 }
