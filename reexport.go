@@ -27,6 +27,7 @@ import (
 	"github.com/mehran9675/giode/components/toaster"
 	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/components/transition"
+	"github.com/mehran9675/giode/components/treeview"
 	"github.com/mehran9675/giode/components/virtuallist"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
@@ -375,6 +376,19 @@ const (
 
 // App implements the window controls a TitleBar drives.
 var _ titlebar.Window = (*App)(nil)
+
+// --- Tree view ----------------------------------------------------------------------
+
+// TreeView is a virtualized, keyboard-navigable tree. It owns
+// expansion and selection by key and draws indentation, arrows and
+// selection; the row function draws only each node's content.
+var TreeView = treeview.New
+
+type (
+	TreeViewElement = treeview.Tree
+	TreeNode        = treeview.Node
+	TreeRowState    = treeview.RowState
+)
 
 // --- Toasts -----------------------------------------------------------------------
 

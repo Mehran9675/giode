@@ -80,12 +80,20 @@ type List struct {
 	onFocus    func(i int)
 	onActivate func(i int)
 
+	wantFocus    bool
 	pendingIdx   int
 	pendingAlign Align
 	hasPending   bool
 
 	onReachEnd func()
 	wasAtEnd   bool
+
+	noClickRow bool
+	// pointerFocus marks focus requested by a press, so gaining it
+	// doesn't also focus the first row the way Tab does.
+	pointerFocus bool
+	extraKeys    []key.Name
+	onKey        func(e key.Event, focused int)
 }
 
 // New returns a list of count() rows, each itemHeight dp tall and built
@@ -130,6 +138,28 @@ func (l *List) OnActivate(fn func(i int)) *List {
 	return l
 }
 
+// OnKey handles additional keys while the list has focus: fn runs on
+// presses of names with the focused row. Components built on the list
+// (a tree's Left/Right) use it. It returns l for chaining.
+func (l *List) OnKey(fn func(e key.Event, focused int), names ...key.Name) *List {
+	l.onKey, l.extraKeys = fn, names
+	return l
+}
+
+// ClickFocusesRow controls whether a press on a row moves the focused
+// index to it (the default). Components whose rows handle their own
+// clicks turn it off; the press still focuses the list. It returns l
+// for chaining.
+func (l *List) ClickFocusesRow(v bool) *List {
+	l.noClickRow = !v
+	return l
+}
+
+// Focus requests keyboard focus for the list on the next frame.
+func (l *List) Focus() {
+	l.wantFocus = true
+}
+
 // ScrollToIndex scrolls so item i is shown according to align. It
 // takes effect on the next frame, when the viewport size is known.
 func (l *List) ScrollToIndex(i int, align Align) {
@@ -147,15 +177,13 @@ func (l *List) FocusedIndex() int {
 	return l.focusIdx
 }
 
-// SetFocusedIndex focuses row i (clamped to the list) and scrolls it
-// into view; -1 clears the focus.
+// SetFocusedIndex focuses row i and scrolls it into view; -1 clears
+// the focus. An index past the end is clamped at the next layout,
+// once the row count is current.
 func (l *List) SetFocusedIndex(i int) {
 	if i < 0 {
 		l.focusIdx = -1
 		return
-	}
-	if l.n > 0 {
-		i = min(i, l.n-1)
 	}
 	if i != l.focusIdx {
 		l.focusIdx = i
@@ -214,45 +242,56 @@ func (l *List) resolveScroll() {
 // handleKeys processes focus and navigation keys.
 func (l *List) handleKeys(gtx layout.Context) {
 	page := max(1, l.viewportH/max(1, l.itemPx)-1)
+	if l.wantFocus {
+		l.wantFocus = false
+		gtx.Execute(key.FocusCmd{Tag: l})
+	}
+	filters := []event.Filter{
+		key.FocusFilter{Target: l},
+		key.Filter{Focus: l, Name: key.NameUpArrow},
+		key.Filter{Focus: l, Name: key.NameDownArrow},
+		key.Filter{Focus: l, Name: key.NamePageUp},
+		key.Filter{Focus: l, Name: key.NamePageDown},
+		key.Filter{Focus: l, Name: key.NameHome},
+		key.Filter{Focus: l, Name: key.NameEnd},
+		key.Filter{Focus: l, Name: key.NameReturn},
+		key.Filter{Focus: l, Name: key.NameEnter},
+	}
+	for _, n := range l.extraKeys {
+		filters = append(filters, key.Filter{Focus: l, Name: n})
+	}
 	for {
-		ev, ok := gtx.Event(
-			key.FocusFilter{Target: l},
-			key.Filter{Focus: l, Name: key.NameUpArrow},
-			key.Filter{Focus: l, Name: key.NameDownArrow},
-			key.Filter{Focus: l, Name: key.NamePageUp},
-			key.Filter{Focus: l, Name: key.NamePageDown},
-			key.Filter{Focus: l, Name: key.NameHome},
-			key.Filter{Focus: l, Name: key.NameEnd},
-			key.Filter{Focus: l, Name: key.NameReturn},
-			key.Filter{Focus: l, Name: key.NameEnter},
-		)
+		ev, ok := gtx.Event(filters...)
 		if !ok {
 			break
 		}
 		switch e := ev.(type) {
 		case key.FocusEvent:
 			l.focused = e.Focus
-			if e.Focus && l.focusIdx < 0 && l.n > 0 {
+			if e.Focus && l.focusIdx < 0 && l.n > 0 && !l.pointerFocus {
 				l.SetFocusedIndex(max(0, l.first))
 			}
+			l.pointerFocus = false
 		case key.Event:
 			if e.State != key.Press || l.n == 0 {
 				continue
 			}
 			cur := max(0, l.focusIdx)
+			// Keyboard moves stay within the current rows.
+			clampN := func(i int) int { return max(0, min(l.n-1, i)) }
 			switch e.Name {
 			case key.NameUpArrow:
-				l.SetFocusedIndex(max(0, cur-1))
+				l.SetFocusedIndex(clampN(cur - 1))
 			case key.NameDownArrow:
 				if l.focusIdx < 0 {
 					l.SetFocusedIndex(0)
 				} else {
-					l.SetFocusedIndex(cur + 1)
+					l.SetFocusedIndex(clampN(cur + 1))
 				}
 			case key.NamePageUp:
-				l.SetFocusedIndex(max(0, cur-page))
+				l.SetFocusedIndex(clampN(cur - page))
 			case key.NamePageDown:
-				l.SetFocusedIndex(cur + page)
+				l.SetFocusedIndex(clampN(cur + page))
 			case key.NameHome:
 				l.SetFocusedIndex(0)
 			case key.NameEnd:
@@ -260,6 +299,10 @@ func (l *List) handleKeys(gtx layout.Context) {
 			case key.NameReturn, key.NameEnter:
 				if l.focusIdx >= 0 && l.onActivate != nil {
 					l.onActivate(l.focusIdx)
+				}
+			default:
+				if l.onKey != nil {
+					l.onKey(e, l.focusIdx)
 				}
 			}
 			kit.RequestFrame(gtx)
@@ -272,8 +315,11 @@ func (l *List) handleKeys(gtx layout.Context) {
 			break
 		}
 		if pe, ok := ev.(pointer.Event); ok && pe.Kind == pointer.Press {
+			if !l.focused {
+				l.pointerFocus = true
+			}
 			gtx.Execute(key.FocusCmd{Tag: l})
-			if l.itemPx > 0 {
+			if l.itemPx > 0 && !l.noClickRow {
 				if i := int((pe.Position.Y + l.offset) / float32(l.itemPx)); i >= 0 && i < l.n {
 					l.SetFocusedIndex(i)
 				}

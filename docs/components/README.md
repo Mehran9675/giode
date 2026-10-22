@@ -17,6 +17,7 @@ stateless elements.
 | Dialog | [dialog.md](dialog.md) | external `*bool` |
 | Menu | [menu.md](menu.md) | items, open |
 | Tooltip | [tooltip.md](tooltip.md) | hover |
+| TreeView | [treeview.md](treeview.md) | selection, expansion |
 | VirtualList | [virtuallist.md](virtuallist.md) | visible range, focused index |
 | Toaster | [toaster.md](toaster.md) | toasts showing |
 | Pressable | [pressable.md](pressable.md) | press state, click events |

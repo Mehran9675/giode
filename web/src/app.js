@@ -47,6 +47,7 @@ const NAV = [
 			{ path: "components/pressable", label: "Pressable" },
 			{ path: "components/toaster", label: "Toaster" },
 			{ path: "components/virtuallist", label: "VirtualList" },
+			{ path: "components/treeview", label: "TreeView" },
 			{ path: "components/titlebar", label: "Title bar" },
 			{ path: "components/transition", label: "Transition" },
 			{ path: "components/progress", label: "Progress" },

@@ -29,6 +29,9 @@ is given (give it a height, or `FlexGrow`).
 | `OnReachEnd(fn)` | Runs once when the last row scrolls into view — for loading more. |
 | `FocusedIndex()`, `SetFocusedIndex(i)` | The keyboard-focused row (-1 for none). |
 | `OnFocusChange(fn)`, `OnActivate(fn)` | Focus moves; Enter on the focused row. |
+| `OnKey(fn, keys...)` | Extra keys handled while focused (TreeView uses it for Left/Right). |
+| `ClickFocusesRow(false)` | A press focuses the list but leaves the row to handle its own click. |
+| `Focus()` | Requests keyboard focus. |
 | `HasFocus()`, `OffsetDp()` | Whether the list has keyboard focus; scroll position in dp. |
 
 ## Keyboard
