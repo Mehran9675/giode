@@ -104,6 +104,18 @@ func (a *App) MCPServer() *mcp.Server {
 	return a.mcp.srv
 }
 
+// Post queues fn to run on the UI goroutine before the next frame and
+// requests that frame, without waiting. It is safe to call from any
+// goroutine: use it to apply results from background work (a network
+// response, a file read) to data the view reads, so that data never
+// needs locks. Calls run in the order posted.
+func (a *App) Post(fn func()) {
+	a.uiMu.Lock()
+	a.uiCalls = append(a.uiCalls, fn)
+	a.uiMu.Unlock()
+	a.window.Invalidate()
+}
+
 // RunOnUI runs fn on the UI goroutine before the next frame is laid
 // out and waits for it, so code running elsewhere (an MCP tool, a
 // network callback) can safely drive stateful components. It fails if

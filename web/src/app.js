@@ -25,6 +25,7 @@ const NAV = [
 			{ path: "elements", label: "Elements" },
 			{ path: "styles", label: "Style properties" },
 			{ path: "routing", label: "Routing" },
+			{ path: "threading", label: "Threading" },
 			{ path: "performance", label: "Rendering performance" },
 			{ path: "mcp", label: "MCP server" },
 			{ path: "extending", label: "Extending the library" },

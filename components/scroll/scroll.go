@@ -52,6 +52,7 @@ type Scroll struct {
 	st            styles.Styles
 	onReachBottom func()
 	wasAtBottom   bool
+	pxPerDp       float32
 }
 
 // New returns a Scroll around content, rebuilt fresh every frame. The
@@ -118,6 +119,34 @@ func (s *Scroll) Visible(top, height int) bool {
 	return top+height > int(s.offset) && top < int(s.offset)+s.viewportH
 }
 
+// VisibleDp is Visible with top and height in dp, the units Styles
+// use, converted with the display scale of the last frame.
+func (s *Scroll) VisibleDp(top, height float32) bool {
+	scale := s.pxPerDp
+	if scale <= 0 {
+		scale = 1
+	}
+	return s.Visible(int(top*scale), int(height*scale+0.5))
+}
+
+// OffsetDp returns the vertical offset in dp.
+func (s *Scroll) OffsetDp() float32 {
+	scale := s.pxPerDp
+	if scale <= 0 {
+		scale = 1
+	}
+	return s.offset / scale
+}
+
+// ScrollToDp sets the vertical offset in dp.
+func (s *Scroll) ScrollToDp(v float32) {
+	scale := s.pxPerDp
+	if scale <= 0 {
+		scale = elements.DisplayScale()
+	}
+	s.offset = v * scale
+}
+
 // OnReachBottom sets the handler invoked once when the scroll reaches
 // its maximum offset - edge-triggered: it fires again only after
 // scrolling away from the bottom and back, not on every frame spent
@@ -153,6 +182,7 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	viewport := gtx.Constraints.Constrain(image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y))
 	gtx.Constraints = layout.Exact(viewport)
 	s.viewportH = viewport.Y
+	s.pxPerDp = gtx.Metric.PxPerDp
 
 	// Lay the content out with unbounded height.
 	macro := op.Record(gtx.Ops)

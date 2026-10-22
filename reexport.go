@@ -125,6 +125,16 @@ var (
 	// InvalidateCaches forces every Memo to rebuild on the next frame.
 	InvalidateCaches = elements.InvalidateCaches
 
+	// AfterLayout runs a function once the current frame's layout is
+	// done, on the UI goroutine - for handlers that change the model
+	// the frame is still reading.
+	AfterLayout = elements.AfterLayout
+	// DisplayScale returns the display's pixels per dp as of the last
+	// frame; DpToPx and PxToDp convert with it. Safe from anywhere.
+	DisplayScale = elements.DisplayScale
+	DpToPx       = elements.DpToPx
+	PxToDp       = elements.PxToDp
+
 	Table       = elements.Table
 	TableHeader = elements.TableHeader
 	TableRow    = elements.TableRow

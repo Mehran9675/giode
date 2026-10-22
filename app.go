@@ -99,6 +99,7 @@ func (a *App) runLoop(view func() Element) error {
 				elements.BeginSemantics()
 			}
 			elements.SetWindowSize(gtx.Constraints.Max)
+			elements.SetMetric(gtx.Metric)
 			paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
 			layoutDrag(a, gtx)
 			view().Layout(gtx)
@@ -107,6 +108,9 @@ func (a *App) runLoop(view func() Element) error {
 				a.ctxMenu.Layout(gtx)
 			}
 			elements.DrainPortals(gtx)
+			if elements.RunAfterLayout() {
+				a.window.Invalidate()
+			}
 			var nodes []elements.SemanticNode
 			if a.mcp != nil {
 				nodes = elements.EndSemantics()
