@@ -25,6 +25,7 @@ import (
 	"github.com/mehran9675/giode/components/titlebar"
 	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/components/transition"
+	"github.com/mehran9675/giode/components/virtuallist"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/router"
@@ -369,6 +370,27 @@ const (
 
 // App implements the window controls a TitleBar drives.
 var _ titlebar.Window = (*App)(nil)
+
+// --- Virtual list ---------------------------------------------------------------
+
+// VirtualList is a vertical list of equal-height rows (height in dp)
+// that only builds the rows in or near the viewport:
+//
+//	list := giode.VirtualList(func() int { return len(rows) }, 32,
+//		func(i int) giode.Element { return rowView(rows[i]) })
+var VirtualList = virtuallist.New
+
+type (
+	VirtualListElement = virtuallist.List
+	ScrollAlign        = virtuallist.Align
+)
+
+const (
+	ScrollAlignNearest = virtuallist.AlignNearest
+	ScrollAlignStart   = virtuallist.AlignStart
+	ScrollAlignCenter  = virtuallist.AlignCenter
+	ScrollAlignEnd     = virtuallist.AlignEnd
+)
 
 // --- Transitions ----------------------------------------------------------------
 

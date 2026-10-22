@@ -45,6 +45,7 @@ const NAV = [
 			{ path: "components/dialog", label: "Dialog" },
 			{ path: "components/menu", label: "Context menu" },
 			{ path: "components/pressable", label: "Pressable" },
+			{ path: "components/virtuallist", label: "VirtualList" },
 			{ path: "components/titlebar", label: "Title bar" },
 			{ path: "components/transition", label: "Transition" },
 			{ path: "components/progress", label: "Progress" },
