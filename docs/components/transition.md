@@ -22,7 +22,7 @@ out, reversing smoothly when interrupted. While hidden it takes no space.
 | `Enlarge` | Grows from smaller. |
 | `Shrink` | Settles from larger. |
 | `Rotate` | Turns in from a quarter turn. |
-| `Collapse`, `CollapseWidth` | Animates the space taken in the layout (height or width), pushing neighbors and clipping the content — for expanding panels. |
+| `Collapse`, `CollapseWidth` | Animates the space taken in the layout (height or width), pushing neighbors and clipping the content. Use it for expanding panels. |
 
 Combine kinds with `|`: `giode.Fade | giode.SlideLeft`. Ready-made combinations: `FadeUp`
 (fade + slide up), `Zoom` (fade + enlarge), `Pop` (fade + shrink). Transforms are
@@ -36,7 +36,7 @@ Any `time.Duration`, or the presets `TransitionFast` (150ms), `TransitionNormal`
 
 ## Easing
 
-CSS timing functions: `EaseOut` (fast start, gentle end — usually right for entering
+CSS timing functions: `EaseOut` (fast start, gentle end; usually right for entering
 content), `EaseIn`, `EaseInOut` (the default), `Ease` (CSS's default), `EaseLinear`, plus
 `EaseOutBack` (slight overshoot), `EaseInBack` and `EaseOutBounce`. Any CSS curve works too:
 

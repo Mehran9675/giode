@@ -1,28 +1,17 @@
 # Spinner
 
-Stateless animated loading indicator.
+A spinning loading indicator.
 
 ```go
-giode.Spinner(giode.Styles{Width: 24, Height: 24, Color: "#3b82f6"})
+giode.Spinner(giode.Styles{Color: "theme.primary", Width: 24})
 ```
 
-## Styles
-
-| Property | Role |
+| Style | Role |
 | --- | --- |
 | `Color` | Arc color. |
-| `Width` / `Height` | Size; defaults to 32px. |
+| `Width`, `Height` | Size, 32dp by default. Set only `Width` for a square. |
 
-The spinner invalidates its own frames while visible; no state is required for the
-animation itself.
+It's stateless: build it in the view only while something is loading. While it's on screen
+it keeps the window redrawing; when it's gone, redrawing stops.
 
-## Hover
-
-Chain `OnHover` to restyle the arc while the pointer is over it. This does need
-persistent state, so create it once and reuse it - see [Hover](../elements.md#hover).
-
-```go
-loader := giode.Spinner(giode.Styles{Color: "#3b82f6"}).OnHover(giode.Styles{
-	Color: "#60a5fa",
-})
-```
+`OnHover` restyles it while the pointer is over it; see [hover styles](../elements.md#hover-styles).

@@ -1,35 +1,22 @@
 # Pagination
 
-Stateful row of page-number controls, built on [Button](button.md): prev/next and a
-windowed set of page buttons (first, last, and a few pages around the current one, with
-an ellipsis for the gap on a large page count).
+Previous and next buttons with page numbers in between.
 
 ```go
-pager := giode.Pagination(20). // 20 total pages
+pager := giode.Pagination(20). // 20 pages
 	OnChange(func(page int) { loadPage(page) })
-
-// in the view:
-giode.Stack(giode.Styles{}, pager)
 ```
 
-Create it once with `New`/`giode.Pagination` and lay it out every frame.
-
-## API
-
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Pagination(total int, st ...Styles) *Pagination` | Creates a control over `total` pages, starting at page 1. |
-| `Current() int` | The current page (1-indexed). |
-| `SetCurrent(page int)` | Changes the current page without invoking OnChange, clamped to `[1, total]`. |
-| `SetTotal(total int)` | Changes the page count, clamping the current page if needed. |
-| `OnChange(fn func(page int)) *Pagination` | Handler for clicking a page button or prev/next. |
+| `Pagination(total, st...) *Pagination` | Creates the control, starting at page 1. |
+| `Current() int` | Current page, starting at 1. |
+| `SetCurrent(page)` | Changes the page without calling `OnChange`. Out-of-range values are clamped. |
+| `SetTotal(total)` | Changes the page count. |
+| `OnChange(fn)` | Called when the user picks a page. |
 
-Styles apply to every button (prev/next and page numbers alike); the current page uses
-`VariantContained`, every other button `VariantOutlined` - see [Button](button.md).
+With up to 7 pages, every number shows. With more, it shows the first and last pages, the
+pages next to the current one, and "…" for the gaps.
 
-## Behavior
-
-- With 7 or fewer total pages, every page number shows.
-- With more, the row shows page 1, an ellipsis if there's a gap, up to 3 pages around the
-  current one, another ellipsis if there's a gap, and the last page.
-- Clicking prev/next past the first/last page is a no-op (no visual "disabled" state).
+The styles apply to every button. The current page uses the contained
+[Button](button.md) variant and the others the outlined one.

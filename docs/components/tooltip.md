@@ -1,31 +1,21 @@
 # Tooltip
 
-Wraps any element as a trigger: hovering it shows a small panel just below, rendered
-above everything else regardless of nesting (see [extending.md](../extending.md#rendering-above-everything-portals)).
+Shows a short text below an element while the pointer is over it. The tooltip draws above
+everything else.
 
 ```go
-trigger := giode.Button("Hover me", giode.Styles{Background: "gray"})
-tip := giode.Tooltip(trigger, "A helpful hint")
+save := giode.Tooltip(giode.Button("Save"), "Save changes (Ctrl+S)")
 
-// in the view, lay out tip in trigger's place:
-giode.Stack(giode.Styles{}, tip)
+// in the view, use the tooltip in place of the button:
+giode.Row(giode.Styles{}, save)
 ```
 
-Create it once with `New`/`giode.Tooltip` - it wraps a stateful trigger, so it must be
-laid out every frame like any other component, not rebuilt inside the view function.
+Create it once, like other components, since it tracks hover over its trigger.
 
-## API
-
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Tooltip(trigger Element, content string, st ...Styles) *Tooltip` | Wraps trigger. |
-| `SetContent(content string)` | Replaces the tooltip text. |
-| `Hovered() bool` | Whether the trigger was hovered on the last frame. |
+| `Tooltip(trigger, text, st...) *Tooltip` | Wraps `trigger`. |
+| `SetContent(text)` | Changes the text. |
+| `Hovered() bool` | Whether the trigger is hovered. |
 
-## Styles
-
-| Property | Role |
-| --- | --- |
-| `Background` | Panel fill; defaults to a dark slate. |
-| `Color` | Text color; defaults to near-white. |
-| `FontSize` | Text size; defaults to 13. |
+Styles: `Background` (`#0f172a` by default), `Color` (`#f8fafc`), `FontSize` (13).

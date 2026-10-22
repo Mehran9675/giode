@@ -1,27 +1,29 @@
 # Dialog
 
-Centered modal dialog with a dimmed scrim. The open state lives in a `*bool` you own.
+A modal dialog centered over a dimmed background. You own the open state as a `*bool`, so
+any code can open or close it.
 
 ```go
 open := new(bool)
-dialog := giode.Dialog(open, func() giode.Element {
-	return giode.Stack(giode.Styles{},
-		giode.Text("Are you sure?"),
+confirm := giode.Dialog(open, func() giode.Element {
+	return giode.Stack(giode.Styles{Gap: 12},
+		giode.Text("Delete this file?", giode.Styles{Color: "white"}),
+		giode.Row(giode.Styles{Gap: 8}, cancelButton, deleteButton),
 	)
-}, giode.Styles{})
+})
 
-*open = true  // or false
+*open = true // show it
 
-// in the view, last so it renders above the UI:
-giode.Stack(giode.Styles{}, page, dialog)
+// in the view, after the page so it draws on top:
+giode.Stack(giode.Styles{Width: -1, Height: -1}, page, confirm)
 ```
 
-## API
-
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Dialog(open *bool, content func() Element, st ...Styles) *Dialog` | Creates the dialog; styles apply to the panel. |
-| `Opened() bool` | Whether the dialog is open. |
+| `Dialog(open, content, st...) *Dialog` | Creates the dialog. |
+| `Opened() bool` | Whether it's open. |
 
-Clicking the scrim sets `*open` to false. Panel styles follow `Box`: `Background`,
-`BorderRadius` (default 12), `Padding` (default 20).
+Clicking the dimmed background sets `*open` to false; clicks inside the dialog don't.
+
+Styles apply to the panel: `Background` (`#1e293b` by default), `BorderRadius` (12),
+`Padding` (20), and the other box styles.

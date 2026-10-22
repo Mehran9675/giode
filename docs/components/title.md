@@ -1,11 +1,10 @@
 # Title
 
-Heading text, H1 (32sp) through H6 (14sp), all bold by default. User styles override the
-defaults.
+Bold headings in six sizes.
 
 ```go
-giode.H1("Welcome", giode.Styles{Color: "#f8fafc"})
-giode.H3("Section", giode.Styles{})
+giode.H1("Welcome", giode.Styles{Color: "theme.text"})
+giode.H3("Recent files")
 ```
 
 | Function | Size |
@@ -16,3 +15,6 @@ giode.H3("Section", giode.Styles{})
 | `H4` | 20sp |
 | `H5` | 16sp |
 | `H6` | 14sp |
+
+Styles work as for [Text](../elements.md#text) and override the defaults, including the
+size and weight.

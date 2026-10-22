@@ -1,11 +1,10 @@
 # Table
 
-Stateless rows of cells with column widths aligned across all of them: each row's Nth
-cell shares a width with every other row's Nth cell, the widest among them.
+Rows of cells whose columns line up: each column is as wide as its widest cell.
 
 ```go
 giode.Table(giode.Styles{},
-	giode.TableHeader(giode.Styles{Background: "#334155"},
+	giode.TableHeader(giode.Styles{Background: "theme.surface"},
 		giode.TableCell(giode.Styles{}, giode.Text("Name")),
 		giode.TableCell(giode.Styles{}, giode.Text("Role")),
 	),
@@ -16,28 +15,18 @@ giode.Table(giode.Styles{},
 )
 ```
 
-Like `Box`/`Row`/`Stack`, Table and its rows/cells are stateless: build them fresh every
-frame, no `New` constructor or persistent state involved.
+Tables are stateless: build them in the view every frame.
 
-## API
-
-| Member | Description |
+| Function | Description |
 | --- | --- |
-| `Table(st Styles, rows ...Element) Element` | Stacks rows, aligning column widths across all of them. |
-| `TableHeader(st Styles, cells ...Element) Element` | A row with a bold weight by default, to set it apart as the header. |
-| `TableRow(st Styles, cells ...Element) Element` | A row of cells. |
-| `TableCell(st Styles, content Element) Element` | Wraps content as one cell; `Padding` defaults to 12x8. |
+| `Table(st, rows...)` | Stacks the rows and lines up their columns. |
+| `TableHeader(st, cells...)` | A row in bold. |
+| `TableRow(st, cells...)` | A row. |
+| `TableCell(st, content)` | One cell. Padding is 12×8 by default. |
 
-A row built some other way (e.g. a plain `Divider` mixed in between sections) passes
-through `Table` unmeasured, rather than being treated as a row of cells.
+Elements other than rows, such as a `Divider` between groups, can be placed among the rows
+and are left as they are.
 
-## Behavior
-
-- Column widths come from each column's widest cell across every row (measured on a
-  scratch pass, the same technique Menu's own panel-width measurement uses) - not fixed
-  or evenly split.
-- `TableRow`/`TableHeader` built standalone (not inside a `Table`) just hug their own
-  cells' natural widths, uncoordinated with any other row.
-- No sorting or row selection - it's a layout primitive; build that behavior on top with
-  `TableCell`'s own `Styles` (e.g. a `Background` for a selected row) and ordinary Go
-  slice sorting before building the rows.
+There's no sorting, selection or virtualization. Sort your data before building the rows,
+and use a [Pressable](pressable.md) or `Box.OnClick` for clickable rows. For thousands of
+rows, use [VirtualList](virtuallist.md).

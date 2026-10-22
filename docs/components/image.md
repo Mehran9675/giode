@@ -1,39 +1,27 @@
 # Image
 
-Stateless image with fit modes.
+Shows an `image.Image`, scaled to fit its box.
 
 ```go
-giode.Image(img, giode.Styles{
+photo, _, _ := image.Decode(file) // import _ "image/jpeg" or "image/png"
+
+giode.Image(photo, giode.Styles{
 	Width: 120, Height: 120,
-	Fit: giode.FitCover,
+	Fit:          giode.FitCover,
 	BorderRadius: 12,
 })
 ```
 
-| Argument | Description |
+| Style | Role |
 | --- | --- |
-| `img` | Any `image.Image` (decode PNG/JPEG with the standard library). |
-| `st` | Optional styles. |
-
-## Styles
-
-| Property | Role |
-| --- | --- |
-| `Width` / `Height` | Box size; natural size when unset. |
-| `Fit` | `FitContain` (default), `FitCover`, `FitStretch`, `FitNone`. |
+| `Width`, `Height` | Size in dp; the image's own size when unset. |
+| `Fit` | `FitContain` (default) shows all of it, `FitCover` fills the box and crops, `FitStretch` distorts to fill, `FitNone` keeps the original size. |
 | `BorderRadius` | Rounded corners. |
-| `Opacity` | Applied on top of the image; useful with `OnHover` to dim/brighten it. |
+| `Opacity` | Transparency. |
 
-## Hover
+Images are uploaded to the GPU once and reused, as long as you pass the same `image.Image`
+value. If you change an image's pixels in place, call `properties.ForgetImage(img)` so the
+new pixels are uploaded.
 
-Chain `OnHover` to change `Opacity` or `BorderRadius` while the pointer is over the
-image. Since the hover state lives in the element, create it once and reuse it:
-
-```go
-thumb := giode.Image(img, giode.Styles{Width: 120, Height: 120}).OnHover(giode.Styles{
-	Opacity: 0.8,
-	Cursor:  giode.CursorPointer,
-})
-```
-
-See [Hover](../elements.md#hover) for the full mechanism.
+`OnHover` changes the styles while the pointer is over it (for example dimming it with
+`Opacity`); see [hover styles](../elements.md#hover-styles).

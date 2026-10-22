@@ -1,29 +1,22 @@
 # Tabs
 
-Tab bar with per-tab views. Only the selected view is built each frame.
+A tab bar with one view per tab. Only the selected tab's view is built.
 
 ```go
 tabs := giode.Tabs(giode.Styles{},
-	giode.Tab{Label: "Home", View: func() giode.Element { return homeView }},
-	giode.Tab{Label: "Settings", View: func() giode.Element { return settingsView }},
-).OnChange(func(i int) { ... })
-
-// in the view:
-giode.Stack(giode.Styles{}, tabs)
+	giode.Tab{Label: "General", View: generalView},
+	giode.Tab{Label: "Advanced", View: advancedView},
+).OnChange(func(i int) { log.Println("tab", i) })
 ```
 
-## API
+`View` is a `func() giode.Element`.
 
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Tabs(st Styles, tabs ...Tab) *Tabs` | Creates the bar. |
-| `Selected() int` | Active tab index. |
-| `SetSelected(i int)` | Switches tabs without invoking OnChange. |
-| `OnChange(fn func(index int)) *Tabs` | Change handler. |
+| `Tabs(st, tabs...) *Tabs` | Creates the tab bar. |
+| `Selected() int` | Index of the selected tab. |
+| `SetSelected(i)` | Selects a tab without calling `OnChange`. |
+| `OnChange(fn)` | Called when the user picks a tab. |
 
-## Styles
-
-| Property | Role |
-| --- | --- |
-| `Color` | Active underline. |
-| `BorderColor` | Active label color. |
+Styles: `Color` (the underline of the selected tab), `BorderColor` (the selected tab's
+label).

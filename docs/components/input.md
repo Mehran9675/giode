@@ -1,52 +1,63 @@
 # Input
 
-Form controls are grouped under the `Input` API:
+The form controls are grouped under `giode.Input`:
 
-| Constructor | Component |
+| Constructor | Control |
 | --- | --- |
-| `giode.Input.Text(placeholder, st...)` | Single-line text field |
-| `giode.Input.Checkbox(label, st...)` | Checkbox (label may be `""`) |
-| `giode.Input.Slider(st...)` | Horizontal slider in [0, 1] |
-| `giode.Input.Select(st, options...)` | Dropdown among options |
-| `giode.Input.AutoComplete(placeholder, options, st...)` | Text field with filtered suggestions |
+| `giode.Input.Text(placeholder, st...)` | Text field |
+| `giode.Input.Checkbox(label, st...)` | Checkbox, with an optional label (`""` for none) |
+| `giode.Input.Slider(st...)` | Horizontal slider from 0 to 1 |
+| `giode.Input.Select(st, options...)` | Dropdown list |
+| `giode.Input.AutoComplete(placeholder, options, st...)` | Text field with suggestions |
+
+Like every component, create them once and lay them out every frame.
 
 ## Text field
 
 ```go
-name := giode.Input.Text("Your name").
+email := giode.Input.Text("you@example.com").
+	Label("Email").
+	OnChange(func(text string) { validate(text) }).
 	Submit(func(text string) { save(text) })
-
-// in the view:
-giode.Stack(giode.Styles{}, name)
 ```
 
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Text() string` | Current content. |
-| `SetText(s string)` | Replaces the content. |
-| `Submit(fn func(text string))` | Handler for Enter. |
-| `Focus()` | Requests keyboard focus. |
+| `Text() string` | Current text. |
+| `SetText(s)` | Replaces the text without calling `OnChange`. |
+| `ChangeText(s)` | Replaces the text and calls `OnChange`, as typing would. |
+| `OnChange(fn)` | Called after every edit. |
+| `Submit(fn)` | Called when Enter is pressed (single-line fields). |
+| `SubmitText()` | Calls the `Submit` handler with the current text. |
+| `Password(true)` | Shows bullets instead of the text. |
+| `Multiline(true)` | Allows several lines; Enter adds a line instead of submitting. |
+| `ReadOnly(true)` | Text can be selected but not edited. |
+| `MaxLength(n)` | Limits the text to `n` characters. |
+| `Label(s)` | Name for automation; the placeholder is used otherwise. |
+| `Focus()`, `Focused()` | Request keyboard focus; report whether it has it. |
 
-Styles: `Color` (text), `Background` (fill), `BorderWidth`/`BorderColor`/`BorderRadius`
-(frame, 1px border by default), `Padding` (12x8 by default). Expands to the available
-width; set `Width` to fix it.
+Styles: `Color` (text, `theme.text` by default), `Background`, `BorderColor`
+(`theme.border`), `BorderWidth` (1), `BorderRadius` (6), `Padding` (12×8), `FontSize`. The
+field fills the available width unless `Width` is set.
 
 ## Checkbox
 
 ```go
-notify := giode.Input.Checkbox("Enable notifications").
-	OnChange(func(checked bool) { ... })
+notify := giode.Input.Checkbox("Email me about updates").
+	OnChange(func(checked bool) { prefs.Notify = checked })
 notify.SetChecked(true)
 ```
 
-| Member | Description |
+| Method | Description |
 | --- | --- |
 | `Checked() bool` | Current state. |
-| `SetChecked(v bool)` | Sets the state without invoking OnChange. |
-| `OnChange(fn func(bool))` | Change handler. |
-| `Icon(name string, st ...Styles)` | Replaces the check mark with a material icon. |
+| `SetChecked(v)` | Sets the state without calling `OnChange`. |
+| `Toggle()` | Flips the state and calls `OnChange`, as a click would. |
+| `OnChange(fn)` | Called when the state changes. |
+| `Icon(src, st...)` | Replaces the check mark with any icon source; `Icon(nil)` restores it. |
 
-Styles: `Color` (label), `Background` (checked fill), `BorderColor` (unchecked border).
+Styles: `Color` (label), `Background` (fill when checked), `BorderColor` (border when
+unchecked), `BorderWidth`, `BorderRadius`, `Width`/`Height` (box size, 18dp by default).
 
 ## Slider
 
@@ -55,49 +66,52 @@ volume := giode.Input.Slider().
 	OnChange(func(v float32) { player.SetVolume(v) })
 ```
 
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Value() float32` | Current value in [0, 1]. |
-| `SetValue(v float32)` | Sets the value without invoking OnChange. |
-| `OnChange(fn func(float32))` | Called while dragging. |
+| `Value() float32` | Current value, 0 to 1. |
+| `SetValue(v)` | Sets the value without calling `OnChange`. |
+| `Change(v)` | Sets the value and calls `OnChange`. |
+| `OnChange(fn)` | Called while the thumb is dragged. |
+| `Dragging() bool` | Whether the user is dragging the thumb, so code syncing it to an outside value can wait. |
 
-Styles: `Color` (fill), `Background` (track), `BorderColor` (thumb).
+Styles: `Color` (filled part), `Background` (track), `BorderColor` (thumb). The slider fills
+the available width.
 
 ## Select
 
 ```go
-size := giode.Input.Select(giode.Styles{}, "Small", "Medium", "Large").
-	OnChange(func(i int) { ... })
+size := giode.Input.Select(giode.Styles{Width: 160}, "Small", "Medium", "Large").
+	OnChange(func(i int) { order.Size = i })
 ```
 
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Selected() int` | Selected index. |
-| `Value() string` | Selected option text. |
-| `SetSelected(i int)` | Changes the selection without invoking OnChange. |
-| `OnChange(fn func(int))` | Change handler. |
-| `Opened() bool` | Whether the panel is open. |
+| `Selected() int`, `Value() string` | Selected index and text. |
+| `SetSelected(i)` | Selects without calling `OnChange`. |
+| `Choose(i)` | Selects and calls `OnChange`, as picking from the list would. |
+| `Options() []string` | The options. |
+| `OnChange(fn)` | Called when the user picks an option. |
+| `HoverColor(c)` | Background of the option under the pointer. |
+| `Opened() bool` | Whether the list is open. |
 
-Styles: `Background` (field and panel fill), `Color` (text), `BorderColor` (field
-border), `BorderRadius` (corners), `Width` (fixed field width). The panel opens below
-the field via a portal (see [extending.md](../extending.md#rendering-above-everything-portals)),
-so it paints above everything else regardless of tree position.
+Styles: `Background` (field and list), `Color` (text), `BorderColor`, `BorderRadius`,
+`Width` (field width, in dp). The list opens below the field and draws above everything
+else.
 
 ## AutoComplete
 
 ```go
-city := giode.Input.AutoComplete("City", []string{"Paris", "London", "Tokyo", ...}).
-	OnSelect(func(value string) { ... })
+city := giode.Input.AutoComplete("City", []string{"Paris", "London", "Tokyo"}).
+	OnSelect(func(value string) { trip.City = value })
 ```
 
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Text() string` | Current field content. |
-| `SetText(s string)` | Replaces the content without reopening the suggestion panel - for a programmatic reset, e.g. loading a saved value; not meant for what the user types. |
-| `SetOptions(options []string)` | Replaces the suggestion source. |
-| `OnSelect(fn func(value string))` | Handler for picking a suggestion (click). |
+| `Text() string` | Current text. |
+| `SetText(s)` | Replaces the text without opening the suggestions, for loading a saved value. |
+| `SetOptions(options)` | Replaces the suggestion list. |
+| `OnSelect(fn)` | Called when a suggestion is clicked. |
 
-Styles: same as `Select` (`Background`, `Color`, `BorderColor`/`BorderRadius`/`Width` on
-the field; `Background` also fills the panel). The panel shows below the field, via a
-portal, whenever the current text matches at least one option (case-insensitive
-substring match) - no keyboard navigation of the list yet, only clicking a suggestion.
+Suggestions are the options containing the typed text (ignoring case), shown below the
+field. They're picked by clicking; there's no keyboard selection yet. Styles are the same
+as for Select.

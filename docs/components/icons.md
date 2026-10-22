@@ -1,9 +1,9 @@
 # Icons
 
-Giode ships **no icon set**. Your app brings the icons it uses — from any set, under the
-license you choose — and only those end up in the binary. Icons are stateless elements:
-size comes from `Width`/`Height` (in dp, default 24; set one for a square icon), color
-from `Color` (default black).
+Giode doesn't include an icon set. You add the icons your app uses, from whichever set and
+license you like, and only those end up in your program. Icons are stateless elements: size
+comes from `Width`/`Height` in dp (24 by default; set one of them for a square), color from
+`Color` (or the surrounding color, see [Colors](../styles.md#colors)).
 
 ## Registering icons by name
 
@@ -33,8 +33,8 @@ Other ways to fill the registry:
 | `RegisterIcon(name, src)` | any `IconSource`: a document, `IconPath{Data: "..."}`, an IconVG icon |
 
 An unknown name never panics: it renders as empty space of the icon's size, and the
-registry's `OnMissing` hook (on `icon.Default`) is called once per name — set it to log
-typos. `LookupIcon(name)` returns the source, `IconNames()` lists what's registered, and
+registry's `OnMissing` hook (on `icon.Default`) is called once per name, which is a good
+place to log typos. `LookupIcon(name)` returns the source, `IconNames()` lists what's registered, and
 `icon.NewRegistry()` creates a separate registry (for libraries that must not collide with
 the app's names).
 

@@ -1,65 +1,73 @@
 # Scroll
 
-Vertical scroll container. The content closure is rebuilt every frame and may be taller
-than the viewport. The mouse wheel, touch drags and the scrollbar thumb all scroll.
+A vertical scroll container. Its content can be any height; scroll with the mouse wheel,
+touch, or by dragging the scrollbar.
 
 ```go
-scroller := giode.Scroll(func() giode.Element {
-	// build the content fresh every frame
-	return giode.Stack(giode.Styles{Gap: 8}, items...)
-}, giode.Styles{ScrollBar: giode.ScrollBar{ThumbColor: "#3b82f6"}})
+feed := giode.Scroll(func() giode.Element {
+	return giode.Stack(giode.Styles{Gap: 8}, posts()...)
+}, giode.Styles{ScrollBar: giode.ScrollBar{ThumbColor: "theme.primary"}})
 
-// in the view:
-giode.Box(giode.Styles{Height: 300}, scroller)
+// in the view, give it a height:
+giode.Box(giode.Styles{Height: 300}, feed)
 ```
 
-## API
+The content function runs every frame. For long lists of equal-height rows, use
+[VirtualList](virtuallist.md), which only builds the visible rows.
 
-| Member | Description |
+## Methods
+
+| Method | Description |
 | --- | --- |
-| `Scroll(content func() Element, st ...Styles) *Scroll` | Creates the container. |
-| `ScrollTo(v float32)` | Sets the vertical offset in px. |
-| `Offset() float32` | Current offset. |
-| `ContentHeight() int` | Total content height, as measured on the last frame. |
-| `ViewportHeight() int` | Visible viewport height, as measured on the last frame. |
-| `Progress() float32` | How far scrolled, from 0 (top) to 1 (bottom); 0 when there's nothing to scroll. |
-| `AtBottom() bool` | Whether the scroll is at (or past) its maximum offset - also true when the content already fits the viewport. |
-| `Visible(top, height int) bool` | Whether the vertical range `[top, top+height)` - in the content's own coordinate space, e.g. a running offset tracked while building a long list - is at least partially within the current viewport. |
-| `OnReachBottom(fn func()) *Scroll` | Handler fired once when the scroll reaches its maximum offset (edge-triggered - fires again only after scrolling away and back). |
+| `Scroll(content, st...) *Scroll` | Creates the container. |
+| `OffsetDp()`, `ScrollToDp(v)` | Scroll position in dp. |
+| `Offset()`, `ScrollTo(v)` | Scroll position in pixels. |
+| `Progress() float32` | 0 at the top, 1 at the bottom; 0 when everything fits. |
+| `AtBottom() bool` | At the end, or everything fits. |
+| `VisibleDp(top, height) bool` | Whether a range of the content, in dp, is at least partly on screen. |
+| `Visible(top, height) bool` | The same in pixels. |
+| `ContentHeight()`, `ViewportHeight()` | Measured on the last frame, in pixels. |
+| `OnReachBottom(fn) *Scroll` | Called once each time the end is reached. |
 
-## Detecting scroll position
-
-An intersection-observer-like pair for infinite scroll and lazy rendering:
+## Loading more at the end
 
 ```go
-list := giode.Scroll(func() giode.Element {
-	items := make([]giode.Element, 0, loaded)
-	for i, top := 0, 0; i < loaded; i, top = i+1, top+itemHeight {
-		if !list.Visible(top, itemHeight) {
-			items = append(items, placeholder) // skip expensive content off-screen
-			continue
-		}
-		items = append(items, renderItem(i))
-	}
-	return giode.Stack(giode.Styles{}, items...)
-}, giode.Styles{})
-
-list.OnReachBottom(func() {
-	loaded += pageSize // fetch/reveal the next page
+feed.OnReachBottom(func() {
+	go func() {
+		more := fetchPage(next)
+		app.Post(func() { posts = append(posts, more...) })
+	}()
 })
 ```
 
-`Visible` and `AtBottom` reflect the scroll offset as of the start of this Layout call,
-one frame behind the content closure's own not-yet-measured output - fine for both
-patterns above: a placeholder swaps to real content one frame after scrolling it into
-view, and "reached bottom" is a one-off trigger, not a per-frame read.
+`OnReachBottom` also fires when the content doesn't fill the view, which loads the first
+pages until it does.
+
+## Skipping off-screen work
+
+With rows of known height, skip building the expensive ones that aren't visible:
+
+```go
+feed := giode.Scroll(func() giode.Element {
+	rows := make([]giode.Element, len(items))
+	for i := range items {
+		top := float32(i * 80)
+		if !feed.VisibleDp(top, 80) {
+			rows[i] = giode.Box(giode.Styles{Height: 80}) // placeholder
+			continue
+		}
+		rows[i] = card(items[i])
+	}
+	return giode.Stack(giode.Styles{}, rows...)
+})
+```
+
+Position checks use the previous frame's scroll offset, so a row becomes real one frame
+after it scrolls into view.
 
 ## Styles
 
 | Property | Role |
 | --- | --- |
-| `Background` | Container fill. |
-| `ScrollBar` | Scrollbar customization: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`. |
-
-Interactive children inside the content keep receiving events. For very long lists prefer
-virtualized scrolling (a future addition).
+| `Background` | Fill behind the content. |
+| `ScrollBar` | `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength` (dp). |

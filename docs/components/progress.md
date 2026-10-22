@@ -1,35 +1,17 @@
 # Progress
 
-Stateless determinate bar. Build it every frame.
+A horizontal progress bar. It's stateless: build it in the view with the current value.
 
 ```go
-giode.Progress(0.35, giode.Styles{Color: "#3b82f6"})
+giode.Progress(download.Fraction(), giode.Styles{Color: "theme.primary"})
 ```
 
-| Argument | Description |
-| --- | --- |
-| `value` | Progress in [0, 1]. |
-| `st` | Optional styles. |
+`value` goes from 0 to 1. The bar fills the available width.
 
-## Styles
-
-| Property | Role |
+| Style | Role |
 | --- | --- |
-| `Color` | Fill. |
+| `Color` | Filled part. |
 | `Background` | Track. |
-| `Height` | Bar height; defaults to 8px. |
+| `Height` | Thickness, 8dp by default. |
 
-The bar expands to the available width.
-
-## Hover
-
-Chain `OnHover` to restyle the bar while the pointer is over it (create it once and
-reuse it, like any element with hover styles):
-
-```go
-bar := giode.Progress(0.35, giode.Styles{Color: "#3b82f6"}).OnHover(giode.Styles{
-	Color: "#60a5fa",
-})
-```
-
-See [Hover](../elements.md#hover) for the full mechanism.
+`OnHover` restyles the bar while the pointer is over it; see [hover styles](../elements.md#hover-styles).

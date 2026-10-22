@@ -26,7 +26,7 @@ is given (give it a height, or `FlexGrow`).
 | `ScrollToIndex(i, align)` | `ScrollAlignNearest` (scroll as little as needed), `ScrollAlignStart`, `ScrollAlignCenter`, `ScrollAlignEnd`. Applied on the next frame. |
 | `VisibleRange()` | First and last row at least partly visible in the last frame. |
 | `Overscan(n)` | Rows built beyond each edge (default 3). |
-| `OnReachEnd(fn)` | Runs once when the last row scrolls into view — for loading more. |
+| `OnReachEnd(fn)` | Runs once when the last row scrolls into view, for loading more. |
 | `FocusedIndex()`, `SetFocusedIndex(i)` | The keyboard-focused row (-1 for none). |
 | `OnFocusChange(fn)`, `OnActivate(fn)` | Focus moves; Enter on the focused row. |
 | `OnKey(fn, keys...)` | Extra keys handled while focused (TreeView uses it for Left/Right). |

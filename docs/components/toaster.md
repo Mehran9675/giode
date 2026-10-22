@@ -24,7 +24,7 @@ everything else, and only the toasts themselves take input.
 | `Duration(d)` | 5s | Zero or less keeps toasts until dismissed. |
 | `Max(n)` | 3 | How many show at once; the rest wait their turn. |
 
-Kinds — `ToastInfo`, `ToastSuccess`, `ToastWarning`, `ToastError` — color the accent stripe
+The kinds `ToastInfo`, `ToastSuccess`, `ToastWarning` and `ToastError` color the accent stripe
 and action from the theme tokens (`theme.info`, `theme.success`, `theme.warning`,
 `theme.danger`); the toast itself uses `theme.surface`, `theme.text` and `theme.border`
 unless the styles argument overrides `Background`, `Color`, `BorderColor`, `BorderRadius`,

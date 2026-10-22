@@ -1,66 +1,67 @@
 # Button
 
-Clickable button.
-
-```go
-btn := giode.Button("Click me",
-	giode.Styles{Background: "#3b82f6", BorderRadius: 8},
-).OnClick(func() { count++ })
-
-// in the view:
-giode.Stack(giode.Styles{}, btn)
-```
-
-## API
-
-| Member | Description |
-| --- | --- |
-| `Button(label string, st ...Styles) *Button` | Creates the button. |
-| `OnClick(fn func()) *Button` | Click handler. |
-| `Label(label string) *Button` | Replaces the label. |
-| `Variant(v ButtonVariant) *Button` | Visual style: `VariantContained` (default), `VariantOutlined` or `VariantGhost`. |
-| `Styles(st Styles) *Button` | Replaces the styles. |
-| `Icon(el Element) *Button` | Element before the label. Icons without their own `Color` follow the label color. |
-| `TrailingIcon(el Element) *Button` | Element after the label (a chevron, an external-link mark). |
-| `Disabled(v bool) *Button` | Dimmed, default cursor, ignores input. |
-| `Loading(v bool) *Button` | A spinner replaces the icon and clicks are ignored. |
-| `IsDisabled()`, `IsLoading()` | Current state. |
-| `Click()` | Simulates a click (ignored while disabled or loading). |
+A text button, optionally with icons.
 
 ```go
 save := giode.Button("Save").
 	Icon(giode.Icon("save", giode.Styles{Width: 16})).
-	OnClick(func() {
-		save.Loading(true)
-		go func() {
-			err := store.Save()
-			app.Post(func() { save.Loading(false); showResult(err) })
-		}()
-	})
+	OnClick(func() { doc.Save() })
 ```
+
+| Method | Description |
+| --- | --- |
+| `Button(label, st...)` | Creates the button. |
+| `OnClick(fn)` | Click handler. |
+| `Label(s)` | Changes the text. |
+| `Variant(v)` | `VariantContained` (default), `VariantOutlined` or `VariantGhost`. |
+| `Icon(el)`, `TrailingIcon(el)` | An element before or after the text, usually an icon. |
+| `Disabled(true)` | Dims the button and ignores input. |
+| `Loading(true)` | Shows a spinner in place of the icon and ignores clicks. |
+| `IsDisabled()`, `IsLoading()` | Current state. |
+| `Styles(st)` | Replaces the styles. |
+| `Click()` | Clicks it from code (ignored while disabled or loading). |
+
+Icons that don't set their own color take the text color.
 
 ## Variants
 
 ```go
-giode.Button("Save", giode.Styles{Background: "#3b82f6", Color: "white"})                              // contained (default)
-giode.Button("Cancel", giode.Styles{BorderColor: "#3b82f6", Color: "#3b82f6"}).Variant(giode.VariantOutlined)
-giode.Button("Skip", giode.Styles{Background: "#3b82f6", Color: "white"}).Variant(giode.VariantGhost)
+giode.Button("Save")                                                     // contained
+giode.Button("Cancel").Variant(giode.VariantOutlined)                    // border only
+giode.Button("Skip", giode.Styles{Color: "theme.muted"}).Variant(giode.VariantGhost) // text only
 ```
 
-- `VariantContained` fills with `Background` (or `theme.primary` if unset), or with
-  `BackgroundGradient` when set; hover and press shade every gradient stop.
-- `VariantOutlined` is transparent with a visible border (`BorderColor`, or `Background`
-  if unset; `BorderWidth` defaults to 1), filling faintly with the border color on
-  hover/press.
-- `VariantGhost` is fully transparent at rest - only the label is visible - filling
-  faintly with `Background` on hover/press.
+- **Contained** fills with `Background` (`theme.primary` by default) and draws the text in
+  `theme.onprimary`. With `BackgroundGradient` it fills with the gradient instead.
+- **Outlined** is transparent with a border in `BorderColor` (or `Background`) and fills
+  lightly on hover.
+- **Ghost** shows only the text until hovered.
+
+Hover and press shades are derived from the colors you set, gradient included.
+
+## Loading state
+
+```go
+upload := giode.Button("Upload")
+upload.OnClick(func() {
+	upload.Loading(true)
+	go func() {
+		err := send(file)
+		app.Post(func() {
+			upload.Loading(false)
+			report(err)
+		})
+	}()
+})
+```
 
 ## Styles
 
 | Property | Role |
 | --- | --- |
-| `Background` | Face color (`VariantContained`) or accent color (`VariantOutlined`/`VariantGhost`); pressed and hovered shades are derived automatically. |
-| `Color` | Label color. |
-| `FontSize` | Label size. |
-| `Padding` | Face padding; defaults to 16x8. |
-| `BorderRadius`, `BorderWidth`, `BorderColor`, `Opacity`, `Cursor` | As usual. |
+| `Background`, `BackgroundGradient` | Fill (contained) or accent color (other variants). |
+| `Color` | Text and icon color. |
+| `FontSize` | Text size. |
+| `Padding` | 16×8 by default. |
+| `Gap` | Space between icon and text, 8 by default. |
+| `BorderRadius`, `BorderWidth`, `BorderColor` | As for any box. |

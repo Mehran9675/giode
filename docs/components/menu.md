@@ -1,92 +1,77 @@
 # Context menu
 
-Right-click menu that opens at the cursor and keeps itself within the window bounds,
-flipping above the cursor when it would overflow the bottom edge.
-
-## Global right-click
+A menu that opens at the pointer or below a trigger, stays inside the window, and supports
+icons, separators, disabled items and submenus.
 
 ```go
-menu := giode.Menu(giode.Styles{}).
-	Item("New", func() { ... }).
-	IconItem(trashIcon, "Delete", func() { ... }). // any IconSource, see Icons
+edit := giode.Menu().
+	Item("Cut", cut).
+	Item("Copy", copy).
+	IconItem(trashIcon, "Delete", remove).
 	Separator().
-	DisabledItem("Locked")
-
-app := giode.New(giode.Config{...})
-app.SetContextMenu(menu) // right-click anywhere in the window opens it
+	DisabledItem("Paste special")
 ```
 
-The app registers the right-click area and renders the menu on top automatically.
-
-## Manual control
+## Right-click anywhere
 
 ```go
-menu.OpenAt(f32.Pt(x, y)) // window pixel coordinates
+app.SetContextMenu(edit)
+```
+
+A right-click anywhere in the window opens the menu at the pointer. The app draws it on top;
+there's nothing to place in the view.
+
+## Dropdown from a button
+
+`Trigger` wraps any element so clicking it opens the menu below it, like a "File" menu:
+
+```go
+file := giode.Menu().Item("New", newDoc).Item("Open…", openDoc)
+fileButton := file.Trigger(giode.Button("File").Variant(giode.VariantGhost))
+
+// in the view: place the trigger, and lay the menu out anywhere
+giode.Row(giode.Styles{}, fileButton, file)
+```
+
+## Submenus
+
+```go
+share := giode.Menu().Item("Email", byEmail).Item("Link", copyLink)
+file := giode.Menu().Item("New", newDoc).SubMenu("Share", share)
+```
+
+A submenu opens to the side when its item is hovered, and stays open while the pointer moves
+into it. Don't register a submenu with `SetContextMenu`, `Trigger` or `OpenAt` itself.
+
+## Opening it yourself
+
+```go
+menu.OpenAt(f32.Pt(x, y)) // window coordinates, in pixels
 menu.Toggle(f32.Pt(x, y))
 menu.Close()
 menu.Opened()
 ```
 
-Without `SetContextMenu`, lay the menu out anywhere in the view - its panel renders via
-a portal (see [extending.md](../extending.md#rendering-above-everything-portals)), so it
-paints above everything else regardless of tree position.
+Lay the menu out somewhere in the view when you open it this way; it draws above everything
+regardless of where.
 
-## Dropdown menu: Trigger
+## Methods
 
-Wrap any element so clicking it opens the menu anchored just below, like a "File" menu
-button:
-
-```go
-trigger := giode.Button("File", giode.Styles{Background: "gray"})
-wrapped := menu.Trigger(trigger)
-
-// in the view, lay out wrapped in trigger's place, and lay menu out
-// somewhere too (its panel still renders via a portal):
-giode.Stack(giode.Styles{}, wrapped, menu)
-```
-
-## Nested submenus: SubMenu
-
-`SubMenu` appends an item that reveals a nested panel, cascading to the side, when
-hovered:
-
-```go
-sub := giode.Menu().
-	Item("Copy", func() { ... }).
-	Item("Paste", func() { ... })
-
-menu := giode.Menu().
-	Item("New", func() { ... }).
-	SubMenu("More", sub)
-```
-
-`sub` is a `*Menu` built the same way as any other, and can itself contain further
-`SubMenu` items for deeper nesting - but must not be registered with `SetContextMenu`,
-`OpenAt`, `Toggle` or `Trigger` itself: its parent item's hover is its only way of
-opening. Once hover opens it, it stays open until a sibling submenu item is hovered
-instead (not the moment the pointer leaves the row), so moving into the submenu's own
-panel doesn't flicker it shut. Closing an ancestor menu (`Close`, clicking outside,
-Escape) closes every open submenu with it.
-
-## API
-
-| Member | Description |
+| Method | Description |
 | --- | --- |
-| `Menu(st ...Styles) *Menu` | Creates an empty menu. |
-| `Item(label string, action func()) *Menu` | Clickable item. |
-| `IconItem(iconName, label string, action func()) *Menu` | Item with a material icon. |
-| `DisabledItem(label string) *Menu` | Grayed-out item. |
-| `Separator() *Menu` | Horizontal line. |
-| `SubMenu(label string, submenu *Menu) *Menu` | Item that reveals submenu on hover. |
-| `Trigger(el Element) Element` | Wraps el; clicking it opens the menu anchored below. |
+| `Menu(st...) *Menu` | Creates an empty menu. |
+| `Item(label, fn)` | Adds an item. |
+| `IconItem(icon, label, fn)` | Adds an item with an icon: any icon source, such as a loaded SVG or `IconPath`. |
+| `DisabledItem(label)` | Adds a grayed-out item. |
+| `Separator()` | Adds a line. |
+| `SubMenu(label, menu)` | Adds an item that opens `menu` on hover. |
+| `Trigger(el) Element` | Wraps `el` so clicking it opens the menu below it. |
 
-Styles: `Background`, `BorderRadius`, `Padding`, `Color` (item text).
+Styles: `Background`, `Color` (item text), `BorderRadius`, `Padding`.
 
 ## Behavior
 
-- Opens at the cursor position (or below the `Trigger` element), measured and clamped to
-  the window with an 8px margin.
-- Clicking an item runs its action and closes the menu.
-- Clicking outside or pressing Escape closes it - submenus don't have this dismissal
-  layer of their own; they close with whichever ancestor menu has it.
-- The dismissal layer is modal: clicks under it do not reach the UI.
+- Clicking an item runs its function and closes the menu.
+- Clicking outside or pressing Escape closes it, including any open submenus. While it's
+  open, clicks outside don't reach the rest of the UI.
+- Near the bottom edge it opens above the pointer instead of below.
