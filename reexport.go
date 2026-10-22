@@ -302,6 +302,9 @@ var (
 // --- Colors and insets -----------------------------------------------------
 
 var (
+	// Merge overlays the set fields of each override on base, in order.
+	Merge = styles.Merge
+
 	HexColor = properties.HexColor
 	// ParseColor validates any CSS color (hex, rgb(), hsl(), named).
 	ParseColor = properties.ParseColor
