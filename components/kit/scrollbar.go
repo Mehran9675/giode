@@ -1,0 +1,122 @@
+package kit
+
+import (
+	"image"
+	"image/color"
+
+	"gioui.org/gesture"
+	"gioui.org/io/pointer"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
+
+	"github.com/mehran9675/giode/styles/properties"
+)
+
+var (
+	defaultScrollTrack = color.NRGBA{R: 0x47, G: 0x55, B: 0x69, A: 0x99}
+	defaultScrollThumb = "#94a3b8cc"
+)
+
+// Scrollbar is the vertical scrollbar shared by scrolling components:
+// a track and a draggable thumb along the right edge of a viewport.
+// Embed one per scrolling component and lay it out after the content.
+type Scrollbar struct {
+	drag  gesture.Drag
+	hover gesture.Hover
+	dragY float32
+}
+
+// Dragging reports whether the thumb is being dragged.
+func (s *Scrollbar) Dragging() bool {
+	return s.drag.Dragging()
+}
+
+// Layout draws the scrollbar over a viewport of the given size showing
+// contentH pixels of content scrolled by *offset pixels, and applies
+// thumb drags to *offset (clamped to the content). sb customizes it in
+// dp; zero fields use the defaults (8dp wide, 20dp minimum thumb). It
+// draws nothing when the content fits.
+func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH int, offset *float32, sb properties.ScrollBar) {
+	viewH := viewport.Y
+	if contentH <= viewH || viewH <= 0 {
+		return
+	}
+	barWidth := gtx.Dp(unit.Dp(sb.Width))
+	if sb.Width <= 0 {
+		barWidth = gtx.Dp(8)
+	}
+	minThumb := gtx.Dp(unit.Dp(sb.MinThumbLength))
+	if sb.MinThumbLength <= 0 {
+		minThumb = gtx.Dp(20)
+	}
+	radius := gtx.Dp(unit.Dp(sb.Radius))
+	if sb.Radius <= 0 {
+		radius = barWidth / 2
+	}
+	trackColor := properties.CalcColor(sb.TrackColor)
+	if trackColor.A == 0 {
+		trackColor = defaultScrollTrack
+	}
+	thumb := sb.ThumbColor
+	if thumb == "" {
+		thumb = defaultScrollThumb
+	}
+	maxOff := float32(contentH - viewH)
+	clamp := func(v float32) float32 { return max(0, min(maxOff, v)) }
+
+	x := viewport.X - barWidth
+	trackH := viewH
+	thumbH := max(minThumb, trackH*trackH/contentH)
+	maxThumbOff := trackH - thumbH
+	thumbOff := int(*offset) * maxThumbOff / max(contentH-viewH, 1)
+
+	thumbRect := image.Rect(x, thumbOff, x+barWidth, min(thumbOff+thumbH, trackH))
+	thumbClip := clip.Rect(thumbRect).Push(gtx.Ops)
+	BlockDragHere(gtx)
+	s.drag.Add(gtx.Ops)
+	s.hover.Add(gtx.Ops)
+	hovered := s.hover.Update(gtx.Source)
+	for {
+		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Both)
+		if !ok {
+			break
+		}
+		switch ev.Kind {
+		case pointer.Press:
+			if ev.Priority == pointer.Grabbed {
+				s.dragY = ev.Position.Y
+			}
+		case pointer.Drag:
+			if ev.Priority == pointer.Grabbed {
+				dy := ev.Position.Y - s.dragY
+				s.dragY = ev.Position.Y
+				if dy != 0 && maxThumbOff > 0 {
+					*offset = clamp(*offset + dy*maxOff/float32(maxThumbOff))
+				}
+			}
+		}
+	}
+	switch {
+	case s.drag.Dragging():
+		thumb = Pressed(thumb)
+		pointer.CursorGrabbing.Add(gtx.Ops)
+		MarkLive()
+	case hovered:
+		thumb = Hovered(thumb)
+		pointer.CursorGrab.Add(gtx.Ops)
+	}
+	thumbClip.Pop()
+
+	barOff := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
+	trackClip := clip.UniformRRect(image.Rect(0, 0, barWidth, trackH), radius).Push(gtx.Ops)
+	paint.Fill(gtx.Ops, trackColor)
+	trackClip.Pop()
+	thumbOff = int(*offset) * maxThumbOff / max(contentH-viewH, 1)
+	tc := clip.UniformRRect(image.Rect(0, thumbOff, barWidth, thumbOff+thumbH), radius).Push(gtx.Ops)
+	paint.Fill(gtx.Ops, properties.CalcColor(thumb))
+	tc.Pop()
+	barOff.Pop()
+}
