@@ -56,6 +56,9 @@ func New(text func() string, st ...styles.Styles) *CopyButton {
 // show the glyph alone. It returns c for chaining.
 func (c *CopyButton) Labels(label, copied string) *CopyButton {
 	c.label, c.copied = label, copied
+	if label != "" {
+		c.press.Label(label)
+	}
 	return c
 }
 

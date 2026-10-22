@@ -383,7 +383,11 @@ func (p *Pressable) Layout(gtx layout.Context) layout.Dimensions {
 	if p.hovered || p.pressed || p.focused {
 		kit.MarkLive()
 	}
-	RecordSemantic(gtx, SemanticNode{Kind: SemanticButton, Label: p.label, Disabled: p.disabled, Target: p}, dims.Size)
+	if p.onClick != nil || p.onDouble != nil || p.onSecondary != nil {
+		// Only something that reacts to clicks is a button to
+		// automation; a Pressable used just for hover state isn't.
+		RecordSemantic(gtx, SemanticNode{Kind: SemanticButton, Label: p.label, Disabled: p.disabled, Target: p}, dims.Size)
+	}
 	return dims
 }
 
