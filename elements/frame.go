@@ -131,7 +131,7 @@ func ResolveColor(c string) color.NRGBA {
 }
 
 // Measure lays el out without painting, taking input, registering
-// portals or recording semantics, and returns its size - for
+// portals or Back handlers, or recording semantics, and returns its size - for
 // components that must know a child's size before placing it.
 func Measure(gtx layout.Context, el Element) layout.Dimensions {
 	scratch := gtx
@@ -139,9 +139,11 @@ func Measure(gtx layout.Context, el Element) layout.Dimensions {
 	scratch.Source = gtx.Source.Disabled()
 	saved := semantics
 	semantics = nil
-	portals := len(portalQueue)
+	portals, backs, nprobes := len(portalQueue), len(backStack), len(probes)
 	dims := el.Layout(scratch)
 	portalQueue = portalQueue[:portals]
+	backStack = backStack[:backs]
+	probes = probes[:nprobes]
 	semantics = saved
 	return dims
 }

@@ -75,18 +75,19 @@ func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
 		kit.RequestFrame(gtx)
 	}
 	st := styles.Merge(styles.Styles{Color: defaultText}, c.st)
+	// On touch screens the hit area grows to 48dp around the visual.
 	dims := c.bool.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		if c.bool.Hovered() {
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		box := c.box()
 		if c.label == "" {
-			return box.Layout(gtx)
+			return elements.MinTouchTarget(gtx, box.Layout)
 		}
-		return elements.Row(styles.Styles{Align: properties.AlignCenter, Gap: 8},
+		return elements.MinTouchTarget(gtx, elements.Row(styles.Styles{Align: properties.AlignCenter, Gap: 8},
 			box,
 			elements.Text(c.label, styles.Styles{Color: st.Color, FontSize: st.FontSize}),
-		).Layout(gtx)
+		).Layout)
 	})
 	// Keep the checkbox clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.

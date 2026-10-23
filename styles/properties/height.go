@@ -13,7 +13,7 @@ func (h Height) Constrain(min, max int) (int, int) {
 	switch {
 	case h > 0:
 		return int(h), int(h)
-	case h == -1 && max < unbounded:
+	case h == -1 && max < unbounded/2:
 		return max, max
 	default:
 		return min, max

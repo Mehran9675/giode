@@ -13,8 +13,17 @@ import (
 // portalEntry is one piece of content queued to render above
 // everything else, regardless of how deeply nested its caller was.
 type portalEntry struct {
-	pos   image.Point
-	build func() Element
+	// anchor is the window-absolute point the content is placed near;
+	// containers that place their children after laying them out move
+	// it (see ChildTracker). It's clamped to the window when drained.
+	anchor image.Point
+	// size is the content's measured size, and win the window it's
+	// clamped to.
+	size, win image.Point
+	build     func() Element
+	// overlay marks a full-window overlay (RegisterOverlay): laid out
+	// at the window's origin, never clamped or moved.
+	overlay bool
 }
 
 var portalQueue []portalEntry
@@ -55,6 +64,11 @@ func SetWindowSize(size image.Point) {
 // window, flipping above the anchor if it would overflow the bottom
 // edge - see kit.ClampPos. build is then laid out for real, exactly
 // once, when the queue is drained.
+//
+// The anchor follows the caller when an enclosing Row, Stack or Scroll
+// places it after the fact (see ChildTracker), so a portal opened from
+// one of several children of a row lands below that child, and the
+// clamping happens once its final position is known.
 func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element) {
 	win := windowSize
 	if win == (image.Point{}) {
@@ -65,11 +79,33 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 	mgtx.Constraints = layout.Constraints{Max: win}
 	dims := Measure(mgtx, build())
 
-	winF := f32.Pt(float32(win.X), float32(win.Y))
-	size := f32.Pt(float32(dims.Size.X), float32(dims.Size.Y))
-	pos := kit.ClampPos(winF, size, f32.Pt(float32(anchor.X), float32(anchor.Y)), kit.Margin)
+	portalQueue = append(portalQueue, portalEntry{anchor: anchor, size: dims.Size, win: win, build: build})
+}
 
-	portalQueue = append(portalQueue, portalEntry{pos: pos.Round(), build: build})
+// RegisterOverlay queues build to be laid out over the whole window,
+// above the rest of the view, like a portal anchored at the window's
+// origin that's neither measured nor clamped: build gets the window's
+// size as its maximum constraints and positions its own content - a
+// bottom sheet, a full-screen picker. Overlays and portals paint in
+// registration order.
+func RegisterOverlay(build func() Element) {
+	portalQueue = append(portalQueue, portalEntry{build: build, overlay: true})
+}
+
+// WindowSize returns the window's size for the current frame, in
+// pixels; zero outside a frame.
+func WindowSize() image.Point {
+	return windowSize
+}
+
+// pos clamps the entry's anchor to the window.
+func (e portalEntry) pos() image.Point {
+	if e.overlay {
+		return image.Point{}
+	}
+	winF := f32.Pt(float32(e.win.X), float32(e.win.Y))
+	size := f32.Pt(float32(e.size.X), float32(e.size.Y))
+	return kit.ClampPos(winF, size, f32.Pt(float32(e.anchor.X), float32(e.anchor.Y)), kit.Margin).Round()
 }
 
 // DrainPortals lays out and paints every portal registered so far
@@ -91,8 +127,9 @@ func DrainPortals(gtx layout.Context) {
 		entries := portalQueue
 		portalQueue = nil
 		for _, e := range entries {
-			off := op.Offset(e.pos).Push(gtx.Ops)
-			pop := PushOffset(e.pos)
+			pos := e.pos()
+			off := op.Offset(pos).Push(gtx.Ops)
+			pop := PushOffset(pos)
 			e.build().Layout(gtx)
 			pop()
 			off.Pop()

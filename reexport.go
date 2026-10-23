@@ -152,6 +152,17 @@ var (
 
 	Divider    = elements.Divider
 	Responsive = elements.Responsive
+	// ActiveBreakpoint returns the name of the breakpoint the innermost
+	// enclosing Responsive matched.
+	ActiveBreakpoint = elements.ActiveBreakpoint
+	// Compact reports whether the innermost enclosing Responsive matched
+	// a breakpoint named "compact".
+	Compact = elements.Compact
+	// HandleBack registers a handler for the system Back button for the
+	// current frame; see elements.HandleBack.
+	HandleBack = elements.HandleBack
+	// TouchInput reports whether the user is interacting by touch.
+	TouchInput = elements.TouchInput
 
 	// Pressable makes any content clickable; its content is rebuilt
 	// with the current PressState so it can restyle itself.
@@ -238,6 +249,28 @@ var Input = InputAPI{
 	Select:       dropdown.New,
 	AutoComplete: autocomplete.New,
 }
+
+// SheetMode selects when a Select opens as a bottom sheet; see
+// dropdown.Select.Sheet.
+type SheetMode = dropdown.SheetMode
+
+const (
+	SheetNever   = dropdown.SheetNever
+	SheetCompact = dropdown.SheetCompact
+	SheetAlways  = dropdown.SheetAlways
+)
+
+// Keyboard selects the on-screen keyboard for Input.Text fields; see
+// input.Input.Keyboard.
+type Keyboard = input.Keyboard
+
+const (
+	KeyboardText    = input.KeyboardText
+	KeyboardNumeric = input.KeyboardNumeric
+	KeyboardEmail   = input.KeyboardEmail
+	KeyboardURL     = input.KeyboardURL
+	KeyboardPhone   = input.KeyboardPhone
+)
 
 const (
 	SideLeft  = drawer.Left

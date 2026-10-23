@@ -98,3 +98,29 @@ func TestShadeGradient(t *testing.T) {
 		t.Error("original gradient modified")
 	}
 }
+
+func TestTouchTargetGrowsHitArea(t *testing.T) {
+	defer elements.SetTouchInput(elements.TouchInput())
+	clicks := 0
+	h := &harness{b: New("OK", styles.Styles{Padding: properties.UniformInset(2)}).OnClick(func() { clicks++ })}
+
+	elements.SetTouchInput(false)
+	mouse := h.frame().Size
+	if mouse.Y >= 48 {
+		t.Fatalf("mouse: button already %v tall; the test needs a short one", mouse)
+	}
+
+	elements.SetTouchInput(true)
+	touch := h.frame().Size
+	if touch.Y != 48 || touch.X < 48 {
+		t.Fatalf("touch: size %v, want at least 48x48", touch)
+	}
+	// A tap in the extra room above the visual still clicks.
+	pos := f32.Pt(float32(touch.X)/2, 1)
+	h.r.Queue(pointer.Event{Kind: pointer.Press, Source: pointer.Touch, Position: pos, Buttons: pointer.ButtonPrimary},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Touch, Position: pos})
+	h.frame()
+	if clicks != 1 {
+		t.Errorf("tap in the touch margin: %d clicks, want 1", clicks)
+	}
+}

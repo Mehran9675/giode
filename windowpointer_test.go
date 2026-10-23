@@ -12,6 +12,7 @@ import (
 	"gioui.org/op"
 
 	"github.com/mehran9675/giode/components/menu"
+	"github.com/mehran9675/giode/elements"
 )
 
 func TestWindowPointer_ContextMenuOpensOverAnyWidget(t *testing.T) {
@@ -97,5 +98,37 @@ func TestLayoutDrag_InteractiveWidgetStaysClickable(t *testing.T) {
 	// Away from the button, empty space is still draggable.
 	if action, ok := r.ActionAt(f32.Pt(700, 500)); !ok || action != system.ActionMove {
 		t.Errorf("ActionAt(empty point) = (%v, %v), want (ActionMove, true)", action, ok)
+	}
+}
+
+func TestWindowPointer_TracksTouchInput(t *testing.T) {
+	defer elements.SetTouchInput(elements.TouchInput())
+	elements.SetTouchInput(false)
+	size := image.Pt(800, 600)
+	var r input.Router
+	a := &App{}
+	widget := Row(Styles{Width: -1, Height: -1})
+	frame := func() {
+		var ops op.Ops
+		gtx := layout.Context{Ops: &ops, Constraints: layout.Constraints{Max: size}, Source: r.Source()}
+		widget.Layout(gtx)
+		a.winPointer.layout(a, gtx)
+		r.Frame(&ops)
+	}
+	press := func(src pointer.Source) {
+		pos := f32.Pt(400, 300)
+		r.Queue(pointer.Event{Kind: pointer.Press, Source: src, Position: pos, Buttons: pointer.ButtonPrimary},
+			pointer.Event{Kind: pointer.Release, Source: src, Position: pos})
+		frame()
+	}
+
+	frame()
+	press(pointer.Touch)
+	if !elements.TouchInput() {
+		t.Error("touch press didn't switch to touch input")
+	}
+	press(pointer.Mouse)
+	if elements.TouchInput() {
+		t.Error("mouse press didn't switch back")
 	}
 }

@@ -126,12 +126,29 @@ Simplified media queries: renders different views depending on the available wid
 
 ```go
 giode.Responsive(
-	giode.Breakpoint{Width: 600, View: func() giode.Element { return phoneView }},
-	giode.Breakpoint{Width: 1024, View: func() giode.Element { return tabletView }},
+	giode.Breakpoint{MaxWidth: 600, Name: "compact", View: func() giode.Element { return phoneView }},
+	giode.Breakpoint{MaxWidth: 1024, Name: "medium", View: func() giode.Element { return tabletView }},
 	giode.Breakpoint{View: func() giode.Element { return desktopView }}, // fallback
 )
 ```
 
-Breakpoints are evaluated in order; the first with `width >= available` matches. A `Width`
-of zero always matches. Only the matching view is built each frame. Width is measured in
-the layout pixel space of the parent container.
+Breakpoints are evaluated in order; the first whose `MaxWidth` is at least the available
+width matches, so list the narrowest first. A breakpoint without `MaxWidth` always matches.
+Only the matching view is built each frame.
+
+`MaxWidth` is in dp, like every length in `Styles`, so a layout switches at the same
+physical size on a desktop and on a 3x phone. It's compared with the width the parent
+container makes available, not the window's. The older `Width` field is in physical
+pixels and is deprecated; it applies only when `MaxWidth` is 0.
+
+Content inside the chosen view can ask which breakpoint matched, without a flag passed
+through every page:
+
+```go
+if giode.ActiveBreakpoint() == "medium" { ... }
+if giode.Compact() { ... } // the innermost Responsive matched a breakpoint named "compact"
+```
+
+Both answer for the innermost enclosing `Responsive` and return `""`/`false` outside one.
+Like `AbsolutePosition`, they're only meaningful while the view is being laid out. A
+`Memo` inside the view rebuilds when the active breakpoint changes.

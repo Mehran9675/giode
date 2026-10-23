@@ -39,9 +39,8 @@ type SemanticNode struct {
 	// Value is the current value of a control (field text, checked
 	// state, slider position).
 	Value string `json:"value,omitempty"`
-	// Bounds is the node's window-relative area, in pixels. Like
-	// AbsolutePosition it is exact for content placed directly in a
-	// Box and approximate for children of multi-child flex containers.
+	// Bounds is the node's window-relative area, in pixels, including
+	// for children of rows, stacks and scrolled content.
 	Bounds image.Rectangle `json:"bounds"`
 	// Disabled marks a control that doesn't accept input.
 	Disabled bool `json:"disabled,omitempty"`

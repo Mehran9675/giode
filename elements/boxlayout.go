@@ -188,13 +188,13 @@ func applyPct(c *layout.Constraints, axis layout.Axis, pct int) {
 		pct = 100
 	}
 	if axis == layout.Horizontal {
-		if c.Max.X >= unbounded {
+		if isUnbounded(c.Max.X) {
 			return
 		}
 		v := c.Max.X * pct / 100
 		c.Min.X, c.Max.X = v, v
 	} else {
-		if c.Max.Y >= unbounded {
+		if isUnbounded(c.Max.Y) {
 			return
 		}
 		v := c.Max.Y * pct / 100
@@ -209,10 +209,10 @@ func applyAspect(c *layout.Constraints, st styles.Styles) {
 		return
 	}
 	ratio := float32(st.AspectRatio)
-	if st.Width != 0 && st.Height == 0 && c.Max.X > 0 && c.Max.X < unbounded {
+	if st.Width != 0 && st.Height == 0 && c.Max.X > 0 && !isUnbounded(c.Max.X) {
 		h := int(float32(c.Max.X) / ratio)
 		c.Min.Y, c.Max.Y = h, h
-	} else if st.Height != 0 && st.Width == 0 && c.Max.Y > 0 && c.Max.Y < unbounded {
+	} else if st.Height != 0 && st.Width == 0 && c.Max.Y > 0 && !isUnbounded(c.Max.Y) {
 		w := int(float32(c.Max.Y) * ratio)
 		c.Min.X, c.Max.X = w, w
 	}

@@ -44,17 +44,19 @@ func (b *BoxElement) layoutAbsolute(gtx layout.Context, children []Element, size
 		// Left/top-anchored position is known upfront; right/bottom
 		// anchoring depends on the child's own size, so it can only be
 		// resolved after Layout returns. The absolute-position tracker
-		// (see absolute.go) is pushed with the upfront estimate before
-		// Layout runs (needed since children's own Layout calls happen
-		// here, not at the later replay below) - accurate for the
-		// common left/top case, an approximation for right/bottom.
+		// (see absolute.go) is pushed with the upfront position, and
+		// what the child registered is moved by the difference once
+		// the final one is known (see ChildTracker).
 		x := int(st.Left)
 		y := int(st.Top)
+		upfront := image.Pt(x, y)
 
-		popAbs := PushOffset(image.Pt(x, y))
+		popAbs := PushOffset(upfront)
+		track := TrackChild()
 		macro := op.Record(gtx.Ops)
 		dims := box.Layout(cgtx)
 		childOps := macro.Stop()
+		track.End()
 		popAbs()
 
 		if st.Left == 0 && st.Right > 0 {
@@ -63,6 +65,7 @@ func (b *BoxElement) layoutAbsolute(gtx layout.Context, children []Element, size
 		if st.Top == 0 && st.Bottom > 0 {
 			y = size.Y - int(st.Bottom) - dims.Size.Y
 		}
+		track.Place(image.Pt(x, y).Sub(upfront))
 
 		off := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
 		childOps.Add(gtx.Ops)

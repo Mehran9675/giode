@@ -4,6 +4,9 @@ go 1.26.6
 
 require (
 	gioui.org v0.10.2
+	gioui.org/x v0.10.2
+	git.wow.st/gmp/jni v0.0.0-20210610011705-34026c7e22d0
+	github.com/godbus/dbus/v5 v5.0.6
 	golang.org/x/sys v0.39.0
 )
 

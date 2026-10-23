@@ -17,17 +17,16 @@ var currentOffset image.Point
 // currently sits relative to the window. Only meaningful while being
 // laid out as part of the current frame.
 //
-// Known limitation: it's exact for a Box's own content offset (margin
-// and padding) and for a left/top-anchored absolutely positioned
-// child, which is the common nesting case. It's an approximation - the
-// shared container's origin, not the individual child's own offset -
-// for one of several children distributed by a flex container (a Row
-// or Stack with more than one child): a flex container measures every
-// child before it knows where any of them land, so by the time a
-// child's final position is known, that child (and anything nested in
-// it) has already finished its own Layout call. Closing this requires
-// instrumenting the flex distribution itself, which real Gio flex
-// containers don't expose partway through; tracked as a follow-up.
+// While a child of a Row or Stack with several children is being laid
+// out, it returns the container's origin rather than the child's: a
+// flex container measures every child before it knows where any of
+// them land. What the child registers with that position - portals
+// (RegisterPortal), semantic nodes, positions tracked with
+// TrackPosition - is moved to the child's real position once the
+// container places it (see ChildTracker), so a dropdown opened from
+// the second field of a row still opens below that field. Code that
+// stores the position for later should use TrackPosition, which stays
+// exact, rather than keep the value returned here.
 func AbsolutePosition() image.Point {
 	return currentOffset
 }

@@ -23,7 +23,9 @@ type Dialog struct {
 	open    *bool
 	content func() elements.Element
 	st      styles.Styles
-	scrim   widget.Clickable
+	// fixed disables closing from the scrim, Back and Escape.
+	fixed bool
+	scrim widget.Clickable
 	// panel takes the clicks on the panel's own empty space, which
 	// would otherwise fall through to the scrim and close the dialog.
 	panel widget.Clickable
@@ -48,4 +50,13 @@ func New(open *bool, content func() elements.Element, st ...styles.Styles) *Dial
 // Opened reports whether the dialog is currently visible.
 func (d *Dialog) Opened() bool {
 	return d.open != nil && *d.open
+}
+
+// Dismissible controls whether the dialog closes itself when the scrim
+// is clicked or Back (Android) or Escape is pressed. It's on by
+// default; turn it off for a dialog the user must answer through its
+// own controls. It returns d for chaining.
+func (d *Dialog) Dismissible(on bool) *Dialog {
+	d.fixed = !on
+	return d
 }

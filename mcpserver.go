@@ -570,11 +570,19 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 			return nil, fmt.Errorf("mode must be light or dark")
 		}))
 
-	b.srv.AddTool(mcp.Func("window", "Performs a window action.",
+	b.srv.AddTool(mcp.Func("window", "Performs a window action. resize sets the window size in dp, e.g. 400x840 to test a phone layout on a desktop.",
 		func(ctx context.Context, in struct {
-			Action string `json:"action" enum:"minimize,maximize,unmaximize,fullscreen,windowed,center,raise"`
+			Action string `json:"action" enum:"minimize,maximize,unmaximize,fullscreen,windowed,center,raise,resize"`
+			Width  int    `json:"width,omitempty" description:"New width in dp (resize only)"`
+			Height int    `json:"height,omitempty" description:"New height in dp (resize only)"`
 		}) (any, error) {
 			switch in.Action {
+			case "resize":
+				if in.Width <= 0 || in.Height <= 0 {
+					return nil, fmt.Errorf("resize needs a positive width and height")
+				}
+				a.SetSize(in.Width, in.Height)
+				return fmt.Sprintf("window resized to %dx%d dp", in.Width, in.Height), nil
 			case "minimize":
 				a.Minimize()
 			case "maximize":

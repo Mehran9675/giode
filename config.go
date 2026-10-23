@@ -2,16 +2,20 @@ package giode
 
 import (
 	"image"
+	"image/color"
 	"os"
 	"sync"
 	"sync/atomic"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
 	"gioui.org/io/system"
 	"gioui.org/unit"
+	"gioui.org/x/explorer"
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
+	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/state"
 )
 
@@ -44,8 +48,18 @@ type Config struct {
 	// windows. To drag by a custom title bar only, leave it off and
 	// use TitleBar, which marks its own area as the drag handle.
 	Draggable bool
-	// Background is the window background color.
+	// Background is the window background color. Theme tokens
+	// ("theme.background") follow SetMode and SetPalette.
 	Background string
+	// StatusBar and NavigationBar color Android's status bar and
+	// navigation bar. Both default to Background and follow theme
+	// changes, so the bars blend with a light or dark app. Other
+	// platforms ignore them.
+	StatusBar     string
+	NavigationBar string
+	// Orientation restricts rotation on mobile platforms. Defaults to
+	// OrientationAny. Desktop platforms ignore it.
+	Orientation Orientation
 	// Icon is the window icon, PNG or JPEG bytes. It is applied at
 	// runtime where the platform supports it (Windows). The icon
 	// shown by file managers comes from the executable and is set at
@@ -72,8 +86,27 @@ type Config struct {
 	OnStartup func()
 	// OnReady runs after the first frame is presented to the screen.
 	OnReady func()
-	// OnShutdown runs after the window closes.
+	// OnShutdown runs after the window closes. On Android and iOS the
+	// system may end a backgrounded app without warning, so save state
+	// in OnBackground instead.
 	OnShutdown func()
+	// OnBackground runs when the app leaves the screen: on Android when
+	// its activity stops (the user switched apps, went home, or opened
+	// a system picker), on desktops when the window is minimized. On
+	// Android it's the last reliable moment to save: the system may
+	// freeze or end the app afterwards without warning. It runs
+	// synchronously on the platform's main thread (Android) or the UI
+	// goroutine (desktop): keep it short, and don't wait on the UI
+	// (RunOnUI) from it. Not reported on iOS yet.
+	OnBackground func()
+	// OnForeground runs when the app comes back after OnBackground,
+	// on the same goroutine.
+	OnForeground func()
+	// OnEvent observes every window event before giode handles it, on
+	// the UI goroutine - for Gio extensions that need to see them. It
+	// must not call FrameEvent.Frame. OpenFile and SaveFile already
+	// get the events they need.
+	OnEvent func(event.Event)
 	// OnBeforeClose runs when a window close is requested. It cannot
 	// veto the close.
 	OnBeforeClose func()
@@ -165,6 +198,14 @@ type App struct {
 	view       app.ViewEvent
 	dropWarned bool
 
+	// The system bar colors last applied; see updateSystemBars.
+	barsApplied bool
+	statusColor color.NRGBA
+	navColor    color.NRGBA
+
+	// explorer shows the file dialogs; it sees every window event.
+	explorer *explorer.Explorer
+
 	mcp     *mcpBridge
 	uiMu    sync.Mutex
 	uiCalls []func()
@@ -231,6 +272,9 @@ func New(cfg Config) *App {
 	if cfg.AlwaysOnTop {
 		opts = append(opts, app.TopMost(true))
 	}
+	if cfg.Orientation != OrientationAny {
+		opts = append(opts, cfg.Orientation.option())
+	}
 	a := &App{cfg: cfg}
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
@@ -238,10 +282,14 @@ func New(cfg Config) *App {
 	}
 	a.window = new(app.Window)
 	a.window.Option(opts...)
+	a.explorer = explorer.NewExplorer(a.window)
 	if cfg.Center {
 		a.window.Perform(system.ActionCenter)
 	}
 	state.SetInvalidator(a.window.Invalidate)
+	if cfg.Logger != nil && cfg.LogLevel <= LogLevelDebug {
+		elements.SetDebugLogger(cfg.Logger.Printf)
+	}
 	properties.SetThemeChangeHook(a.window.Invalidate)
 	if cfg.MCP || os.Getenv("GIODE_MCP") == "1" {
 		a.mcp = newMCPBridge(a, cfg.MCPOptions)
@@ -273,6 +321,32 @@ func (a *App) Maximize() {
 // Unmaximize restores the window from its maximized state.
 func (a *App) Unmaximize() {
 	a.window.Perform(system.ActionUnmaximize)
+}
+
+// SetSize resizes the window to w x h dp, leaving fullscreen or
+// maximized state first. The size bounds from Config (MinSize,
+// MaxSize, MinWidth, ...) are widened when they'd prevent it, so
+// automation can shrink a desktop app to a phone's size; a window
+// that isn't Resizable stays locked, at the new size.
+func (a *App) SetSize(w, h int) {
+	opts := []app.Option{app.Windowed.Option(), app.Size(unit.Dp(w), unit.Dp(h))}
+	if !a.cfg.Resizable {
+		a.cfg.MinSize, a.cfg.MaxSize = image.Pt(w, h), image.Pt(w, h)
+	} else {
+		if a.cfg.MinSize.X > w || a.cfg.MinSize.Y > h {
+			a.cfg.MinSize = image.Pt(min(a.cfg.MinSize.X, w), min(a.cfg.MinSize.Y, h))
+		}
+		if a.cfg.MaxSize != (image.Point{}) && (a.cfg.MaxSize.X < w || a.cfg.MaxSize.Y < h) {
+			a.cfg.MaxSize = image.Pt(max(a.cfg.MaxSize.X, w), max(a.cfg.MaxSize.Y, h))
+		}
+	}
+	if a.cfg.MinSize != (image.Point{}) {
+		opts = append(opts, app.MinSize(unit.Dp(a.cfg.MinSize.X), unit.Dp(a.cfg.MinSize.Y)))
+	}
+	if a.cfg.MaxSize != (image.Point{}) {
+		opts = append(opts, app.MaxSize(unit.Dp(a.cfg.MaxSize.X), unit.Dp(a.cfg.MaxSize.Y)))
+	}
+	a.window.Option(opts...)
 }
 
 // Center centers the window on the screen.

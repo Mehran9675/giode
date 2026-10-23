@@ -29,6 +29,9 @@ type Select struct {
 	st        styles.Styles
 	// hover overrides the option hover background when set.
 	hover properties.Color
+
+	sheetMode SheetMode
+	sheet     sheetState
 }
 
 // New returns a Select with the given styles and options: Background

@@ -178,7 +178,9 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	cgtx := gtx
 	cgtx.Constraints.Min.Y = 0
 	cgtx.Constraints.Max.Y = unbounded
+	track := elements.TrackChild()
 	dims := s.content().Layout(cgtx)
+	track.End()
 	contentOps := macro.Stop()
 	s.contentH = dims.Size.Y
 
@@ -221,6 +223,9 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	if properties.CalcColor(s.st.Background).A != 0 {
 		paint.Fill(gtx.Ops, properties.CalcColor(s.st.Background))
 	}
+	// The content was laid out before the offset was final: move what
+	// it registered (dropdown anchors, semantic nodes) with it.
+	track.Place(image.Pt(0, -int(s.offset)))
 	off := op.Offset(image.Pt(0, -int(s.offset))).Push(gtx.Ops)
 	contentOps.Add(gtx.Ops)
 	off.Pop()

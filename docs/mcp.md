@@ -32,7 +32,7 @@ change; `GIODE_MCP_ADDR` overrides the address.
 | `screenshot` | The window as a PNG. |
 | `state_list` / `state_set` | Reads and sets named states (see below). |
 | `set_theme` | Switches light/dark mode. |
-| `window` | Minimize, maximize, fullscreen, center, raise. |
+| `window` | Minimize, maximize, fullscreen, center, raise, or `resize` to a `width` x `height` in dp - `{"action": "resize", "width": 400, "height": 840}` tests a phone layout on a desktop. |
 
 Actions run on the UI thread, exactly as if the user did them: handlers fire and the UI
 updates.

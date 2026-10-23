@@ -41,7 +41,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		}
 	}
 
-	if st.Wrap.Resolved(axis) && mainMax < unbounded {
+	if st.Wrap.Resolved(axis) && !isUnbounded(mainMax) {
 		return b.layoutFlexWrap(gtx, st, children, axis, mainMax)
 	}
 
@@ -50,23 +50,30 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	// for start alignment, but centered or end-aligned children must
 	// keep their own size or there is nothing to align.
 	unstretch := st.Align == properties.AlignCenter || st.Align == properties.AlignEnd
-	var track *semTracker
-	if semantics != nil {
-		track = &semTracker{spans: make([]semSpan, len(children))}
-	}
+	// Children are laid out before Gio's flex places them; the tracker
+	// moves what each one registered (portals, semantic nodes, tracked
+	// positions) to where it lands.
+	track := &flexTracker{spans: make([]flexSpan, len(children))}
 	kids := make([]layout.FlexChild, 0, len(children))
 	for i, child := range children {
 		w := child.Layout
-		if pct := flexPercentOf(child, axis); pct > 0 && mainMax < unbounded {
+		if pct := flexPercentOf(child, axis); pct > 0 && !isUnbounded(mainMax) {
 			w = (&mainSized{el: child, axis: axis, size: mainMax * pct / 100}).Layout
 		}
 		if unstretch {
 			w = unstretchCross(w, axis)
 		}
-		if track != nil {
-			w = track.wrap(i, w)
+		w = track.wrap(i, w)
+		wt := flexWeightOf(child, axis)
+		if wt > 0 && isUnbounded(mainMax) {
+			// Nothing to share out: in a Scroll, or a column with no
+			// height to fill, growing would take infinite space and
+			// push everything after the child out of reach. Like CSS,
+			// the child keeps its natural size instead.
+			warnOnce("giode: FlexGrow on %s has no effect: its container has unlimited %s (inside a Scroll, or with no fixed size), so it keeps its natural size", describe(child), axisName(axis))
+			wt = 0
 		}
-		if wt := flexWeightOf(child, axis); wt > 0 && flexPercentOf(child, axis) == 0 {
+		if wt > 0 && flexPercentOf(child, axis) == 0 {
 			kids = append(kids, layout.Flexed(float32(wt), w))
 		} else {
 			kids = append(kids, layout.Rigid(w))
@@ -79,9 +86,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 		Gap:       int(st.Gap),
 	}
 	dims := flex.Layout(gtx, kids...)
-	if track != nil {
-		track.place(gtx.Constraints, flex)
-	}
+	track.place(gtx.Constraints, flex)
 	return dims
 }
 
@@ -97,37 +102,33 @@ func unstretchCross(w layout.Widget, axis layout.Axis) layout.Widget {
 	}
 }
 
-// semSpan is the range of semantic nodes one flex child recorded, and
-// its measured size.
-type semSpan struct {
-	start, end int
-	dims       layout.Dimensions
+// flexSpan is what one flex child registered, and its measured size.
+type flexSpan struct {
+	track ChildTracker
+	dims  layout.Dimensions
 }
 
-// semTracker fixes up the bounds of semantic nodes recorded by flex
-// children. A child lays out before the flex container knows where it
-// goes, so its nodes are recorded at the container's origin; once the
-// container is done, each child's nodes are shifted by the offset Gio's
-// flex gave it.
-type semTracker struct {
-	spans []semSpan
+// flexTracker shifts what flex children registered by their final
+// offsets. A child lays out before the flex container knows where it
+// goes, so its portals, semantic nodes and tracked positions are
+// recorded at the container's origin; once the container is done, each
+// child's are shifted by the offset Gio's flex gave it.
+type flexTracker struct {
+	spans []flexSpan
 }
 
-func (t *semTracker) wrap(i int, w layout.Widget) layout.Widget {
+func (t *flexTracker) wrap(i int, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		t.spans[i].start = len(*semantics)
+		t.spans[i].track = TrackChild()
 		dims := w(gtx)
-		t.spans[i].end = len(*semantics)
+		t.spans[i].track.End()
 		t.spans[i].dims = dims
 		return dims
 	}
 }
 
 // place replicates the placement step of layout.Flex.Layout.
-func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
-	if semantics == nil {
-		return
-	}
+func (t *flexTracker) place(cs layout.Constraints, f layout.Flex) {
 	n := len(t.spans)
 	mainMin := axisMain(cs.Min, f.Axis)
 	crossMin := axisCross(cs.Min, f.Axis)
@@ -154,7 +155,6 @@ func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
 			main += space / (n * 2)
 		}
 	}
-	nodes := *semantics
 	for i, s := range t.spans {
 		cross := 0
 		switch f.Alignment {
@@ -167,10 +167,7 @@ func (t *semTracker) place(cs layout.Constraints, f layout.Flex) {
 				cross = maxBaseline - (s.dims.Size.Y - s.dims.Baseline)
 			}
 		}
-		off := axisPoint(f.Axis, main, cross)
-		for j := s.start; j < s.end && j < len(nodes); j++ {
-			nodes[j].Bounds = nodes[j].Bounds.Add(off)
-		}
+		s.track.Place(axisPoint(f.Axis, main, cross))
 		main += axisMain(s.dims.Size, f.Axis)
 		if i < n-1 {
 			main += f.Gap
@@ -213,9 +210,9 @@ func (s *mainSized) Layout(gtx layout.Context) layout.Dimensions {
 type wrapItem struct {
 	ops         op.CallOp
 	main, cross int
-	// semStart and semEnd delimit the semantic nodes the item
-	// recorded, shifted once its position is known.
-	semStart, semEnd int
+	// track holds what the item registered, shifted once its position
+	// is known.
+	track ChildTracker
 }
 
 // wrapLine is one run of items that fit within the main axis.
@@ -274,17 +271,12 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 				cgtx.Constraints.Min.X = 0
 			}
 		}
-		semStart := 0
-		if semantics != nil {
-			semStart = len(*semantics)
-		}
+		track := TrackChild()
 		macro := op.Record(gtx.Ops)
 		dims := el.Layout(cgtx)
 		ops := macro.Stop()
-		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis)}
-		if semantics != nil {
-			it.semStart, it.semEnd = semStart, len(*semantics)
-		}
+		track.End()
+		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis), track: track}
 		items = append(items, it)
 	}
 
@@ -341,11 +333,7 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 		for i, it := range ln.items {
 			crossPos := alignOffset(st.Align, ln.thickness, it.cross)
 			pos := axisPoint(axis, mainOffset, crossOffset+crossPos)
-			if semantics != nil {
-				for j := it.semStart; j < it.semEnd; j++ {
-					(*semantics)[j].Bounds = (*semantics)[j].Bounds.Add(pos)
-				}
-			}
+			it.track.Place(pos)
 			off := op.Offset(pos).Push(gtx.Ops)
 			it.ops.Add(gtx.Ops)
 			off.Pop()
@@ -426,6 +414,14 @@ func alignOffset(align properties.Align, thickness, cross int) int {
 	default:
 		return 0
 	}
+}
+
+// axisName names the length along axis, for diagnostics.
+func axisName(axis layout.Axis) string {
+	if axis == layout.Horizontal {
+		return "width"
+	}
+	return "height"
 }
 
 // axisMain and axisCross read a size along and across axis.

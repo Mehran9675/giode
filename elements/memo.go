@@ -1,6 +1,7 @@
 package elements
 
 import (
+	"image"
 	"reflect"
 	"sync/atomic"
 
@@ -29,7 +30,8 @@ import (
 //     reflect.DeepEqual for values that aren't comparable);
 //   - any State the subtree read while being built (tracked
 //     automatically);
-//   - the layout constraints or the display density;
+//   - the layout constraints, the display density or the active
+//     breakpoint (see ActiveBreakpoint);
 //   - the theme (SetMode/SetPalette);
 //   - a widget inside asked for it: an animation, a focused field, a
 //     widget that handled an event (see kit.MarkLive);
@@ -53,6 +55,7 @@ type MemoCache struct {
 	theme       uint64
 	epoch       uint64
 	color       string
+	breakpoint  string
 	deps        []any
 	reads       *state.Tracker
 
@@ -61,12 +64,17 @@ type MemoCache struct {
 	live bool
 	// inside tracks whether the pointer is over the subtree.
 	inside bool
-	// portal is set when the subtree registered portals, which can't
-	// be replayed from cache.
+	// portal is set when the subtree registered portals or Back
+	// handlers, which can't be replayed from cache.
 	portal bool
 	// nodes are the semantic nodes recorded with the subtree, relative
 	// to its origin.
 	nodes []SemanticNode
+	// probes are the positions tracked inside the subtree (see
+	// TrackPosition) and their offsets from its origin, restored when
+	// it's replayed.
+	probes   []*image.Point
+	probeRel []image.Point
 
 	frame uint64
 
@@ -131,12 +139,17 @@ func (c *MemoCache) Layout(gtx layout.Context, build func() Element, deps ...any
 		c.theme == properties.ThemeVersion() &&
 		c.epoch == cacheEpoch.Load() &&
 		c.color == CurrentColor() &&
+		c.breakpoint == ActiveBreakpoint() &&
 		depsEqual(c.deps, deps) &&
 		!c.reads.Changed()
 
 	if reuse {
 		c.hits++
 		origin := AbsolutePosition()
+		for i, p := range c.probes {
+			*p = origin.Add(c.probeRel[i])
+			probes = append(probes, p)
+		}
 		if semantics != nil {
 			for _, n := range c.nodes {
 				n.Bounds = n.Bounds.Add(origin)
@@ -168,7 +181,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.live = false
 	popLive := kit.PushLiveScope(&c.live)
 	reads := state.Track()
-	portals := len(portalQueue)
+	portals, backs, probeStart := len(portalQueue), len(backStack), len(probes)
 	semStart := 0
 	if semantics != nil {
 		semStart = len(*semantics)
@@ -182,10 +195,15 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	popLive()
 
 	c.reads = reads
-	c.portal = len(portalQueue) > portals
+	c.portal = len(portalQueue) > portals || len(backStack) > backs
+	origin := AbsolutePosition()
+	c.probes, c.probeRel = c.probes[:0], c.probeRel[:0]
+	for _, p := range probes[probeStart:] {
+		c.probes = append(c.probes, p)
+		c.probeRel = append(c.probeRel, p.Sub(origin))
+	}
 	c.nodes = c.nodes[:0]
 	if semantics != nil {
-		origin := AbsolutePosition()
 		for _, n := range (*semantics)[semStart:] {
 			n.Bounds = n.Bounds.Sub(origin)
 			c.nodes = append(c.nodes, n)
@@ -196,6 +214,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.theme = properties.ThemeVersion()
 	c.epoch = cacheEpoch.Load()
 	c.color = CurrentColor()
+	c.breakpoint = ActiveBreakpoint()
 	c.deps = append(c.deps[:0], deps...)
 	c.valid = true
 
@@ -257,6 +276,8 @@ var (
 // the view; component authors don't need to.
 func BeginFrame() {
 	frameNumber++
+	clear(probes)
+	probes = probes[:0]
 }
 
 // EndFrame finishes a frame, releasing keyed memos (see Memo) that

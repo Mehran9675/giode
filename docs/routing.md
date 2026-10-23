@@ -20,7 +20,7 @@ giode.Box(giode.Styles{}, router)
 | `NewRouter(routes ...Route) *Router` | Creates the router; the first route is shown initially. |
 | `Navigate(path string)` | Switches to a path, replacing the current history entry. |
 | `Push(path string)` | Navigates, keeping the current path on the history stack. |
-| `Back() bool` | Returns to the previous path. |
+| `Back() bool` | Returns to the previous path. While there is history, the system Back button (Android) does the same. |
 | `Current() string` | Active path. |
 | `NotFound(v View) *Router` | View for unknown paths. |
 | `Link(path, text string, st ...Styles) *Router` | Element that navigates when clicked. |

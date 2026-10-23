@@ -1,6 +1,7 @@
 # Tooltip
 
-Wraps any element as a trigger: hovering it shows a small panel just below, rendered
+Wraps any element as a trigger: hovering it with a mouse, or long-pressing it on a touch
+screen (half a second), shows a small panel just below, rendered
 above everything else regardless of nesting (see [extending.md](../extending.md#rendering-above-everything-portals)).
 
 ```go
@@ -20,7 +21,11 @@ laid out every frame like any other component, not rebuilt inside the view funct
 | --- | --- |
 | `Tooltip(trigger Element, content string, st ...Styles) *Tooltip` | Wraps trigger. |
 | `SetContent(content string)` | Replaces the tooltip text. |
-| `Hovered() bool` | Whether the trigger was hovered on the last frame. |
+| `Hovered() bool` | Whether a mouse was over the trigger on the last frame. |
+| `Visible() bool` | Whether the tooltip was showing on the last frame, from hover or a long-press. |
+
+After a long-press the tooltip stays for 1.5 seconds once the finger lifts. A trigger that
+is itself clickable still receives the click when the finger lifts.
 
 ## Styles
 

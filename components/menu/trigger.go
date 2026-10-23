@@ -28,6 +28,10 @@ type menuTrigger struct {
 	menu    *Menu
 	trigger elements.Element
 	click   *widget.Clickable
+	// origin is the trigger's position, exact once a frame's layout is
+	// done (see elements.TrackPosition).
+	origin image.Point
+	height int
 }
 
 func (t *menuTrigger) Layout(gtx layout.Context) layout.Dimensions {
@@ -42,12 +46,15 @@ func (t *menuTrigger) Layout(gtx layout.Context) layout.Dimensions {
 		return t.trigger.Layout(gtx)
 	})
 	if t.menu.open {
-		// Recomputed every frame while open, like Dropdown's own field
-		// anchor, so it tracks the trigger's current position rather
-		// than freezing wherever it was at the moment of the click.
-		p := elements.AbsolutePosition().Add(image.Pt(0, dims.Size.Y+4))
+		// Placed from the trigger's position in the last frame, which
+		// is exact even inside a row of several children (this frame's
+		// is only final once the enclosing containers have placed the
+		// trigger), and recomputed every frame so the menu follows it.
+		p := t.origin.Add(image.Pt(0, t.height+4))
 		t.menu.pos = f32.Pt(float32(p.X), float32(p.Y))
 	}
+	elements.TrackPosition(&t.origin)
+	t.height = dims.Size.Y
 	// Keep the trigger clickable even when an ancestor is a frameless
 	// window's whole-window drag area - see button.Layout's identical
 	// comment.

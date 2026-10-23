@@ -36,8 +36,10 @@ type Drawer struct {
 	width   int
 	content func() elements.Element
 	st      styles.Styles
-	openT   time.Time
-	closeT  time.Time
+	// fixed disables closing from the scrim, Back and Escape.
+	fixed  bool
+	openT  time.Time
+	closeT time.Time
 
 	scrim widget.Clickable
 }
@@ -59,4 +61,13 @@ func New(open *bool, side Side, width int, content func() elements.Element, st .
 // be mid slide-out animation after *open turns false).
 func (d *Drawer) Opened() bool {
 	return d.open != nil && *d.open
+}
+
+// Dismissible controls whether the drawer closes itself when the scrim
+// is clicked or Back (Android) or Escape is pressed. It's on by
+// default; turn it off for a drawer the user must answer through its
+// own controls. It returns d for chaining.
+func (d *Drawer) Dismissible(on bool) *Drawer {
+	d.fixed = !on
+	return d
 }

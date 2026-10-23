@@ -33,3 +33,26 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test -race ./...
+
+  android:
+    # Builds the showcase as an APK, so a change that breaks Android
+    # (cgo code, the Java helper, gogio packaging) fails here rather than
+    # in an app. The runner image ships the Android SDK, NDK and a JDK.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install gogio
+        run: go install gioui.org/cmd/gogio@v0.10.3
+      - name: Build the showcase APK
+        run: |
+          export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT:-$ANDROID_NDK_LATEST_HOME}"
+          gogio -target android -arch arm64 -appid org.giode.showcase -o showcase.apk ./examples/showcase
+      - name: Check giode's Java helper is packed
+        run: unzip -p showcase.apk 'classes*.dex' | grep -aq 'Lorg/giode/mobile/mobile_android;'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: showcase-apk
+          path: showcase.apk
