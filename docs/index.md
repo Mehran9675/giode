@@ -9,27 +9,38 @@ stays reachable everywhere.
 
 - **Window config** — size, min/max, resizable, frameless, draggable, fullscreen, centered,
   always-on-top, per-axis size bounds, initial window state, window icon, lifecycle
-  callbacks (startup, ready, shutdown, close) and a single-instance lock, plus runtime
-  actions (minimize, maximize, center, raise, close).
+  callbacks (startup, ready, shutdown, close, background, foreground) and a
+  single-instance lock, plus runtime actions (minimize, maximize, center, raise, resize,
+  close).
+- **Mobile (Android)** — the Back button closes the topmost overlay and goes back through
+  the router (`HandleBack` for your own handlers); 48dp touch targets, long-press
+  tooltips, on-screen keyboard types and bottom-sheet pickers on touch screens; system
+  bar colors that follow the theme; `OpenFile`/`SaveFile` through the system picker and
+  `Share` through the share sheet.
 - **Elements** — `Box`, `Row`, `Stack`, `Text`, `Divider`, `Table`/`TableHeader`/
   `TableRow`/`TableCell`, `Raw`, `Responsive`, most with `OnHover` for pointer-reactive
   styling.
-- **Components** — Button (contained/outlined/ghost variants), Progress, Spinner, Tabs,
-  Drawer, Dialog, Scroll (with intersection-observer-style `OnReachBottom`/`Visible`),
-  Title, Image, Tooltip, Accordion, Pagination, AppShell (Header/Navbar/Aside/Footer/
-  Main/Section), a Menu with a right-click trigger, a widget-anchored dropdown trigger
-  and hover-nested submenus, and the form controls grouped under `Input`: Text,
+- **Components** — Button (contained/outlined/ghost variants), IconButton, Progress,
+  Spinner, Tabs, Drawer, Dialog, Scroll (with intersection-observer-style
+  `OnReachBottom`/`Visible`), VirtualList, TreeView, Toaster, TitleBar, Transition,
+  Pressable, Title, Image, Tooltip, Accordion, Pagination, AppShell (Header/Navbar/Aside/
+  Footer/Main/Section), a Menu with a right-click trigger, a widget-anchored dropdown
+  trigger and hover-nested submenus, and the form controls grouped under `Input`: Text,
   Checkbox, Slider, Select, AutoComplete.
 - **Portals** — any component can render above everything else regardless of nesting
   depth via `elements.RegisterPortal` - the mechanism behind Tooltip, Menu's panel and
-  Dropdown/AutoComplete's suggestion list.
+  Dropdown/AutoComplete's suggestion list - and opens beside its trigger wherever it sits
+  in rows, scrolls or dialogs.
 - **Theming** — a `Palette` of semantic colors and a light/dark `Mode`; any `"theme.*"`
   color token (e.g. `Background: "theme.surface"`) follows `SetMode`/`SetPalette`.
 - **Global state** — `State[T]`, a generic observable value readable/writable from
   anywhere, including a goroutine outside the render loop.
 - **CSS-like styling** — 40+ properties, each defined in its own file, extensible by design.
 - **Routing** — `NewRouter`, `Push`/`Navigate`/`Back`, `Link`.
-- **Breakpoints** — `Responsive` switches views when the available width crosses a threshold.
+- **Breakpoints** — `Responsive` switches views when the available width crosses a threshold
+  in dp; `Compact()`/`ActiveBreakpoint()` tell components inside which one matched.
+- **Performance** — `Memo` replays unchanged parts of the UI from cache.
+- **Automation** — a built-in MCP server lets AI agents inspect and drive the running app.
 - **Icons** — Material set, SVG path data, a full `.svg` file loader, IconVG, plain images.
 - **Component kit** — create your own components with the same helpers the built-ins use.
 - **Low-level escape hatches** — `Raw`, `RunRaw`, `App.Window()`.
@@ -44,6 +55,9 @@ stays reachable everywhere.
 - [Components](components/)
 - [Global state](state.md)
 - [Routing](routing.md)
+- [Threading](threading.md)
+- [Rendering performance](performance.md)
+- [MCP server](mcp.md)
 - [Extending the library](extending.md)
 - [Architecture](architecture.md)
 - [Low-level access](low-level.md)
