@@ -29,7 +29,8 @@ import (
 //     reflect.DeepEqual for values that aren't comparable);
 //   - any State the subtree read while being built (tracked
 //     automatically);
-//   - the layout constraints or the display density;
+//   - the layout constraints, the display density or the active
+//     breakpoint (see ActiveBreakpoint);
 //   - the theme (SetMode/SetPalette);
 //   - a widget inside asked for it: an animation, a focused field, a
 //     widget that handled an event (see kit.MarkLive);
@@ -53,6 +54,7 @@ type MemoCache struct {
 	theme       uint64
 	epoch       uint64
 	color       string
+	breakpoint  string
 	deps        []any
 	reads       *state.Tracker
 
@@ -61,8 +63,8 @@ type MemoCache struct {
 	live bool
 	// inside tracks whether the pointer is over the subtree.
 	inside bool
-	// portal is set when the subtree registered portals, which can't
-	// be replayed from cache.
+	// portal is set when the subtree registered portals or Back
+	// handlers, which can't be replayed from cache.
 	portal bool
 	// nodes are the semantic nodes recorded with the subtree, relative
 	// to its origin.
@@ -131,6 +133,7 @@ func (c *MemoCache) Layout(gtx layout.Context, build func() Element, deps ...any
 		c.theme == properties.ThemeVersion() &&
 		c.epoch == cacheEpoch.Load() &&
 		c.color == CurrentColor() &&
+		c.breakpoint == ActiveBreakpoint() &&
 		depsEqual(c.deps, deps) &&
 		!c.reads.Changed()
 
@@ -168,7 +171,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.live = false
 	popLive := kit.PushLiveScope(&c.live)
 	reads := state.Track()
-	portals := len(portalQueue)
+	portals, backs := len(portalQueue), len(backStack)
 	semStart := 0
 	if semantics != nil {
 		semStart = len(*semantics)
@@ -182,7 +185,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	popLive()
 
 	c.reads = reads
-	c.portal = len(portalQueue) > portals
+	c.portal = len(portalQueue) > portals || len(backStack) > backs
 	c.nodes = c.nodes[:0]
 	if semantics != nil {
 		origin := AbsolutePosition()
@@ -196,6 +199,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.theme = properties.ThemeVersion()
 	c.epoch = cacheEpoch.Load()
 	c.color = CurrentColor()
+	c.breakpoint = ActiveBreakpoint()
 	c.deps = append(c.deps[:0], deps...)
 	c.valid = true
 

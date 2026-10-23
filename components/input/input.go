@@ -1,8 +1,11 @@
 package input
 
 import (
+	"gioui.org/io/event"
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/components/kit"
@@ -11,17 +14,53 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
+// Keyboard selects the on-screen keyboard a field asks for on touch
+// devices. Desktop platforms ignore it.
+type Keyboard uint8
+
+const (
+	// KeyboardText is the plain text keyboard, the default.
+	KeyboardText Keyboard = iota
+	// KeyboardNumeric shows digits, "." and ",".
+	KeyboardNumeric
+	// KeyboardEmail adds shortcuts such as "@" and ".com".
+	KeyboardEmail
+	// KeyboardURL adds shortcuts such as "/" and ".com".
+	KeyboardURL
+	// KeyboardPhone shows digits, "#" and "*".
+	KeyboardPhone
+)
+
+// hint maps k to Gio's keyboard hint.
+func (k Keyboard) hint() key.InputHint {
+	switch k {
+	case KeyboardNumeric:
+		return key.HintNumeric
+	case KeyboardEmail:
+		return key.HintEmail
+	case KeyboardURL:
+		return key.HintURL
+	case KeyboardPhone:
+		return key.HintTelephone
+	}
+	return key.HintAny
+}
+
 // Input is a stateful text field, single-line by default. Create it
 // once with New and lay it out every frame.
 type Input struct {
 	editor       widget.Editor
 	placeholder  string
 	label        string
+	keyboard     Keyboard
 	st           styles.Styles
 	onSubmit     func(text string)
 	onChange     func(text string)
 	requestFocus bool
 	focused      bool
+	// tap is the event tag for presses anywhere on the field, padding
+	// and border included, which focus the editor.
+	tap int
 }
 
 // New returns an Input with the given placeholder. The styles
@@ -60,14 +99,33 @@ func (i *Input) OnChange(fn func(text string)) *Input {
 	return i
 }
 
-// Password masks the content with bullets. It returns i for chaining.
+// Password masks the content with bullets and asks touch devices for
+// the password keyboard. It returns i for chaining.
 func (i *Input) Password(on bool) *Input {
 	if on {
 		i.editor.Mask = '•'
 	} else {
 		i.editor.Mask = 0
 	}
+	i.updateHint()
 	return i
+}
+
+// Keyboard selects the on-screen keyboard shown while the field is
+// focused on a touch device; Password overrides it with the password
+// keyboard. It returns i for chaining.
+func (i *Input) Keyboard(k Keyboard) *Input {
+	i.keyboard = k
+	i.updateHint()
+	return i
+}
+
+func (i *Input) updateHint() {
+	if i.editor.Mask != 0 {
+		i.editor.InputHint = key.HintPassword
+	} else {
+		i.editor.InputHint = i.keyboard.hint()
+	}
 }
 
 // Multiline lets the field hold several lines; Enter inserts a newline
@@ -135,6 +193,18 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 		gtx.Execute(key.FocusCmd{Tag: &i.editor})
 	}
 	for {
+		ev, ok := gtx.Event(pointer.Filter{Target: &i.tap, Kinds: pointer.Press})
+		if !ok {
+			break
+		}
+		if e, ok := ev.(pointer.Event); ok && (e.Source == pointer.Touch || e.Buttons.Contain(pointer.ButtonPrimary)) {
+			gtx.Execute(key.FocusCmd{Tag: &i.editor})
+			if !i.editor.ReadOnly {
+				gtx.Execute(key.SoftKeyboardCmd{Show: true})
+			}
+		}
+	}
+	for {
 		ev, ok := i.editor.Update(gtx)
 		if !ok {
 			break
@@ -171,6 +241,16 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	dims := elements.Box(st, &editorEl{input: i, st: st}).Layout(gtx)
+	// A press anywhere on the field focuses it, not only on the text:
+	// an empty or multiline field is mostly padding and blank space,
+	// which on a touch screen otherwise makes it feel unresponsive.
+	// The area passes presses through so the editor beneath still
+	// places the caret and starts selections.
+	pass := pointer.PassOp{}.Push(gtx.Ops)
+	area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+	event.Op(gtx.Ops, &i.tap)
+	area.Pop()
+	pass.Pop()
 	label := i.label
 	if label == "" {
 		label = i.placeholder

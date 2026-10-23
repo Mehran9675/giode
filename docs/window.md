@@ -103,6 +103,32 @@ Inside a `Layout`, `kit.WriteClipboard(gtx, text)` copies immediately. For a rea
 control, `giode.CopyButton(func() string { return value })` copies when clicked and shows a
 check mark for a moment (`Labels`, `Feedback`, `OnCopy` customize it).
 
+## Back button
+
+`Dialog`, `Drawer` and `Menu` close on Escape and on the system Back button (Android)
+while open, and `Router` goes back while it has history. For anything else, register a
+handler from `Layout`, every frame, for as long as Back has something to do:
+
+```go
+func (p *EditorPage) Layout(gtx layout.Context) layout.Dimensions {
+	if p.dirty {
+		giode.HandleBack(func() { p.confirmDiscard = true })
+	}
+	...
+}
+```
+
+The handler registered last in the frame wins, so an overlay on top takes Back before the
+page beneath it, and only one handler runs. Handlers run after the frame's layout, so they
+may change anything the view reads. When nothing is registered, Back is left to the
+platform: on Android it closes the app as usual. `HandleBack` reacts to Back only;
+`elements.HandleDismiss` also reacts to Escape and is what overlays use.
+
+Handlers are registered during layout rather than consulted when Back is pressed because
+Android decides whether the app handled Back the moment it's pressed, from the handlers
+registered in the last frame - a callback that returned false later could no longer hand
+the press back to the system.
+
 ## File drop
 
 ```go

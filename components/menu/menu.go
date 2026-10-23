@@ -54,7 +54,7 @@ type Menu struct {
 	// isSubmenu marks a Menu opened via SubMenu rather than
 	// SetContextMenu/OpenAt/Trigger: its visibility is driven entirely
 	// by the parent row's hover (openSubmenu above), so it skips its
-	// own dismiss-on-outside-click scrim and Escape handling, which
+	// own dismiss-on-outside-click scrim and Back/Escape handling, which
 	// would otherwise need to cover the whole window from deep inside
 	// the parent panel's own (much smaller) layout constraints.
 	isSubmenu bool

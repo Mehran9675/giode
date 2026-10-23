@@ -109,6 +109,7 @@ func (a *App) runLoop(view func() Element) error {
 				a.ctxMenu.Layout(gtx)
 			}
 			elements.DrainPortals(gtx)
+			elements.DispatchBack(gtx)
 			if elements.RunAfterLayout() {
 				a.window.Invalidate()
 			}

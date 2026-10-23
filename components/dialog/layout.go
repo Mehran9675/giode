@@ -15,14 +15,18 @@ import (
 )
 
 // Layout renders the dialog: a dimmed full-window scrim with the
-// centered panel. A click on the scrim closes it.
+// centered panel. A click on the scrim, Back or Escape closes it
+// unless Dismissible(false) was set.
 func (d *Dialog) Layout(gtx layout.Context) layout.Dimensions {
 	if !d.Opened() {
 		return layout.Dimensions{}
 	}
 	win := gtx.Constraints.Max
 
-	if d.scrim.Clicked(gtx) {
+	if !d.fixed {
+		elements.HandleDismiss(func() { *d.open = false })
+	}
+	if d.scrim.Clicked(gtx) && !d.fixed {
 		*d.open = false
 		kit.RequestFrame(gtx)
 		return layout.Dimensions{}

@@ -3,6 +3,8 @@ package router
 import (
 	"gioui.org/layout"
 	"gioui.org/widget"
+
+	"github.com/mehran9675/giode/elements"
 )
 
 // Router is a stateful navigator. Create it once with New and lay it
@@ -86,8 +88,13 @@ func (r *Router) view(path string) View {
 	return r.notFound
 }
 
-// Layout renders the active route's view.
+// Layout renders the active route's view. While there is history to
+// go back to, the system Back button (Android) pops it - see
+// elements.HandleBack.
 func (r *Router) Layout(gtx layout.Context) layout.Dimensions {
+	if len(r.history) > 0 {
+		elements.HandleBack(func() { r.Back() })
+	}
 	v := r.view(r.path)
 	if v == nil {
 		return layout.Dimensions{}

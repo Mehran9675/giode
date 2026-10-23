@@ -59,8 +59,11 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 		width = win.X
 	}
 
-	// Scrim.
-	if d.scrim.Clicked(gtx) {
+	// Scrim, Back and Escape.
+	if isOpen && !d.fixed {
+		elements.HandleDismiss(func() { *d.open = false })
+	}
+	if d.scrim.Clicked(gtx) && !d.fixed {
 		if d.open != nil {
 			*d.open = false
 		}

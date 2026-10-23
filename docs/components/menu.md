@@ -87,6 +87,6 @@ Styles: `Background`, `BorderRadius`, `Padding`, `Color` (item text).
 - Opens at the cursor position (or below the `Trigger` element), measured and clamped to
   the window with an 8px margin.
 - Clicking an item runs its action and closes the menu.
-- Clicking outside or pressing Escape closes it - submenus don't have this dismissal
+- Clicking outside, pressing Escape or pressing the system Back button (Android) closes it - submenus don't have this dismissal
   layer of their own; they close with whichever ancestor menu has it.
 - The dismissal layer is modal: clicks under it do not reach the UI.

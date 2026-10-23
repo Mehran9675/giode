@@ -23,5 +23,7 @@ giode.Stack(giode.Styles{}, page, drawer)
 | --- | --- |
 | `Drawer(open *bool, side Side, width int, content func() Element, st ...Styles) *Drawer` | Creates the drawer; `side` is `SideLeft` or `SideRight`. |
 | `Opened() bool` | Whether the drawer is open. |
+| `Dismissible(on bool) *Drawer` | Whether the scrim, Back and Escape close it (on by default). |
 
-Clicking the scrim sets `*open` to false.
+Clicking the scrim, pressing Escape or pressing the system Back button (Android) sets
+`*open` to false, unless `Dismissible(false)` was set.
