@@ -95,7 +95,7 @@ func TestRegisterPortal_UsesWindowSizeNotAmbientConstraints(t *testing.T) {
 	if len(portalQueue) != 1 {
 		t.Fatalf("portalQueue len = %d, want 1", len(portalQueue))
 	}
-	if pos := portalQueue[0].pos; pos.X < 600 {
+	if pos := portalQueue[0].pos(); pos.X < 600 {
 		t.Errorf("pos.X = %d, want it left un-clamped (near 700): the real window is 800 wide, not the 50-wide ambient constraint", pos.X)
 	}
 }

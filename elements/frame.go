@@ -139,10 +139,11 @@ func Measure(gtx layout.Context, el Element) layout.Dimensions {
 	scratch.Source = gtx.Source.Disabled()
 	saved := semantics
 	semantics = nil
-	portals, backs := len(portalQueue), len(backStack)
+	portals, backs, nprobes := len(portalQueue), len(backStack), len(probes)
 	dims := el.Layout(scratch)
 	portalQueue = portalQueue[:portals]
 	backStack = backStack[:backs]
+	probes = probes[:nprobes]
 	semantics = saved
 	return dims
 }

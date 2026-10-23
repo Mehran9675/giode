@@ -72,6 +72,14 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	if s.open && len(s.options) > 0 {
 		// Back and Escape close the option list.
 		elements.HandleDismiss(func() { s.open = false })
+		if s.useSheet() {
+			elements.RegisterOverlay(func() elements.Element {
+				return elements.Raw(func(gtx layout.Context) layout.Dimensions {
+					return s.layoutSheet(gtx, st)
+				})
+			})
+			return fieldDims
+		}
 		fieldWidth := fieldDims.Size.X
 		anchor := elements.AbsolutePosition().Add(image.Pt(0, fieldDims.Size.Y+4))
 		elements.RegisterPortal(gtx, anchor, func() elements.Element {

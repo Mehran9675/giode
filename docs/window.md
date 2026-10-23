@@ -61,6 +61,7 @@ app.Unmaximize()
 app.Center()
 app.Raise()
 app.Close()
+app.SetSize(400, 840) // in dp; widens Min/Max bounds when needed
 ```
 
 `app.Window()` returns the underlying `*app.Window` for anything not covered here.

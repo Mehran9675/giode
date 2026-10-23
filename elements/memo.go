@@ -1,6 +1,7 @@
 package elements
 
 import (
+	"image"
 	"reflect"
 	"sync/atomic"
 
@@ -69,6 +70,11 @@ type MemoCache struct {
 	// nodes are the semantic nodes recorded with the subtree, relative
 	// to its origin.
 	nodes []SemanticNode
+	// probes are the positions tracked inside the subtree (see
+	// TrackPosition) and their offsets from its origin, restored when
+	// it's replayed.
+	probes   []*image.Point
+	probeRel []image.Point
 
 	frame uint64
 
@@ -140,6 +146,10 @@ func (c *MemoCache) Layout(gtx layout.Context, build func() Element, deps ...any
 	if reuse {
 		c.hits++
 		origin := AbsolutePosition()
+		for i, p := range c.probes {
+			*p = origin.Add(c.probeRel[i])
+			probes = append(probes, p)
+		}
 		if semantics != nil {
 			for _, n := range c.nodes {
 				n.Bounds = n.Bounds.Add(origin)
@@ -171,7 +181,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.live = false
 	popLive := kit.PushLiveScope(&c.live)
 	reads := state.Track()
-	portals, backs := len(portalQueue), len(backStack)
+	portals, backs, probeStart := len(portalQueue), len(backStack), len(probes)
 	semStart := 0
 	if semantics != nil {
 		semStart = len(*semantics)
@@ -186,9 +196,14 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 
 	c.reads = reads
 	c.portal = len(portalQueue) > portals || len(backStack) > backs
+	origin := AbsolutePosition()
+	c.probes, c.probeRel = c.probes[:0], c.probeRel[:0]
+	for _, p := range probes[probeStart:] {
+		c.probes = append(c.probes, p)
+		c.probeRel = append(c.probeRel, p.Sub(origin))
+	}
 	c.nodes = c.nodes[:0]
 	if semantics != nil {
-		origin := AbsolutePosition()
 		for _, n := range (*semantics)[semStart:] {
 			n.Bounds = n.Bounds.Sub(origin)
 			c.nodes = append(c.nodes, n)
@@ -261,6 +276,8 @@ var (
 // the view; component authors don't need to.
 func BeginFrame() {
 	frameNumber++
+	clear(probes)
+	probes = probes[:0]
 }
 
 // EndFrame finishes a frame, releasing keyed memos (see Memo) that

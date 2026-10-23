@@ -53,18 +53,18 @@ func MinTouchTarget(gtx layout.Context, w layout.Widget) layout.Dimensions {
 		return w(gtx)
 	}
 	target := gtx.Constraints.Constrain(image.Pt(gtx.Dp(minTouchTarget), gtx.Dp(minTouchTarget)))
+	track := TrackChild()
 	macro := op.Record(gtx.Ops)
 	dims := w(gtx)
 	call := macro.Stop()
+	track.End()
 	size := image.Pt(max(dims.Size.X, target.X), max(dims.Size.Y, target.Y))
 	if size == dims.Size {
 		call.Add(gtx.Ops)
 		return dims
 	}
-	// The content was laid out before its centering offset was known,
-	// so portals it opened anchor at the target's origin; controls
-	// small enough to need the extra room don't open any.
 	off := size.Sub(dims.Size).Div(2)
+	track.Place(off)
 	defer op.Offset(off).Push(gtx.Ops).Pop()
 	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: size, Baseline: dims.Baseline + size.Y - dims.Size.Y - off.Y}

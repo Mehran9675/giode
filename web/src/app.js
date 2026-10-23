@@ -22,6 +22,7 @@ const NAV = [
 		title: "Guides",
 		items: [
 			{ path: "window", label: "Window configuration" },
+			{ path: "mobile", label: "Mobile (Android)" },
 			{ path: "elements", label: "Elements" },
 			{ path: "styles", label: "Style properties" },
 			{ path: "routing", label: "Routing" },

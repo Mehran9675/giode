@@ -124,3 +124,23 @@ func TestScroll_Visible(t *testing.T) {
 		}
 	}
 }
+
+func TestScroll_TrackedPositionsFollowOffset(t *testing.T) {
+	var pos image.Point
+	probe := elements.Raw(func(gtx layout.Context) layout.Dimensions {
+		elements.TrackPosition(&pos)
+		return layout.Dimensions{Size: image.Pt(10, 10)}
+	})
+	s := New(func() elements.Element {
+		return elements.Stack(styles.Styles{}, elements.Box(styles.Styles{Height: 300}), probe, elements.Box(styles.Styles{Height: 300}))
+	})
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(200, 200))}
+	s.Layout(gtx)
+	s.ScrollTo(100)
+	ops.Reset()
+	s.Layout(gtx)
+	if want := image.Pt(0, 300-int(s.Offset())); s.Offset() == 0 || pos != want {
+		t.Errorf("tracked position %v (offset %v), want %v", pos, s.Offset(), want)
+	}
+}

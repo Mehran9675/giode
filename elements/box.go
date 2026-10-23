@@ -178,3 +178,10 @@ func insetConstraints(c layout.Constraints, i properties.Inset) layout.Constrain
 
 // unbounded mirrors the sentinel Gio uses for infinite constraints.
 const unbounded = 1e6
+
+// isUnbounded reports whether a maximum constraint means "no limit".
+// Margins and padding subtract from the sentinel on the way down, so
+// anything above half of it counts.
+func isUnbounded(max int) bool {
+	return max >= unbounded/2
+}

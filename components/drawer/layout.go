@@ -84,6 +84,7 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 		x = win.X - int(float32(width)*progress)
 	}
 	off := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
+	pop := elements.PushOffset(image.Pt(x, 0))
 	defer clip.Rect{Max: image.Pt(width, win.Y)}.Push(gtx.Ops).Pop()
 	st := d.st
 	if st.Background == "" {
@@ -93,6 +94,7 @@ func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
 	panelGtx.Constraints.Min.X = width
 	panelGtx.Constraints.Max.X = width
 	elements.Box(st, d.content()).Layout(panelGtx)
+	pop()
 	off.Pop()
 
 	return layout.Dimensions{Size: win}

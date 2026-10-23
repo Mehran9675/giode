@@ -13,7 +13,7 @@ func (w Width) Constrain(min, max int) (int, int) {
 	switch {
 	case w > 0:
 		return int(w), int(w)
-	case w == -1 && max < unbounded:
+	case w == -1 && max < unbounded/2:
 		return max, max
 	default:
 		return min, max
@@ -21,4 +21,6 @@ func (w Width) Constrain(min, max int) (int, int) {
 }
 
 // unbounded mirrors the sentinel Gio uses for infinite constraints.
+// Margins and padding subtract from it on the way down, so a maximum
+// above half of it still means "no limit".
 const unbounded = 1e6

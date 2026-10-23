@@ -15,6 +15,7 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
+	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/state"
 )
 
@@ -286,6 +287,9 @@ func New(cfg Config) *App {
 		a.window.Perform(system.ActionCenter)
 	}
 	state.SetInvalidator(a.window.Invalidate)
+	if cfg.Logger != nil && cfg.LogLevel <= LogLevelDebug {
+		elements.SetDebugLogger(cfg.Logger.Printf)
+	}
 	properties.SetThemeChangeHook(a.window.Invalidate)
 	if cfg.MCP || os.Getenv("GIODE_MCP") == "1" {
 		a.mcp = newMCPBridge(a, cfg.MCPOptions)
@@ -317,6 +321,32 @@ func (a *App) Maximize() {
 // Unmaximize restores the window from its maximized state.
 func (a *App) Unmaximize() {
 	a.window.Perform(system.ActionUnmaximize)
+}
+
+// SetSize resizes the window to w x h dp, leaving fullscreen or
+// maximized state first. The size bounds from Config (MinSize,
+// MaxSize, MinWidth, ...) are widened when they'd prevent it, so
+// automation can shrink a desktop app to a phone's size; a window
+// that isn't Resizable stays locked, at the new size.
+func (a *App) SetSize(w, h int) {
+	opts := []app.Option{app.Windowed.Option(), app.Size(unit.Dp(w), unit.Dp(h))}
+	if !a.cfg.Resizable {
+		a.cfg.MinSize, a.cfg.MaxSize = image.Pt(w, h), image.Pt(w, h)
+	} else {
+		if a.cfg.MinSize.X > w || a.cfg.MinSize.Y > h {
+			a.cfg.MinSize = image.Pt(min(a.cfg.MinSize.X, w), min(a.cfg.MinSize.Y, h))
+		}
+		if a.cfg.MaxSize != (image.Point{}) && (a.cfg.MaxSize.X < w || a.cfg.MaxSize.Y < h) {
+			a.cfg.MaxSize = image.Pt(max(a.cfg.MaxSize.X, w), max(a.cfg.MaxSize.Y, h))
+		}
+	}
+	if a.cfg.MinSize != (image.Point{}) {
+		opts = append(opts, app.MinSize(unit.Dp(a.cfg.MinSize.X), unit.Dp(a.cfg.MinSize.Y)))
+	}
+	if a.cfg.MaxSize != (image.Point{}) {
+		opts = append(opts, app.MaxSize(unit.Dp(a.cfg.MaxSize.X), unit.Dp(a.cfg.MaxSize.Y)))
+	}
+	a.window.Option(opts...)
 }
 
 // Center centers the window on the screen.

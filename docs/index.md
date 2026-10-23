@@ -38,6 +38,7 @@ stays reachable everywhere.
 
 - [Getting started](getting-started.md)
 - [Window configuration](window.md)
+- [Mobile (Android)](mobile.md)
 - [Elements](elements.md)
 - [Style properties](styles.md)
 - [Components](components/)

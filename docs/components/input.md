@@ -91,8 +91,15 @@ size := giode.Input.Select(giode.Styles{}, "Small", "Medium", "Large").
 Styles: `Background` (field and panel fill), `Color` (text), `BorderColor` (field
 border), `BorderRadius` (corners), `Width` (fixed field width). The panel opens below
 the field via a portal (see [extending.md](../extending.md#rendering-above-everything-portals)),
-so it paints above everything else regardless of tree position. Escape and the system
-Back button (Android) close it.
+so it paints above everything else regardless of tree position, and lands below the field
+wherever it sits (in a row, a scroll, a dialog). Escape and the system Back button
+(Android) close it.
+
+On phones, `Sheet(giode.SheetCompact)` opens the options as a bottom sheet instead - a
+panel along the bottom of the window over a dimmed scrim, with tall rows that are easy to
+tap - inside a `Responsive` breakpoint named `"compact"` or in a window narrower than
+600dp. `SheetAlways` always does; `SheetNever` is the default. Tapping the scrim or
+pressing Back closes it.
 
 ## AutoComplete
 

@@ -250,6 +250,16 @@ var Input = InputAPI{
 	AutoComplete: autocomplete.New,
 }
 
+// SheetMode selects when a Select opens as a bottom sheet; see
+// dropdown.Select.Sheet.
+type SheetMode = dropdown.SheetMode
+
+const (
+	SheetNever   = dropdown.SheetNever
+	SheetCompact = dropdown.SheetCompact
+	SheetAlways  = dropdown.SheetAlways
+)
+
 // Keyboard selects the on-screen keyboard for Input.Text fields; see
 // input.Input.Keyboard.
 type Keyboard = input.Keyboard

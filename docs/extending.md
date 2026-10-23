@@ -81,14 +81,31 @@ elements.RegisterPortal(gtx, anchor, func() elements.Element {
 clamps the position inside the window with `kit.ClampPos` — the same technique `Menu`'s
 own panel sizing uses.
 
-`AbsolutePosition` is exact for a `Box`'s own content offset and for a
-left/top-anchored absolutely positioned child; it's an approximation (the shared
-container's origin, not the individual child's own offset) for one of several children
-distributed by a flex container (a `Row`/`Stack` with more than one child), since a flex
-container only knows where each child lands after measuring all of them. A custom
-element that positions its own children with `op.Offset` should call
-`elements.PushOffset(off)` (returns a pop func) around the same child so
-`AbsolutePosition`/`RegisterPortal` stay correct for content placed inside it.
+A portal lands at the right place wherever its caller sits: inside a `Row` or `Stack`
+with several children, inside a `Scroll`, or an absolutely positioned child. A flex
+container only knows where each child lands after laying all of them out, so while a
+child is being laid out `AbsolutePosition` returns the container's origin; once the child
+is placed, its portals, semantic nodes and tracked positions are moved to match. To keep
+a position for later (to open a menu at on the next click, say), use
+`elements.TrackPosition(&p)`: `p` holds the exact position once the frame's layout is
+done.
+
+A custom element that positions its own children with `op.Offset` should call
+`elements.PushOffset(off)` (returns a pop func) around the same child when the offset is
+known before laying it out. When it's only known afterwards, record the child with
+`elements.TrackChild()` and call `Place(off)` once it is:
+
+```go
+t := elements.TrackChild()
+macro := op.Record(gtx.Ops)
+dims := child.Layout(gtx)
+call := macro.Stop()
+t.End()
+off := whereItGoes(dims)
+t.Place(off)
+defer op.Offset(off).Push(gtx.Ops).Pop()
+call.Add(gtx.Ops)
+```
 
 ## Worked example: a star rating
 
