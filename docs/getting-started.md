@@ -6,7 +6,8 @@
 go get github.com/mehran9675/giode
 ```
 
-Requires Go 1.22+. Windows, macOS, Linux and mobile are supported through Gio.
+Requires Go 1.26+. Windows, macOS, Linux and Android are supported through Gio; see
+[mobile.md](mobile.md) for Android builds.
 
 ## Hello world
 
