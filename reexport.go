@@ -161,6 +161,8 @@ var (
 	// HandleBack registers a handler for the system Back button for the
 	// current frame; see elements.HandleBack.
 	HandleBack = elements.HandleBack
+	// TouchInput reports whether the user is interacting by touch.
+	TouchInput = elements.TouchInput
 
 	// Pressable makes any content clickable; its content is rebuilt
 	// with the current PressState so it can restyle itself.

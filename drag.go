@@ -6,6 +6,8 @@ import (
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
+
+	"github.com/mehran9675/giode/elements"
 )
 
 // layoutDrag registers a whole-window system-move area so pressing
@@ -36,7 +38,8 @@ func layoutDrag(a *App, gtx layout.Context) {
 
 // windowPointer is a whole-window pass-through pointer listener for
 // the global right-click context menu registered with
-// App.SetContextMenu.
+// App.SetContextMenu, and for telling touch from mouse input (see
+// elements.TouchInput).
 //
 // It's registered after the rest of the view, not before: PassOp
 // keeps it from blocking ordinary (non-pass-through) widgets, but
@@ -46,14 +49,11 @@ func layoutDrag(a *App, gtx layout.Context) {
 // here identically.
 type windowPointer struct{}
 
-// layout registers the pointer region, when a context menu is
-// registered, and processes events queued from the registration on a
-// previous frame: opening the menu on a right-click.
+// layout registers the pointer region and processes events queued
+// from the registration on a previous frame: recording whether the
+// press was a touch, and opening the context menu on a right-click.
+// Only presses are observed, so moving the mouse costs no frames.
 func (w *windowPointer) layout(a *App, gtx layout.Context) {
-	if a.ctxMenu == nil {
-		return
-	}
-
 	ps := pointer.PassOp{}.Push(gtx.Ops)
 	cl := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
 	event.Op(gtx.Ops, w)
@@ -69,7 +69,15 @@ func (w *windowPointer) layout(a *App, gtx layout.Context) {
 		if !ok {
 			continue
 		}
-		if e.Buttons.Contain(pointer.ButtonSecondary) {
+		if elements.SetTouchInput(e.Source == pointer.Touch) {
+			// Touch targets change size: rebuild cached subtrees and
+			// lay out again.
+			elements.InvalidateCaches()
+			if a.window != nil {
+				a.window.Invalidate()
+			}
+		}
+		if a.ctxMenu != nil && e.Buttons.Contain(pointer.ButtonSecondary) {
 			a.ctxMenu.OpenAt(e.Position)
 		}
 	}

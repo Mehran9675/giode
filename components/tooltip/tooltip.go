@@ -1,11 +1,15 @@
-// Package tooltip provides a stateful hover tooltip that wraps any
-// element as its trigger.
+// Package tooltip provides a stateful tooltip, shown on hover or
+// long-press, that wraps any element as its trigger.
 package tooltip
 
 import (
 	"image"
+	"time"
 
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
@@ -18,26 +22,43 @@ var (
 	defaultText       = "#f8fafc"
 )
 
-// Tooltip is a stateful hover tooltip wrapping trigger: hovering
-// trigger shows content in a small panel anchored just below it,
-// rendered above everything else via elements.RegisterPortal. Create
-// it once with New and lay it out every frame in trigger's place.
+// Touch timings: how long a finger must rest on the trigger to show
+// the tooltip, and how long it stays after the finger lifts.
+const (
+	longPress = 500 * time.Millisecond
+	linger    = 1500 * time.Millisecond
+)
+
+// Tooltip is a stateful tooltip wrapping trigger: hovering trigger
+// with a mouse, or long-pressing it on a touch screen, shows content
+// in a small panel anchored just below it, rendered above everything
+// else via elements.RegisterPortal. After a long-press the tooltip
+// stays for a moment once the finger lifts. Create it once with New
+// and lay it out every frame in trigger's place.
 type Tooltip struct {
 	trigger elements.Element
 	content string
 	st      styles.Styles
-	hover   kit.HoverTracker
+
+	// hovered is set while a mouse is over the trigger.
+	hovered bool
+	// touchAt is when a finger went down on the trigger; zero when
+	// none is down.
+	touchAt time.Time
+	// longPressed is set once that finger rested for longPress.
+	longPressed bool
+	// shownUntil keeps the tooltip visible after a long-press ends.
+	shownUntil time.Time
 }
 
-// New wraps trigger with a tooltip showing content on hover. The
-// styles argument is optional: Background and Color style the panel,
-// FontSize its text.
+// New wraps trigger with a tooltip showing content on hover or
+// long-press. The styles argument is optional: Background and Color
+// style the panel, FontSize its text.
 func New(trigger elements.Element, content string, st ...styles.Styles) *Tooltip {
 	t := &Tooltip{trigger: trigger, content: content}
 	if len(st) > 0 {
 		t.st = st[0]
 	}
-	t.hover.Enable()
 	return t
 }
 
@@ -46,23 +67,101 @@ func (t *Tooltip) SetContent(content string) {
 	t.content = content
 }
 
-// Hovered reports whether the trigger was hovered on the last frame.
+// Hovered reports whether a mouse was over the trigger on the last
+// frame.
 func (t *Tooltip) Hovered() bool {
-	return t.hover.Hovered()
+	return t.hovered
 }
 
-// Layout lays out the trigger and, while hovered, queues the tooltip
-// panel as a portal anchored just below it.
-func (t *Tooltip) Layout(gtx layout.Context) layout.Dimensions {
-	t.hover.Update(gtx)
-	dims := t.trigger.Layout(gtx)
-	t.hover.RegisterArea(gtx, image.Point{}, dims.Size, "")
+// Visible reports whether the tooltip was showing on the last frame,
+// from hover or a long-press.
+func (t *Tooltip) Visible() bool {
+	return t.hovered || t.longPressed || !t.shownUntil.IsZero()
+}
 
-	if t.hover.Hovered() {
+// update processes the pointer events queued on the trigger's area.
+func (t *Tooltip) update(gtx layout.Context) {
+	for {
+		ev, ok := gtx.Event(pointer.Filter{
+			Target: t,
+			Kinds:  pointer.Enter | pointer.Leave | pointer.Press | pointer.Release | pointer.Cancel,
+		})
+		if !ok {
+			break
+		}
+		e, ok := ev.(pointer.Event)
+		if !ok {
+			continue
+		}
+		touch := e.Source == pointer.Touch
+		switch e.Kind {
+		case pointer.Enter:
+			if !touch {
+				t.hovered = true
+			}
+		case pointer.Leave:
+			if !touch {
+				t.hovered = false
+			} else {
+				// The finger slid off before (or after) the long-press.
+				t.touchAt, t.longPressed = time.Time{}, false
+			}
+		case pointer.Cancel:
+			// A scroll took the pointer, or the window lost it.
+			t.hovered, t.touchAt, t.longPressed = false, time.Time{}, false
+		case pointer.Press:
+			if touch {
+				t.touchAt = gtx.Now
+				t.shownUntil = time.Time{}
+				kit.RequestFrameAt(gtx, gtx.Now.Add(longPress))
+			}
+		case pointer.Release:
+			if touch {
+				if t.longPressed {
+					t.shownUntil = gtx.Now.Add(linger)
+				}
+				t.touchAt, t.longPressed = time.Time{}, false
+			}
+		}
+	}
+	if !t.touchAt.IsZero() && !t.longPressed {
+		if gtx.Now.Sub(t.touchAt) >= longPress {
+			t.longPressed = true
+		} else {
+			kit.RequestFrameAt(gtx, t.touchAt.Add(longPress))
+		}
+	}
+	if !t.shownUntil.IsZero() {
+		if gtx.Now.Before(t.shownUntil) {
+			kit.RequestFrameAt(gtx, t.shownUntil)
+		} else {
+			t.shownUntil = time.Time{}
+		}
+	}
+}
+
+// Layout lays out the trigger and, while hovered or long-pressed,
+// queues the tooltip panel as a portal anchored just below it.
+func (t *Tooltip) Layout(gtx layout.Context) layout.Dimensions {
+	t.update(gtx)
+	dims := t.trigger.Layout(gtx)
+
+	// A pass-through area over the trigger sees the pointer without
+	// taking clicks from it.
+	ps := pointer.PassOp{}.Push(gtx.Ops)
+	cl := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+	event.Op(gtx.Ops, t)
+	cl.Pop()
+	ps.Pop()
+
+	if t.Visible() {
 		anchor := elements.AbsolutePosition().Add(image.Pt(0, dims.Size.Y+6))
 		elements.RegisterPortal(gtx, anchor, func() elements.Element {
 			return elements.Raw(t.panel)
 		})
+	}
+	if t.hovered || !t.touchAt.IsZero() {
+		kit.MarkLive()
 	}
 	return dims
 }

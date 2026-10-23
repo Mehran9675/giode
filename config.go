@@ -2,6 +2,7 @@ package giode
 
 import (
 	"image"
+	"image/color"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -44,8 +45,18 @@ type Config struct {
 	// windows. To drag by a custom title bar only, leave it off and
 	// use TitleBar, which marks its own area as the drag handle.
 	Draggable bool
-	// Background is the window background color.
+	// Background is the window background color. Theme tokens
+	// ("theme.background") follow SetMode and SetPalette.
 	Background string
+	// StatusBar and NavigationBar color Android's status bar and
+	// navigation bar. Both default to Background and follow theme
+	// changes, so the bars blend with a light or dark app. Other
+	// platforms ignore them.
+	StatusBar     string
+	NavigationBar string
+	// Orientation restricts rotation on mobile platforms. Defaults to
+	// OrientationAny. Desktop platforms ignore it.
+	Orientation Orientation
 	// Icon is the window icon, PNG or JPEG bytes. It is applied at
 	// runtime where the platform supports it (Windows). The icon
 	// shown by file managers comes from the executable and is set at
@@ -165,6 +176,11 @@ type App struct {
 	view       app.ViewEvent
 	dropWarned bool
 
+	// The system bar colors last applied; see updateSystemBars.
+	barsApplied bool
+	statusColor color.NRGBA
+	navColor    color.NRGBA
+
 	mcp     *mcpBridge
 	uiMu    sync.Mutex
 	uiCalls []func()
@@ -230,6 +246,9 @@ func New(cfg Config) *App {
 	}
 	if cfg.AlwaysOnTop {
 		opts = append(opts, app.TopMost(true))
+	}
+	if cfg.Orientation != OrientationAny {
+		opts = append(opts, cfg.Orientation.option())
 	}
 	a := &App{cfg: cfg}
 	a.setIconBytes(cfg.Icon)

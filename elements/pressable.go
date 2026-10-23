@@ -276,8 +276,12 @@ func (p *Pressable) update(gtx layout.Context) {
 				break
 			}
 			p.pressed = false
-			if !p.hovered && e.Source == pointer.Mouse {
-				break // released outside: not a click
+			// Released outside: not a click. Gio keeps a pressed
+			// touch's Enter/Leave up to date as the finger slides, and
+			// delivers the release before the touch's final Leave, so
+			// this holds for touch as well as the mouse.
+			if !p.hovered {
+				break
 			}
 			slop := float32(gtx.Dp(multiClickSlop))
 			d := e.Position.Sub(p.lastClickPos)

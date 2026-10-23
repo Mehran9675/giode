@@ -197,3 +197,22 @@ a toggle holds a `widget.Bool`.
   where the component sits in the tree.
 
 See [architecture.md](architecture.md) for how the built-in components are organized.
+
+## Touch input
+
+`elements.TouchInput()` (also `giode.TouchInput()`) reports whether the user is on a touch
+screen: it starts on for Android and iOS, and elsewhere follows the last press, so a
+laptop with a touch screen switches as the user moves between finger and mouse. When it
+changes, every `Memo` rebuilds.
+
+`elements.MinTouchTarget(gtx, w)` lays out `w` and, while `TouchInput` is on, grows the
+returned size to at least 48x48dp with `w` centered. Wrap a control's visual in it inside
+the widget that takes its clicks, so the hit area grows while the visual doesn't:
+
+```go
+dims := c.clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return elements.MinTouchTarget(gtx, c.layoutVisual)
+})
+```
+
+`Button`, `IconButton` and `Checkbox` use it.

@@ -39,6 +39,13 @@ save := giode.Button("Save").
 	})
 ```
 
+## Touch screens
+
+While the user is on a touch screen (see [extending.md](../extending.md#touch-input)),
+`Button`, `IconButton` and `Checkbox` grow their hit area to at least 48x48dp, the Android
+guideline, with the visual centered inside and unchanged. With a mouse they keep their
+natural size.
+
 ## Variants
 
 ```go

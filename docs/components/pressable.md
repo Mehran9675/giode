@@ -47,6 +47,9 @@ those kinds.
 - The hit area sits **beneath** the content, like Gio's `widget.Clickable`, so clickable
   children (an expand arrow, a delete button) keep their own clicks.
 - Pointer cursor on hover (override with the `Cursor` style).
+- On a touch screen, `PressState.Pressed` (and `Hovered`) is set while the finger is down,
+  so content styled for either gives feedback. Lifting the finger after sliding it off
+  the element is not a click, as with the mouse.
 - Tab focuses it; Enter or Space activates it. Disable with `Focusable(false)`.
 - `Disabled(true)`: no events, no focus, default cursor; the content sees
   `PressState.Disabled`.

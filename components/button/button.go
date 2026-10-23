@@ -145,8 +145,9 @@ func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 		// waiting for an unrelated event to trigger a repaint.
 		kit.RequestFrame(gtx)
 	}
+	// On touch screens the hit area grows to 48dp around the visual.
 	dims := b.clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return b.layoutVisual(gtx)
+		return elements.MinTouchTarget(gtx, b.layoutVisual)
 	})
 	// Keep the button clickable even when an ancestor is a frameless
 	// window's whole-window drag area (see the root package's

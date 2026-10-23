@@ -151,3 +151,47 @@ func TestBox_OnClick(t *testing.T) {
 		t.Errorf("Box.OnClick didn't fire: %+v", got)
 	}
 }
+
+func TestPressable_TouchPressedAndReleasedOutside(t *testing.T) {
+	clicks := 0
+	var states []PressState
+	p := NewPressable(func(s PressState) Element { states = append(states, s); return sized(100, 40) }).
+		OnClick(func(ClickEvent) { clicks++ })
+	h := &harness{el: p, now: time.Unix(0, 0)}
+	h.frame()
+
+	touch := func(kind pointer.Kind, x, y float32) {
+		h.r.Queue(pointer.Event{Kind: kind, Source: pointer.Touch, Position: f32.Pt(x, y), Buttons: pointer.ButtonPrimary})
+		h.frame()
+	}
+
+	touch(pointer.Press, 10, 10)
+	h.frame()
+	if !states[len(states)-1].Pressed {
+		t.Error("PressState.Pressed not set during a touch")
+	}
+	touch(pointer.Release, 10, 10)
+	if clicks != 1 {
+		t.Fatalf("tap: %d clicks, want 1", clicks)
+	}
+
+	// The finger slides off the element before lifting: no click.
+	touch(pointer.Press, 10, 10)
+	touch(pointer.Move, 300, 300)
+	touch(pointer.Release, 300, 300)
+	if clicks != 1 {
+		t.Errorf("released outside: %d clicks, want still 1", clicks)
+	}
+	if p.Pressed() {
+		t.Error("still pressed after the release")
+	}
+
+	// Sliding off and back on still clicks.
+	touch(pointer.Press, 10, 10)
+	touch(pointer.Move, 300, 300)
+	touch(pointer.Move, 20, 20)
+	touch(pointer.Release, 20, 20)
+	if clicks != 2 {
+		t.Errorf("slid back before release: %d clicks, want 2", clicks)
+	}
+}

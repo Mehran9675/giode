@@ -119,6 +119,7 @@ func (a *App) runLoop(view func() Element) error {
 			}
 			e.Frame(gtx.Ops)
 			elements.EndFrame()
+			a.updateSystemBars()
 			if a.mcp != nil {
 				a.mcp.frameDone(nodes, &ops, e.Size)
 			}

@@ -16,7 +16,9 @@ settings of desktop applications; unsupported platform features are ignored.
 | `Draggable` | `bool` | `false` | Drag the window from empty (non-widget) space anywhere. Frameless only. For a custom title bar, use [TitleBar](components/titlebar.md) instead. |
 | `OnFileDrop` | `func(paths []string)` | `nil` | Files dropped onto the window from the file manager, on the UI goroutine. Windows only for now. |
 | `OnWindowStateChange` | `func(WindowState)` | `nil` | Runs when the window is minimized, maximized, made fullscreen or restored. |
-| `Background` | `string` | `"#000000"` | Window background color (any CSS hex). |
+| `Background` | `string` | `"#000000"` | Window background color (any CSS hex, or a theme token such as `"theme.background"`, which follows `SetMode`/`SetPalette`). |
+| `StatusBar` / `NavigationBar` | `string` | `Background` | Colors of Android's status and navigation bars. They follow theme changes, so the bars match a light or dark app. Ignored elsewhere. |
+| `Orientation` | `Orientation` | `OrientationAny` | Rotation on mobile: `OrientationAny`, `OrientationPortrait`, `OrientationLandscape`. Ignored on desktop. |
 | `Icon` | `[]byte` | `nil` | Window icon, PNG or JPEG bytes. Applied at runtime on Windows. |
 | `WindowStartState` | `WindowStartState` | `WindowStartNormal` | Initial state: `WindowStartMinimized`, `WindowStartMaximized`, `WindowStartFullscreen`. Takes precedence over the flags below. |
 | `Fullscreen` / `Maximized` / `Minimized` | `bool` | `false` | Start in the given state (used when `WindowStartState` is `WindowStartNormal`). |
