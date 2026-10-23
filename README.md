@@ -70,8 +70,6 @@ builds use Gio's `gogio` tool; see [docs/mobile.md](docs/mobile.md).
     sheet on narrow screens.
   - `OpenFile`/`SaveFile` through the system picker, `Share` through the share sheet, and
     `OnBackground`/`OnForeground` for saving before Android pauses the app.
-- **Popups anywhere**: tooltips, dropdowns and menus render above everything else and open
-  beside their trigger, wherever it sits in rows, scrolls or dialogs.
 - **Performance**: `Memo` replays unchanged parts of the UI from cache, so large views stay
   cheap to redraw.
 - **Automation**: a built-in [MCP](https://modelcontextprotocol.io) server lets AI agents

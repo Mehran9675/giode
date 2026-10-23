@@ -29,8 +29,7 @@ stays reachable everywhere.
   Checkbox, Slider, Select, AutoComplete.
 - **Portals** — any component can render above everything else regardless of nesting
   depth via `elements.RegisterPortal` - the mechanism behind Tooltip, Menu's panel and
-  Dropdown/AutoComplete's suggestion list - and opens beside its trigger wherever it sits
-  in rows, scrolls or dialogs.
+  Dropdown/AutoComplete's suggestion list.
 - **Theming** — a `Palette` of semantic colors and a light/dark `Mode`; any `"theme.*"`
   color token (e.g. `Background: "theme.surface"`) follows `SetMode`/`SetPalette`.
 - **Global state** — `State[T]`, a generic observable value readable/writable from
