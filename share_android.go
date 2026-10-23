@@ -1,0 +1,59 @@
+package giode
+
+import (
+	"context"
+
+	"gioui.org/app"
+
+	"github.com/mehran9675/giode/internal/mobile"
+)
+
+func (t ShareText) share(ctx context.Context, a *App) error {
+	return a.onAndroidMain(ctx, func(view uintptr) error {
+		return mobile.ShareText(app.JavaVM(), app.AppContext(), view, t.Text, t.Subject, t.Title)
+	})
+}
+
+func (f ShareFile) share(ctx context.Context, a *App) error {
+	mime := f.mimeType()
+	// The copy runs here, off the main thread; only the share sheet
+	// needs it.
+	uri, err := mobile.Publish(app.JavaVM(), app.AppContext(), f.Path, mime)
+	if err != nil {
+		return err
+	}
+	return a.onAndroidMain(ctx, func(view uintptr) error {
+		return mobile.ShareURI(app.JavaVM(), app.AppContext(), view, uri, mime, f.Title)
+	})
+}
+
+// onAndroidMain runs fn with the GioView on the Android main thread
+// and waits for it.
+func (a *App) onAndroidMain(ctx context.Context, fn func(view uintptr) error) error {
+	view := a.NativeHandle()
+	if view == 0 {
+		return ErrNotSupported
+	}
+	_, err := await(ctx, func() (struct{}, error) {
+		var err error
+		a.window.Run(func() { err = fn(view) })
+		return struct{}{}, err
+	}, func(struct{}) {})
+	return err
+}
+
+// watchLifecycle reports activity stops and starts to OnBackground and
+// OnForeground.
+func (a *App) watchLifecycle() {
+	if a.cfg.OnBackground == nil && a.cfg.OnForeground == nil {
+		return
+	}
+	mobile.SetLifecycleHandlers(a.cfg.OnBackground, a.cfg.OnForeground)
+	if err := mobile.WatchLifecycle(app.JavaVM(), app.AppContext()); err != nil {
+		a.logf(LogLevelWarning, "giode: can't watch the app lifecycle: %v", err)
+	}
+}
+
+// Android reports going to the background through the activity
+// lifecycle, not the window state.
+const lifecycleFromWindowState = false

@@ -99,5 +99,13 @@ func (a *App) handleConfig(cfg app.Config) {
 		if a.cfg.OnWindowStateChange != nil {
 			a.cfg.OnWindowStateChange(s)
 		}
+		if lifecycleFromWindowState {
+			switch {
+			case s == WindowMinimized && a.cfg.OnBackground != nil:
+				a.cfg.OnBackground()
+			case old == WindowMinimized && a.cfg.OnForeground != nil:
+				a.cfg.OnForeground()
+			}
+		}
 	}
 }

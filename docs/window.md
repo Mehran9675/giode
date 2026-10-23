@@ -28,7 +28,9 @@ settings of desktop applications; unsupported platform features are ignored.
 | `LogLevel` | `LogLevel` | `LogLevelDebug` | `LogLevelDebug`, `LogLevelInfo`, `LogLevelWarning`, `LogLevelError`. |
 | `OnStartup` | `func()` | `nil` | Runs before the event loop starts. |
 | `OnReady` | `func()` | `nil` | Runs after the first frame is presented. |
-| `OnShutdown` | `func()` | `nil` | Runs after the window closes. |
+| `OnShutdown` | `func()` | `nil` | Runs after the window closes. Mobile systems may end a backgrounded app without it running: save in `OnBackground`. |
+| `OnBackground` / `OnForeground` | `func()` | `nil` | The app left the screen / came back; see [Background and foreground](#background-and-foreground). |
+| `OnEvent` | `func(event.Event)` | `nil` | Observes every window event before giode handles it, for Gio extensions that need them. Must not call `FrameEvent.Frame`. |
 | `OnBeforeClose` | `func()` | `nil` | Runs when a close is requested. It cannot veto the close. |
 | `SingleInstanceLock` | `*SingleInstanceLock` | `nil` | Ensures only one instance runs; see below. |
 
@@ -86,6 +88,66 @@ is embedded at build time instead:
 rsrc -ico app.ico -o app.syso   # or goversioninfo / windres
 go build
 ```
+
+## Opening and saving files
+
+```go
+go func() {
+	f, err := app.OpenFile(ctx, giode.FileFilter{Extensions: []string{"wav", "mp3"}})
+	if errors.Is(err, giode.ErrCanceled) {
+		return
+	}
+	if err != nil { ... }
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	app.Post(func() { load(data) }) // back to the UI goroutine
+}()
+```
+
+`OpenFile`, `OpenFiles` and `SaveFile(ctx, "speech.wav")` show the platform's own picker:
+the system picker on Android and iOS, the only way apps there can reach the user's files,
+and the native dialogs on desktops (through the XDG desktop portal on Linux). They're
+built on `gioui.org/x/explorer`, which giode feeds the window events it needs.
+
+They block until the user decides, so **call them from a goroutine**, never from a click
+handler: the picker needs the event loop running. `ErrCanceled` means the user closed the
+picker; when `ctx` ends first they return `ctx.Err()` (the picker may stay open, and a file
+chosen after that is closed). One dialog shows at a time.
+
+For other Gio extensions that need the window's events, set `Config.OnEvent`.
+
+## Sharing
+
+```go
+err := app.Share(ctx, giode.ShareFile{Path: p, MIME: "audio/wav"})
+err := app.Share(ctx, giode.ShareText{Text: link, Subject: "Listen to this"})
+```
+
+On Android, `Share` opens the system share sheet. A shared file is first copied into the
+device's Downloads folder: apps built with gogio can't declare the `FileProvider` Android
+otherwise requires for handing files to other apps, and MediaStore is the provider left.
+This needs Android 10 or later. The helper is a small Java class shipped as a `.jar` in
+`internal/mobile`, which gogio packs into the APK automatically.
+
+On desktops, `ShareText` copies the text to the clipboard and `ShareFile` shows the file in
+the file manager (Explorer, Finder, or the freedesktop file manager on Linux). On iOS and
+the web, `Share` returns `ErrNotSupported` for now. A large file takes a moment to copy, so
+call `Share` from a goroutine too.
+
+## Background and foreground
+
+`OnBackground` runs when the app leaves the screen, `OnForeground` when it comes back:
+
+- **Android**: when the activity stops and starts again - the user switched apps, went
+  home, locked the phone, or opened a system picker. Android may freeze the app soon after
+  and end it later without warning, so **`OnBackground` is the last reliable moment to
+  save** (a draft, unsent input). Don't rely on `OnShutdown` or `OnBeforeClose` there.
+- **Desktop**: when the window is minimized and restored.
+- **iOS**: not reported yet.
+
+On Android they run synchronously on the platform's main thread, on desktops on the UI
+goroutine. Keep them short, make any state they touch safe to use from another goroutine
+(a `State`, or a lock), and don't wait on the UI (`RunOnUI`) from them.
 
 ## Not supported
 

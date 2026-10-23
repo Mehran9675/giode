@@ -8,8 +8,10 @@ import (
 	"sync/atomic"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
 	"gioui.org/io/system"
 	"gioui.org/unit"
+	"gioui.org/x/explorer"
 	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
@@ -83,8 +85,27 @@ type Config struct {
 	OnStartup func()
 	// OnReady runs after the first frame is presented to the screen.
 	OnReady func()
-	// OnShutdown runs after the window closes.
+	// OnShutdown runs after the window closes. On Android and iOS the
+	// system may end a backgrounded app without warning, so save state
+	// in OnBackground instead.
 	OnShutdown func()
+	// OnBackground runs when the app leaves the screen: on Android when
+	// its activity stops (the user switched apps, went home, or opened
+	// a system picker), on desktops when the window is minimized. On
+	// Android it's the last reliable moment to save: the system may
+	// freeze or end the app afterwards without warning. It runs
+	// synchronously on the platform's main thread (Android) or the UI
+	// goroutine (desktop): keep it short, and don't wait on the UI
+	// (RunOnUI) from it. Not reported on iOS yet.
+	OnBackground func()
+	// OnForeground runs when the app comes back after OnBackground,
+	// on the same goroutine.
+	OnForeground func()
+	// OnEvent observes every window event before giode handles it, on
+	// the UI goroutine - for Gio extensions that need to see them. It
+	// must not call FrameEvent.Frame. OpenFile and SaveFile already
+	// get the events they need.
+	OnEvent func(event.Event)
 	// OnBeforeClose runs when a window close is requested. It cannot
 	// veto the close.
 	OnBeforeClose func()
@@ -181,6 +202,9 @@ type App struct {
 	statusColor color.NRGBA
 	navColor    color.NRGBA
 
+	// explorer shows the file dialogs; it sees every window event.
+	explorer *explorer.Explorer
+
 	mcp     *mcpBridge
 	uiMu    sync.Mutex
 	uiCalls []func()
@@ -257,6 +281,7 @@ func New(cfg Config) *App {
 	}
 	a.window = new(app.Window)
 	a.window.Option(opts...)
+	a.explorer = explorer.NewExplorer(a.window)
 	if cfg.Center {
 		a.window.Perform(system.ActionCenter)
 	}

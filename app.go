@@ -42,6 +42,7 @@ func (a *App) Run(view func() Element) error {
 		a.cfg.OnStartup()
 	}
 	a.logf(LogLevelInfo, "giode: app started")
+	a.watchLifecycle()
 	ctx, cancel := context.WithCancel(context.Background())
 	if a.mcp != nil {
 		a.mcp.start(ctx, a)
@@ -77,7 +78,12 @@ func (a *App) runLoop(view func() Element) error {
 	var ops op.Ops
 	ready := false
 	for {
-		switch e := a.window.Event().(type) {
+		ev := a.window.Event()
+		a.explorer.ListenEvents(ev)
+		if a.cfg.OnEvent != nil {
+			a.cfg.OnEvent(ev)
+		}
+		switch e := ev.(type) {
 		case app.DestroyEvent:
 			if a.cfg.OnBeforeClose != nil {
 				a.cfg.OnBeforeClose()
