@@ -83,3 +83,16 @@ func TestToJPEG(t *testing.T) {
 		t.Errorf("jpegFile = %+v", f)
 	}
 }
+
+func TestTypeByExtension_NoSystemTable(t *testing.T) {
+	// These must not depend on the system's mime.types, which Windows
+	// and the phones don't have.
+	for ext, want := range map[string]string{".md": "text/markdown", ".WAV": "audio/wav", ".heic": "image/heic"} {
+		if got := typeByExtension(ext); !strings.HasPrefix(got, want) {
+			t.Errorf("typeByExtension(%q) = %q, want %q", ext, got, want)
+		}
+	}
+	if got := pickExtensions([]string{"text/markdown"}); !slices.Contains(got, ".md") {
+		t.Errorf("text/markdown gave %v", got)
+	}
+}

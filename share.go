@@ -2,7 +2,6 @@ package giode
 
 import (
 	"context"
-	"mime"
 	"path/filepath"
 )
 
@@ -35,7 +34,7 @@ func (f ShareFile) mimeType() string {
 	if f.MIME != "" {
 		return f.MIME
 	}
-	if t := mime.TypeByExtension(filepath.Ext(f.Path)); t != "" {
+	if t := typeByExtension(filepath.Ext(f.Path)); t != "" {
 		return t
 	}
 	return "application/octet-stream"
