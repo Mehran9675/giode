@@ -1,0 +1,196 @@
+// Package segmented provides a segmented control: a row of mutually
+// exclusive options in one rounded track, as iOS and Android use for
+// switching views or modes.
+package segmented
+
+import (
+	"image"
+	"time"
+
+	"gioui.org/io/pointer"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/widget"
+
+	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/styles"
+	"github.com/mehran9675/giode/styles/properties"
+)
+
+const animDuration = 160 * time.Millisecond
+
+// Control is a stateful segmented control. Create it once with New and
+// lay it out every frame.
+type Control struct {
+	options  []string
+	icons    []elements.Element
+	selected int
+	onChange func(i int)
+	st       styles.Styles
+	clicks   []widget.Clickable
+
+	// pos animates the highlight, in segments.
+	pos  float32
+	last time.Time
+}
+
+// New returns a control with the given options, the first selected.
+// The styles argument is optional: Background is the track (default a
+// faint tint of the text), BorderColor the selected segment (default
+// theme.surface), Color the labels (default theme.text), FontSize, and
+// Width -1 to fill the row with equal segments.
+func New(options ...string) *Control {
+	return &Control{options: options, clicks: make([]widget.Clickable, len(options))}
+}
+
+// Styles sets the styles. It returns c for chaining.
+func (c *Control) Styles(st styles.Styles) *Control {
+	c.st = st
+	return c
+}
+
+// Icons sets an icon per option, shown before its label (or alone for
+// an empty label); nil entries have none. It returns c for chaining.
+func (c *Control) Icons(icons ...elements.Element) *Control {
+	c.icons = icons
+	return c
+}
+
+// OnChange sets the handler called when the user picks an option. It
+// returns c for chaining.
+func (c *Control) OnChange(fn func(i int)) *Control {
+	c.onChange = fn
+	return c
+}
+
+// Selected returns the selected option's index.
+func (c *Control) Selected() int { return c.selected }
+
+// SetSelected selects option i without invoking OnChange.
+func (c *Control) SetSelected(i int) {
+	if i >= 0 && i < len(c.options) {
+		c.selected = i
+	}
+}
+
+// Options returns the options.
+func (c *Control) Options() []string { return c.options }
+
+// Choose selects option i and invokes OnChange, as a tap would.
+func (c *Control) Choose(i int) {
+	if i < 0 || i >= len(c.options) || i == c.selected {
+		return
+	}
+	c.selected = i
+	if c.onChange != nil {
+		c.onChange(i)
+	}
+}
+
+// Layout lays out and updates the control.
+func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
+	n := len(c.options)
+	if n == 0 {
+		return layout.Dimensions{}
+	}
+	for i := range c.clicks {
+		if c.clicks[i].Clicked(gtx) {
+			c.Choose(i)
+			kit.RequestFrame(gtx)
+		}
+	}
+	dt := gtx.Now.Sub(c.last)
+	if c.last.IsZero() || dt < 0 || dt > animDuration {
+		dt = animDuration
+	}
+	c.last = gtx.Now
+	if target := float32(c.selected); c.pos != target {
+		step := float32(dt) / float32(animDuration) * max(1, abs(target-c.pos))
+		if c.pos < target {
+			c.pos = min(target, c.pos+step)
+		} else {
+			c.pos = max(target, c.pos-step)
+		}
+		kit.RequestFrame(gtx)
+	}
+
+	st := styles.Merge(styles.Styles{Background: "theme.text/0.08", BorderColor: "theme.surface", Color: "theme.text", FontSize: 14}, c.st)
+	pad := gtx.Dp(3)
+	segment := func(i int) elements.Element {
+		var kids []elements.Element
+		if i < len(c.icons) && c.icons[i] != nil {
+			kids = append(kids, c.icons[i])
+		}
+		if c.options[i] != "" {
+			w := properties.FontWeightNormal
+			if i == c.selected {
+				w = properties.FontWeightSemiBold
+			}
+			kids = append(kids, elements.Text(c.options[i], styles.Styles{Color: st.Color, FontSize: st.FontSize, FontWeight: w}))
+		}
+		return elements.Row(styles.Styles{Width: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter, Gap: 6, Padding: properties.SymmetricInset(14, 7), Color: st.Color}, kids...)
+	}
+
+	// Segments share the width equally: the widest one's natural
+	// width, or the whole row with Width -1.
+	mgtx := gtx
+	mgtx.Constraints.Min = image.Point{}
+	segW, segH := 0, 0
+	for i := range c.options {
+		d := elements.Measure(mgtx, segment(i))
+		segW, segH = max(segW, d.Size.X), max(segH, d.Size.Y)
+	}
+	if c.st.Width == -1 {
+		segW = (gtx.Constraints.Max.X - 2*pad) / n
+	}
+	segH = max(segH, gtx.Dp(32))
+	size := image.Pt(segW*n+2*pad, segH+2*pad)
+	radius := size.Y / 2
+
+	func() {
+		defer clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops).Pop()
+		paint.Fill(gtx.Ops, properties.CalcColor(st.Background))
+	}()
+	hx := pad + int(c.pos*float32(segW))
+	func() {
+		defer clip.UniformRRect(image.Rect(hx, pad, hx+segW, pad+segH), radius-pad).Push(gtx.Ops).Pop()
+		paint.Fill(gtx.Ops, properties.CalcColor(st.BorderColor))
+	}()
+	for i := range c.options {
+		func() {
+			pos := image.Pt(pad+i*segW, pad)
+			defer op.Offset(pos).Push(gtx.Ops).Pop()
+			pop := elements.PushOffset(pos)
+			defer pop()
+			sgtx := gtx
+			sgtx.Constraints = layout.Exact(image.Pt(segW, segH))
+			d := c.clicks[i].Layout(sgtx, func(gtx layout.Context) layout.Dimensions {
+				if c.clicks[i].Hovered() {
+					pointer.CursorPointer.Add(gtx.Ops)
+				}
+				return elements.Box(styles.Styles{Width: -1, Height: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter}, segment(i)).Layout(gtx)
+			})
+			elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticTab, Label: c.options[i], Value: boolString(i == c.selected), Target: &c.clicks[i]}, d.Size)
+		}()
+	}
+	kit.BlockDrag(gtx, size)
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticSelect, Label: c.options[c.selected], Value: c.options[c.selected], Target: c}, size)
+	return layout.Dimensions{Size: size}
+}
+
+func boolString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func abs(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}

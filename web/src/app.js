@@ -57,6 +57,8 @@ const NAV = [
 			{ path: "components/icons", label: "Icons" },
 			{ path: "components/title", label: "Title" },
 			{ path: "components/swipeable", label: "Swipeable" },
+			{ path: "components/sheet", label: "Sheet" },
+			{ path: "components/controls", label: "Switch, Segmented, Chip, Badge, Avatar" },
 		],
 	},
 ];

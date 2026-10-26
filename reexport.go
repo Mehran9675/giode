@@ -4,8 +4,11 @@ import (
 	"github.com/mehran9675/giode/components/accordion"
 	"github.com/mehran9675/giode/components/appshell"
 	"github.com/mehran9675/giode/components/autocomplete"
+	"github.com/mehran9675/giode/components/avatar"
+	"github.com/mehran9675/giode/components/badge"
 	"github.com/mehran9675/giode/components/button"
 	"github.com/mehran9675/giode/components/checkbox"
+	"github.com/mehran9675/giode/components/chip"
 	"github.com/mehran9675/giode/components/copybutton"
 	"github.com/mehran9675/giode/components/dialog"
 	"github.com/mehran9675/giode/components/drawer"
@@ -20,6 +23,8 @@ import (
 	"github.com/mehran9675/giode/components/pagination"
 	"github.com/mehran9675/giode/components/progress"
 	"github.com/mehran9675/giode/components/scroll"
+	"github.com/mehran9675/giode/components/segmented"
+	"github.com/mehran9675/giode/components/sheet"
 	"github.com/mehran9675/giode/components/slider"
 	"github.com/mehran9675/giode/components/spinner"
 	"github.com/mehran9675/giode/components/swipeable"
@@ -27,6 +32,7 @@ import (
 	"github.com/mehran9675/giode/components/title"
 	"github.com/mehran9675/giode/components/titlebar"
 	"github.com/mehran9675/giode/components/toaster"
+	"github.com/mehran9675/giode/components/toggle"
 	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/components/transition"
 	"github.com/mehran9675/giode/components/treeview"
@@ -223,9 +229,17 @@ var (
 	// Swipeable makes a row reveal actions when swiped sideways; see
 	// swipeable.New.
 	Swipeable = swipeable.New
-	Drawer    = drawer.New
-	Dialog    = dialog.New
-	Menu      = menu.New
+	// Sheet is a modal bottom sheet, or with Adaptive a centered
+	// dialog on wide screens; see sheet.New.
+	Sheet = sheet.New
+	// Chip is a small rounded label for filters and tags; Badge a
+	// counter or dot; Avatar a picture or initials in a circle.
+	Chip   = chip.New
+	Badge  = badge.New
+	Avatar = avatar.New
+	Drawer = drawer.New
+	Dialog = dialog.New
+	Menu   = menu.New
 
 	Progress   = progress.Progress
 	Spinner    = spinner.Spinner
@@ -257,6 +271,11 @@ type InputAPI struct {
 	// AutoComplete creates a text field with a filtered suggestion
 	// list.
 	AutoComplete func(placeholder string, options []string, st ...Styles) *autocomplete.AutoComplete
+	// Switch creates an on/off switch with an animated knob. label is
+	// optional.
+	Switch func(label string, st ...Styles) *toggle.Switch
+	// Segmented creates a segmented control choosing among options.
+	Segmented func(options ...string) *segmented.Control
 }
 
 // Input groups the form-control constructors that collect user
@@ -268,6 +287,8 @@ var Input = InputAPI{
 	Slider:       slider.New,
 	Select:       dropdown.New,
 	AutoComplete: autocomplete.New,
+	Switch:       toggle.New,
+	Segmented:    segmented.New,
 }
 
 // SheetMode selects when a Select opens as a bottom sheet; see
@@ -304,6 +325,15 @@ const (
 	SubmitEnter            = input.SubmitEnter
 	SubmitEnterUnlessShift = input.SubmitEnterUnlessShift
 	SubmitNever            = input.SubmitNever
+)
+
+// Detent is a height a Sheet rests at.
+type Detent = sheet.Detent
+
+const (
+	DetentFit    = sheet.DetentFit
+	DetentMedium = sheet.DetentMedium
+	DetentLarge  = sheet.DetentLarge
 )
 
 // SwipeAction is a button revealed behind a Swipeable row.

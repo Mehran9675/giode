@@ -1,0 +1,158 @@
+// Package toggle provides an on/off switch with an animated knob, the
+// standard settings control on iOS and Android.
+package toggle
+
+import (
+	"image"
+	"time"
+
+	"gioui.org/io/pointer"
+	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/widget"
+
+	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/styles"
+	"github.com/mehran9675/giode/styles/properties"
+)
+
+const animDuration = 150 * time.Millisecond
+
+// Switch is a stateful on/off switch with an optional label. Create it
+// once with New and lay it out every frame.
+type Switch struct {
+	label    string
+	st       styles.Styles
+	click    widget.Clickable
+	on       bool
+	onChange func(on bool)
+	disabled bool
+
+	// pos animates the knob, 0 off to 1 on.
+	pos  float32
+	last time.Time
+}
+
+// New returns a switch. label is optional; it shows left of the track
+// and fills the row, as in a settings list. The styles argument is
+// optional: Background is the track when on (default theme.primary),
+// BorderColor the track when off (default theme.border), Color the
+// label (default theme.text), FontSize the label size.
+func New(label string, st ...styles.Styles) *Switch {
+	s := &Switch{label: label}
+	if len(st) > 0 {
+		s.st = st[0]
+	}
+	return s
+}
+
+// OnChange sets the handler called when the user flips the switch. It
+// returns s for chaining.
+func (s *Switch) OnChange(fn func(on bool)) *Switch {
+	s.onChange = fn
+	return s
+}
+
+// Disabled greys the switch out and ignores input. It returns s for
+// chaining.
+func (s *Switch) Disabled(v bool) *Switch {
+	s.disabled = v
+	return s
+}
+
+// Checked reports whether the switch is on.
+func (s *Switch) Checked() bool { return s.on }
+
+// SetChecked sets the state without invoking OnChange.
+func (s *Switch) SetChecked(v bool) { s.on = v }
+
+// Toggle flips the switch and invokes OnChange, as a tap would.
+func (s *Switch) Toggle() {
+	if s.disabled {
+		return
+	}
+	s.on = !s.on
+	if s.onChange != nil {
+		s.onChange(s.on)
+	}
+}
+
+// Layout lays out and updates the switch.
+func (s *Switch) Layout(gtx layout.Context) layout.Dimensions {
+	if s.disabled {
+		gtx = gtx.Disabled()
+	}
+	if s.click.Clicked(gtx) {
+		s.Toggle()
+		kit.RequestFrame(gtx)
+	}
+	target := float32(0)
+	if s.on {
+		target = 1
+	}
+	dt := gtx.Now.Sub(s.last)
+	if s.last.IsZero() || dt < 0 || dt > animDuration {
+		dt = animDuration
+	}
+	s.last = gtx.Now
+	if s.pos != target {
+		step := float32(dt) / float32(animDuration)
+		if s.pos < target {
+			s.pos = min(target, s.pos+step)
+		} else {
+			s.pos = max(target, s.pos-step)
+		}
+		if s.pos != target {
+			kit.RequestFrame(gtx)
+		}
+	}
+
+	st := styles.Merge(styles.Styles{Color: "theme.text", Background: "theme.primary", BorderColor: "theme.border"}, s.st)
+	track := elements.Raw(elements.RawFunc(s.track(st)))
+	var content elements.Element = track
+	if s.label != "" {
+		content = elements.Row(styles.Styles{Width: -1, Align: properties.AlignCenter, Gap: 12},
+			elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(s.label, styles.Styles{Color: st.Color, FontSize: st.FontSize})),
+			track)
+	}
+	dims := s.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		if s.click.Hovered() && !s.disabled {
+			pointer.CursorPointer.Add(gtx.Ops)
+		}
+		return elements.MinTouchTarget(gtx, content.Layout)
+	})
+	kit.BlockDrag(gtx, dims.Size)
+	if s.pos != target {
+		kit.MarkLive()
+	}
+	value := "false"
+	if s.on {
+		value = "true"
+	}
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticCheckbox, Label: s.label, Value: value, Disabled: s.disabled, Target: s}, dims.Size)
+	return dims
+}
+
+// track draws the rounded track and its knob.
+func (s *Switch) track(st styles.Styles) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := image.Pt(gtx.Dp(44), gtx.Dp(26))
+		inset := gtx.Dp(3)
+		knob := size.Y - 2*inset
+		c := properties.CalcColor(properties.LerpColor(st.BorderColor, st.Background, s.pos))
+		if s.disabled {
+			c.A /= 2
+		}
+		func() {
+			defer clip.UniformRRect(image.Rectangle{Max: size}, size.Y/2).Push(gtx.Ops).Pop()
+			paint.Fill(gtx.Ops, c)
+		}()
+		x := inset + int(float32(size.X-2*inset-knob)*s.pos)
+		r := image.Rect(x, inset, x+knob, inset+knob)
+		defer clip.Ellipse(r).Push(gtx.Ops).Pop()
+		paint.Fill(gtx.Ops, properties.CalcColor("#ffffff"))
+		return layout.Dimensions{Size: size}
+	}
+}
