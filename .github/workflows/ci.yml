@@ -70,4 +70,6 @@ jobs:
       - name: Install gogio
         run: go install gioui.org/cmd/gogio@v0.10.3
       - name: Build the showcase for the simulator
-        run: gogio -target ios -arch arm64 -appid org.giode.showcase -o showcase.app ./examples/showcase
+        # gogio builds simulator apps for amd64 only; Xcode cross-compiles
+        # them on the arm64 runner.
+        run: gogio -target ios -arch amd64 -appid org.giode.showcase -o showcase.app ./examples/showcase
