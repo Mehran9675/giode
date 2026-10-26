@@ -301,6 +301,7 @@ func New(cfg Config) *App {
 	a.window.Option(opts...)
 	a.explorer = explorer.NewExplorer(a.window)
 	elements.SetLinkOpener(a.openLink)
+	elements.SetLongPressFeedback(func() { a.Haptic(HapticHeavy) })
 	if cfg.Center {
 		a.window.Perform(system.ActionCenter)
 	}

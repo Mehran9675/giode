@@ -2,6 +2,7 @@ package elements
 
 import (
 	"image"
+	"sync/atomic"
 	"time"
 
 	"gioui.org/f32"
@@ -137,6 +138,20 @@ type Pressable struct {
 // LongPressDuration is how long a touch must be held still for
 // OnLongPress.
 const LongPressDuration = 500 * time.Millisecond
+
+// longPressFeedback plays when a long-press fires; the app sets it to
+// haptic feedback.
+var longPressFeedback atomic.Pointer[func()]
+
+// SetLongPressFeedback sets what plays when OnLongPress fires - the app
+// sets it to a haptic tap; component authors don't need to.
+func SetLongPressFeedback(fn func()) {
+	if fn == nil {
+		longPressFeedback.Store(nil)
+		return
+	}
+	longPressFeedback.Store(&fn)
+}
 
 // NewPressable returns a Pressable around content. The styles argument
 // is optional and styles a box wrapped around the content: padding,
@@ -337,6 +352,9 @@ func (p *Pressable) update(gtx layout.Context) {
 		case gtx.Now.Sub(p.pressAt) >= LongPressDuration:
 			p.longFired = true
 			changed = true
+			if fn := longPressFeedback.Load(); fn != nil {
+				(*fn)()
+			}
 			p.onLongPress(ClickEvent{Clicks: 1, Source: ClickPointer, Position: p.pressPos.Round()})
 		default:
 			kit.RequestFrameAt(gtx, p.pressAt.Add(LongPressDuration))

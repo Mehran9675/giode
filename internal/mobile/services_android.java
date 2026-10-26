@@ -36,7 +36,11 @@ public final class services_android {
 	// haptic performs a HapticFeedbackConstants feedback on view. Call on
 	// the main thread.
 	public static boolean haptic(View view, int constant) {
-		return view.performHapticFeedback(constant);
+		if (view.performHapticFeedback(constant)) {
+			return true;
+		}
+		// CONFIRM and REJECT need Android 11; fall back to a plain tap.
+		return view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
 	}
 
 	// keepScreenOn keeps the screen from dimming while the activity is
