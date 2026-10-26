@@ -23,6 +23,7 @@ const NAV = [
 		items: [
 			{ path: "window", label: "Window configuration" },
 			{ path: "mobile", label: "Mobile (Android)" },
+			{ path: "platform", label: "Platform services" },
 			{ path: "elements", label: "Elements" },
 			{ path: "styles", label: "Style properties" },
 			{ path: "routing", label: "Routing" },
@@ -56,6 +57,9 @@ const NAV = [
 			{ path: "components/image", label: "Image" },
 			{ path: "components/icons", label: "Icons" },
 			{ path: "components/title", label: "Title" },
+			{ path: "components/swipeable", label: "Swipeable" },
+			{ path: "components/sheet", label: "Sheet" },
+			{ path: "components/controls", label: "Switch, Segmented, Chip, Badge, Avatar" },
 		],
 	},
 ];

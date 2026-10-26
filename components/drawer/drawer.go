@@ -4,6 +4,7 @@ package drawer
 import (
 	"time"
 
+	"gioui.org/gesture"
 	"gioui.org/widget"
 
 	"github.com/mehran9675/giode/elements"
@@ -23,10 +24,11 @@ const (
 var defaultBackground = "#1e293b"
 
 // Drawer is a side panel with a scrim, sliding in over 200ms. It
-// implements elements.Element, so it can be placed directly in the
-// tree like any other element — lay it out last (e.g. in Stack) so it
-// paints above the rest of the UI. It is a no-op (zero size, nothing
-// painted) once fully closed.
+// implements elements.Element and can be laid out anywhere in the
+// tree: it takes no space, and paints over the whole window as an
+// overlay (see elements.RegisterOverlay) while open. Drag the panel
+// toward its edge to close it; with SwipeToOpen, drag from the edge to
+// open it.
 //
 // Create it once with New, outside the view function.
 type Drawer struct {
@@ -36,12 +38,23 @@ type Drawer struct {
 	width   int
 	content func() elements.Element
 	st      styles.Styles
-	// fixed disables closing from the scrim, Back and Escape.
-	fixed  bool
-	openT  time.Time
-	closeT time.Time
+	// fixed disables closing from the scrim, Back, Escape and dragging.
+	fixed bool
+	// edgeSwipe enables dragging the drawer open from its edge.
+	edgeSwipe bool
+
+	// progress is how far open the drawer is, 0 to 1, animated toward
+	// *open, and last when it was advanced.
+	progress float32
+	last     time.Time
 
 	scrim widget.Clickable
+	// drag follows a finger or mouse moving the panel (or, while
+	// closed, opening it from the edge).
+	drag      gesture.Drag
+	dragFrom  float32
+	dragStart float32
+	dragging  bool
 }
 
 // New returns a Drawer bound to open: it slides in from side whenever
@@ -69,5 +82,22 @@ func (d *Drawer) Opened() bool {
 // own controls. It returns d for chaining.
 func (d *Drawer) Dismissible(on bool) *Drawer {
 	d.fixed = !on
+	return d
+}
+
+// SwipeToOpen lets the user open the drawer by dragging from its edge
+// of the window. It's off by default: on Android with gesture
+// navigation, a swipe from the screen edge is the system Back gesture,
+// so an edge drawer is best opened from a button there. It returns d
+// for chaining.
+func (d *Drawer) SwipeToOpen(on bool) *Drawer {
+	d.edgeSwipe = on
+	return d
+}
+
+// Styles replaces the panel styles, from the next frame. It returns d
+// for chaining.
+func (d *Drawer) Styles(st styles.Styles) *Drawer {
+	d.st = st
 	return d
 }

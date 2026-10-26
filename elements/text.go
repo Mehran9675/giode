@@ -27,6 +27,9 @@ type TextElement struct {
 	kit.HoverTracker
 	hoverSt     styles.Styles
 	lastHovered bool
+
+	// selKey identifies a selectable text's state; see Selectable.
+	selKey any
 }
 
 // Text renders a string with the given styles. The styles argument is
@@ -114,14 +117,24 @@ func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
 		MaxLines:   int(st.MaxLines),
 		LineHeight: unit.Sp(st.LineHeight),
 	}
+	if st.LineHeight != 0 {
+		// LineHeight is the distance between baselines, not a size Gio
+		// scales by its default 1.2.
+		label.LineHeightScale = 1
+	}
 	if st.TextOverflow == properties.TextOverflowEllipsis {
 		label.Truncator = "…"
 		if label.MaxLines == 0 {
 			label.MaxLines = 1
 		}
 	}
-	str := st.TextTransform.Apply(t.str)
-	dims := label.Layout(gtx, shaper, face, properties.ResolveFontSize(st.FontSize), str, textColor)
+	str := st.TabWidth.Expand(st.TextTransform.Apply(t.str))
+	var dims layout.Dimensions
+	if t.selKey != nil && st.Visibility != properties.VisibilityHidden {
+		dims = t.layoutSelectable(gtx, st, str, face, properties.ResolveFontSize(st.FontSize), textColor)
+	} else {
+		dims = label.Layout(gtx, shaper, face, properties.ResolveFontSize(st.FontSize), str, textColor)
+	}
 
 	paintDecoration(gtx, dims.Size, st.TextDecoration, col)
 	if st.Visibility != properties.VisibilityHidden {

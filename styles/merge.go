@@ -86,6 +86,9 @@ func merge(base, over Styles) Styles {
 	if over.LineHeight != 0 {
 		base.LineHeight = over.LineHeight
 	}
+	if over.TabWidth != 0 {
+		base.TabWidth = over.TabWidth
+	}
 	if over.MaxLines != 0 {
 		base.MaxLines = over.MaxLines
 	}

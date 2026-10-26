@@ -31,6 +31,11 @@ stateless elements.
 | AppShell | [appshell.md](appshell.md) | stateless (Section wraps Scroll) |
 | Accordion | [accordion.md](accordion.md) | expanded sections |
 | Pagination | [pagination.md](pagination.md) | current page |
+| Swipeable | [swipeable.md](swipeable.md) | offset, open side |
+| Sheet | [sheet.md](sheet.md) | external `*bool`, detent |
+| Input (switch) | [controls.md](controls.md#switch) | bool |
+| Input (segmented) | [controls.md](controls.md#segmented) | selection |
+| Chip, Badge, Avatar | [controls.md](controls.md) | stateless (a clickable Chip holds press state) |
 | Table | [table.md](table.md) | stateless |
 
 Common patterns:

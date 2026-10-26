@@ -13,3 +13,34 @@ func ShareText(vm, ctx, view uintptr, text, subject, title string) error { retur
 
 // ShareURI reports ErrUnsupported outside Android.
 func ShareURI(vm, ctx, view uintptr, uri, mime, title string) error { return ErrUnsupported }
+
+// OpenURL reports ErrUnsupported outside Android.
+func OpenURL(vm, ctx, view uintptr, url string) error { return ErrUnsupported }
+
+// Haptic reports ErrUnsupported outside Android.
+func Haptic(vm, ctx, view uintptr, c int) error { return ErrUnsupported }
+
+// KeepScreenOn reports ErrUnsupported outside Android.
+func KeepScreenOn(vm, ctx, view uintptr, on bool) error { return ErrUnsupported }
+
+// SecureSet reports ErrUnsupported outside Android.
+func SecureSet(vm, ctx uintptr, name string, value []byte) error { return ErrUnsupported }
+
+// SecureGet reports ErrUnsupported outside Android.
+func SecureGet(vm, ctx uintptr, name string) ([]byte, bool, error) { return nil, false, ErrUnsupported }
+
+// SecureDelete reports ErrUnsupported outside Android.
+func SecureDelete(vm, ctx uintptr, name string) error { return ErrUnsupported }
+
+// PickPhoto reports ErrUnsupported outside Android.
+func PickPhoto(vm, ctx, view uintptr, maxSide int, camera bool) (<-chan Photo, error) {
+	return nil, ErrUnsupported
+}
+
+// Dictate reports ErrUnsupported outside Android.
+func Dictate(vm, ctx, view uintptr, lang string) (int, <-chan Speech, error) {
+	return 0, nil, ErrUnsupported
+}
+
+// StopDictation reports ErrUnsupported outside Android.
+func StopDictation(vm, ctx uintptr, id int) error { return ErrUnsupported }

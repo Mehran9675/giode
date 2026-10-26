@@ -4,6 +4,10 @@ import (
 	"image"
 	"testing"
 
+	"gioui.org/f32"
+	"gioui.org/io/input"
+	"gioui.org/io/pointer"
+
 	"gioui.org/layout"
 	"gioui.org/op"
 
@@ -142,5 +146,79 @@ func TestScroll_TrackedPositionsFollowOffset(t *testing.T) {
 	s.Layout(gtx)
 	if want := image.Pt(0, 300-int(s.Offset())); s.Offset() == 0 || pos != want {
 		t.Errorf("tracked position %v (offset %v), want %v", pos, s.Offset(), want)
+	}
+}
+
+func layoutScroll(s *Scroll, max image.Point) layout.Dimensions {
+	var ops op.Ops
+	return s.Layout(layout.Context{Ops: &ops, Constraints: layout.Constraints{Max: max}})
+}
+
+func TestScroll_AnchorBottomFollowsUntilScrolledUp(t *testing.T) {
+	h := 300
+	s := New(func() elements.Element { return elements.Box(styles.Styles{Width: -1, Height: properties.Height(h)}) }).Anchor(AnchorBottom)
+	layoutScroll(s, image.Pt(200, 200))
+	if s.Offset() != 100 {
+		t.Fatalf("starts at offset %v, want the bottom (100)", s.Offset())
+	}
+	h = 500 // a reply streams in
+	layoutScroll(s, image.Pt(200, 200))
+	if s.Offset() != 300 {
+		t.Fatalf("offset %v after growth, want to follow to 300", s.Offset())
+	}
+	// The user scrolls up with the wheel: growth no longer moves the
+	// offset.
+	var r input.Router
+	frame := func() {
+		var ops op.Ops
+		s.Layout(layout.Context{Ops: &ops, Source: r.Source(), Constraints: layout.Constraints{Max: image.Pt(200, 200)}})
+		r.Frame(&ops)
+	}
+	frame()
+	r.Queue(pointer.Event{Kind: pointer.Scroll, Source: pointer.Mouse, Position: f32.Pt(50, 50), Scroll: f32.Pt(0, -250)})
+	frame()
+	if s.Offset() != 50 {
+		t.Fatalf("offset %v after scrolling up 250, want 50", s.Offset())
+	}
+	h = 700
+	frame()
+	if s.Offset() != 50 {
+		t.Errorf("offset %v after more content, want it kept at 50", s.Offset())
+	}
+	s.ScrollToBottom()
+	h = 900
+	layoutScroll(s, image.Pt(200, 200))
+	if s.Offset() != 700 {
+		t.Errorf("offset %v after ScrollToBottom, want 700", s.Offset())
+	}
+}
+
+func TestScroll_FitContent(t *testing.T) {
+	h := 90
+	s := New(func() elements.Element { return elements.Box(styles.Styles{Width: -1, Height: properties.Height(h)}) }).FitContent(true)
+	if got := layoutScroll(s, image.Pt(200, 400)).Size.Y; got != 90 {
+		t.Errorf("fit viewport %d, want the content's 90", got)
+	}
+	h = 900
+	if got := layoutScroll(s, image.Pt(200, 400)).Size.Y; got != 400 {
+		t.Errorf("fit viewport %d, want capped at 400", got)
+	}
+}
+
+func TestScroll_Horizontal(t *testing.T) {
+	var seen []float32
+	s := New(func() elements.Element { return elements.Box(styles.Styles{Width: 1000, Height: 30}) }).
+		Axis(Horizontal).OnScroll(func(off, max float32) { seen = append(seen, off, max) })
+	dims := layoutScroll(s, image.Pt(300, 1e6))
+	if dims.Size != image.Pt(300, 30) {
+		t.Fatalf("viewport %v, want 300x30 (as tall as the content)", dims.Size)
+	}
+	s.ScrollToX(5000)
+	layoutScroll(s, image.Pt(300, 1e6))
+	if s.OffsetX() != 700 {
+		t.Errorf("x offset %v, want clamped to 700", s.OffsetX())
+	}
+	if len(seen) < 2 || seen[len(seen)-2] != 700 || seen[len(seen)-1] != 700 {
+		t.Errorf("OnScroll calls %v, want the last to report 700 of 700", seen)
 	}
 }

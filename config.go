@@ -60,6 +60,19 @@ type Config struct {
 	// Orientation restricts rotation on mobile platforms. Defaults to
 	// OrientationAny. Desktop platforms ignore it.
 	Orientation Orientation
+	// FollowSystemTheme sets the theme mode (SetMode) from the
+	// platform's light or dark appearance at startup and whenever it
+	// changes. See SystemDarkMode for the platforms that report it.
+	FollowSystemTheme bool
+	// OnSystemThemeChange runs on the UI goroutine when the platform's
+	// appearance changes between light and dark, with or without
+	// FollowSystemTheme.
+	OnSystemThemeChange func(dark bool)
+	// EdgeToEdge lays the view out over the whole window, under the
+	// status bar, navigation bar and cutouts, instead of inside the
+	// safe area. Pad content with SafeArea where it must stay clear of
+	// them. Desktop windows have no insets, so it changes nothing there.
+	EdgeToEdge bool
 	// Icon is the window icon, PNG or JPEG bytes. It is applied at
 	// runtime where the platform supports it (Windows). The icon
 	// shown by file managers comes from the executable and is set at
@@ -97,7 +110,8 @@ type Config struct {
 	// freeze or end the app afterwards without warning. It runs
 	// synchronously on the platform's main thread (Android) or the UI
 	// goroutine (desktop): keep it short, and don't wait on the UI
-	// (RunOnUI) from it. Not reported on iOS yet.
+	// (RunOnUI) from it. On iOS it runs on UIApplication's
+	// background notification.
 	OnBackground func()
 	// OnForeground runs when the app comes back after OnBackground,
 	// on the same goroutine.
@@ -203,6 +217,9 @@ type App struct {
 	statusColor color.NRGBA
 	navColor    color.NRGBA
 
+	hideKeyboard atomic.Bool
+	themeCheck   chan struct{}
+
 	// explorer shows the file dialogs; it sees every window event.
 	explorer *explorer.Explorer
 
@@ -275,7 +292,8 @@ func New(cfg Config) *App {
 	if cfg.Orientation != OrientationAny {
 		opts = append(opts, cfg.Orientation.option())
 	}
-	a := &App{cfg: cfg}
+	a := &App{cfg: cfg, themeCheck: make(chan struct{}, 1)}
+	currentApp.Store(a)
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
 		a.secondInstance, a.instanceLockPath, a.instanceLockOwner = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
@@ -283,6 +301,8 @@ func New(cfg Config) *App {
 	a.window = new(app.Window)
 	a.window.Option(opts...)
 	a.explorer = explorer.NewExplorer(a.window)
+	elements.SetLinkOpener(a.openLink)
+	elements.SetLongPressFeedback(func() { a.Haptic(HapticHeavy) })
 	if cfg.Center {
 		a.window.Perform(system.ActionCenter)
 	}

@@ -2,6 +2,7 @@ package input
 
 import (
 	"image"
+	"strings"
 	"testing"
 
 	"gioui.org/f32"
@@ -11,6 +12,8 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 
+	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/styles"
 )
 
@@ -102,5 +105,66 @@ func TestInput_KeyboardHint(t *testing.T) {
 	in.Password(false)
 	if in.editor.InputHint != key.HintURL {
 		t.Errorf("hint after Password(false) = %v, want URL", in.editor.InputHint)
+	}
+}
+
+func TestInput_EnterUnlessShift(t *testing.T) {
+	fonts.UseGofont()
+	defer elements.SetTouchInput(elements.TouchInput())
+	elements.SetTouchInput(false)
+	var sent []string
+	in := New("Message").Lines(1, 4).SubmitOn(SubmitEnterUnlessShift).Submit(func(s string) { sent = append(sent, s) })
+	h := &harness{in: in, max: image.Pt(400, 400)}
+	in.Focus()
+	h.frame()
+	h.frame()
+	in.InsertText("hi")
+	h.r.Queue(key.Event{Name: key.NameReturn, Modifiers: key.ModShift, State: key.Press})
+	h.frame()
+	if in.Text() != "hi\n" || len(sent) != 0 {
+		t.Fatalf("after Shift+Enter: text %q, sent %v; want a newline and nothing sent", in.Text(), sent)
+	}
+	h.r.Queue(key.Event{Name: key.NameReturn, State: key.Press})
+	h.frame()
+	if len(sent) != 1 || sent[0] != "hi\n" {
+		t.Errorf("after Enter: sent %v, want [\"hi\\n\"]", sent)
+	}
+}
+
+func TestInput_LinesGrowThenCap(t *testing.T) {
+	fonts.UseGofont()
+	in := New("", styles.Styles{FontSize: 14}).Lines(1, 3)
+	h := &harness{in: in, max: image.Pt(400, 1000)}
+	one := h.frame().Size.Y
+	in.SetText("a\nb")
+	two := h.frame().Size.Y
+	in.SetText("a\nb\nc\nd\ne\nf")
+	capped := h.frame().Size.Y
+	if !(one < two && two < capped) {
+		t.Fatalf("heights %d, %d, %d: want growth from 1 to 3 lines", one, two, capped)
+	}
+	in.SetText("a\nb\nc\nd\ne\nf\ng\nh")
+	if more := h.frame().Size.Y; more != capped {
+		t.Errorf("height %d past max lines, want it capped at %d", more, capped)
+	}
+}
+
+func TestInput_FocusBlurAndSelectAll(t *testing.T) {
+	var events []string
+	in := New("x").OnFocus(func() { events = append(events, "focus") }).OnBlur(func() { events = append(events, "blur") })
+	h := &harness{in: in, max: image.Pt(400, 400)}
+	h.frame()
+	in.Focus()
+	h.frame()
+	h.frame()
+	h.r.Source().Execute(key.FocusCmd{})
+	h.frame()
+	if strings.Join(events, ",") != "focus,blur" {
+		t.Errorf("events %v, want focus then blur", events)
+	}
+	in.SetText("hello")
+	in.SelectAll()
+	if s, e := in.editor.Selection(); min(s, e) != 0 || max(s, e) != 5 {
+		t.Errorf("selection %d..%d, want 0..5", s, e)
 	}
 }

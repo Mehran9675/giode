@@ -195,3 +195,27 @@ func TestPressable_TouchPressedAndReleasedOutside(t *testing.T) {
 		t.Errorf("slid back before release: %d clicks, want 2", clicks)
 	}
 }
+
+func TestPressable_LongPress(t *testing.T) {
+	clicks, longs := 0, 0
+	p := NewPressable(func(PressState) Element { return sized(100, 40) }).
+		OnClick(func(ClickEvent) { clicks++ }).
+		OnLongPress(func(ClickEvent) { longs++ })
+	h := &harness{el: p, now: time.Unix(0, 0)}
+	h.frame()
+	pos := f32.Pt(10, 10)
+	h.r.Queue(pointer.Event{Kind: pointer.Press, Source: pointer.Touch, Position: pos, Buttons: pointer.ButtonPrimary})
+	h.frame()
+	for i := 0; i < 40; i++ { // 640ms
+		h.frame()
+	}
+	h.r.Queue(pointer.Event{Kind: pointer.Release, Source: pointer.Touch, Position: pos})
+	h.frame()
+	if longs != 1 || clicks != 0 {
+		t.Fatalf("held touch: %d long-presses, %d clicks; want 1, 0", longs, clicks)
+	}
+	h.click(10, 10, pointer.ButtonPrimary, 0)
+	if longs != 1 || clicks != 1 {
+		t.Errorf("then a click: %d long-presses, %d clicks; want 1, 1", longs, clicks)
+	}
+}

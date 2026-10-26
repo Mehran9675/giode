@@ -6,19 +6,32 @@ package mobile
 import "C"
 
 import (
+	"errors"
+	"sync"
+	"unsafe"
+
 	"git.wow.st/gmp/jni"
 )
 
-//go:generate javac --release 8 -classpath $ANDROID_HOME/platforms/android-16/android.jar -d $TEMP/giode_mobile/classes mobile_android.java
+//go:generate javac --release 8 -classpath $ANDROID_HOME/platforms/android-34/android.jar -d $TEMP/giode_mobile/classes mobile_android.java services_android.java picker_android.java
 //go:generate jar cf mobile_android.jar -C $TEMP/giode_mobile/classes .
 
-const helperClass = "org/giode/mobile/mobile_android"
+const (
+	helperClass   = "org/giode/mobile/mobile_android"
+	servicesClass = "org/giode/mobile/services_android"
+	pickerClass   = "org/giode/mobile/picker_android"
+)
 
 // call loads the helper class through the app's class loader and runs
 // f with it on the current thread, attached to the JVM.
 func call(vm, ctx uintptr, f func(env jni.Env, cls jni.Class) error) error {
+	return callClass(vm, ctx, helperClass, f)
+}
+
+// callClass is call for one of the helper's classes.
+func callClass(vm, ctx uintptr, class string, f func(env jni.Env, cls jni.Class) error) error {
 	return jni.Do(jni.JVMFor(vm), func(env jni.Env) error {
-		cls, err := jni.LoadClass(env, jni.ClassLoaderFor(env, jni.Object(ctx)), helperClass)
+		cls, err := jni.LoadClass(env, jni.ClassLoaderFor(env, jni.Object(ctx)), class)
 		if err != nil {
 			return err
 		}
@@ -94,4 +107,198 @@ func Java_org_giode_mobile_mobile_1android_onBackground(env *C.JNIEnv, cls C.jcl
 //export Java_org_giode_mobile_mobile_1android_onForeground
 func Java_org_giode_mobile_mobile_1android_onForeground(env *C.JNIEnv, cls C.jclass) {
 	notify(&onForeground)
+}
+
+// OpenURL opens url in the app that handles it. Call it on the main
+// thread.
+func OpenURL(vm, ctx, view uintptr, url string) error {
+	return callClass(vm, ctx, servicesClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "openURL", "(Landroid/view/View;Ljava/lang/String;)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(view), jni.Value(jni.JavaString(env, url)))
+	})
+}
+
+// Haptic performs the android.view.HapticFeedbackConstants feedback c
+// on view. Call it on the main thread.
+func Haptic(vm, ctx, view uintptr, c int) error {
+	return callClass(vm, ctx, servicesClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "haptic", "(Landroid/view/View;I)Z")
+		_, err := jni.CallStaticBooleanMethod(env, cls, m, jni.Value(view), jni.Value(c))
+		return err
+	})
+}
+
+// KeepScreenOn keeps the screen on while the app is shown. Call it on
+// the main thread.
+func KeepScreenOn(vm, ctx, view uintptr, on bool) error {
+	return callClass(vm, ctx, servicesClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "keepScreenOn", "(Landroid/view/View;Z)V")
+		v := 0
+		if on {
+			v = 1
+		}
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(view), jni.Value(v))
+	})
+}
+
+// SecureSet stores value under name, encrypted with a key in the
+// Android Keystore.
+func SecureSet(vm, ctx uintptr, name string, value []byte) error {
+	return callClass(vm, ctx, servicesClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "secureSet", "(Landroid/content/Context;Ljava/lang/String;[B)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(ctx), jni.Value(jni.JavaString(env, name)), jni.Value(jni.NewByteArray(env, value)))
+	})
+}
+
+// SecureGet returns the value stored under name, and whether there was
+// one.
+func SecureGet(vm, ctx uintptr, name string) ([]byte, bool, error) {
+	var out []byte
+	found := false
+	err := callClass(vm, ctx, servicesClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "secureGet", "(Landroid/content/Context;Ljava/lang/String;)[B")
+		obj, err := jni.CallStaticObjectMethod(env, cls, m, jni.Value(ctx), jni.Value(jni.JavaString(env, name)))
+		if err != nil || obj == 0 {
+			return err
+		}
+		found = true
+		out = append([]byte(nil), jni.GetByteArrayElements(env, jni.ByteArray(obj))...)
+		return nil
+	})
+	return out, found, err
+}
+
+// SecureDelete removes the value stored under name.
+func SecureDelete(vm, ctx uintptr, name string) error {
+	return callClass(vm, ctx, servicesClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "secureDelete", "(Landroid/content/Context;Ljava/lang/String;)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(ctx), jni.Value(jni.JavaString(env, name)))
+	})
+}
+
+// requests tracks pending picker and dictation requests by id.
+var (
+	reqMu   sync.Mutex
+	nextReq = 0x4000
+	photos  = map[int]chan Photo{}
+	speech  = map[int]chan Speech{}
+)
+
+func newID() int {
+	reqMu.Lock()
+	defer reqMu.Unlock()
+	nextReq = (nextReq + 1) & 0xffff // request codes must fit 16 bits
+	if nextReq < 0x4000 {
+		nextReq = 0x4000
+	}
+	return nextReq
+}
+
+// PickPhoto opens the photo picker (or the camera) and returns a
+// channel receiving the result. Call it on the main thread.
+func PickPhoto(vm, ctx, view uintptr, maxSide int, camera bool) (<-chan Photo, error) {
+	id := newID()
+	ch := make(chan Photo, 1)
+	reqMu.Lock()
+	photos[id] = ch
+	reqMu.Unlock()
+	err := callClass(vm, ctx, pickerClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "pickPhoto", "(Landroid/view/View;IIZ)V")
+		c := 0
+		if camera {
+			c = 1
+		}
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(view), jni.Value(id), jni.Value(maxSide), jni.Value(c))
+	})
+	if err != nil {
+		reqMu.Lock()
+		delete(photos, id)
+		reqMu.Unlock()
+		return nil, err
+	}
+	return ch, nil
+}
+
+// Dictate starts speech recognition and returns its id and a channel
+// receiving partial and final results. Call it on the main thread.
+func Dictate(vm, ctx, view uintptr, lang string) (int, <-chan Speech, error) {
+	id := newID()
+	ch := make(chan Speech, 16)
+	reqMu.Lock()
+	speech[id] = ch
+	reqMu.Unlock()
+	err := callClass(vm, ctx, pickerClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "dictate", "(Landroid/view/View;ILjava/lang/String;)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(view), jni.Value(id), jni.Value(jni.JavaString(env, lang)))
+	})
+	if err != nil {
+		reqMu.Lock()
+		delete(speech, id)
+		reqMu.Unlock()
+		return 0, nil, err
+	}
+	return id, ch, nil
+}
+
+// StopDictation ends recognition early; the final result follows.
+// Call it on the main thread.
+func StopDictation(vm, ctx uintptr, id int) error {
+	return callClass(vm, ctx, pickerClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "stopDictation", "(I)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(id))
+	})
+}
+
+// goString converts a Java string; cgo maps JNI references to
+// uintptr.
+func goString(env jni.Env, s C.jstring) string {
+	return jni.GoString(env, jni.String(s))
+}
+
+//export Java_org_giode_mobile_picker_1android_onPhoto
+func Java_org_giode_mobile_picker_1android_onPhoto(cenv *C.JNIEnv, cls C.jclass, id C.jint, jpeg C.jbyteArray, name, errStr C.jstring) {
+	env := jni.EnvFor(uintptr(unsafe.Pointer(cenv)))
+	reqMu.Lock()
+	ch := photos[int(id)]
+	delete(photos, int(id))
+	reqMu.Unlock()
+	if ch == nil {
+		return
+	}
+	var p Photo
+	switch msg := goString(env, errStr); {
+	case msg != "":
+		p.Err = errors.New(msg)
+	case jpeg == 0:
+		p.Err = ErrCanceled
+	default:
+		p.JPEG = append([]byte(nil), jni.GetByteArrayElements(env, jni.ByteArray(jpeg))...)
+		p.Name = goString(env, name)
+	}
+	ch <- p
+}
+
+//export Java_org_giode_mobile_picker_1android_onSpeech
+func Java_org_giode_mobile_picker_1android_onSpeech(cenv *C.JNIEnv, cls C.jclass, id C.jint, text C.jstring, done C.jboolean, errStr C.jstring) {
+	env := jni.EnvFor(uintptr(unsafe.Pointer(cenv)))
+	reqMu.Lock()
+	ch := speech[int(id)]
+	if done != 0 {
+		delete(speech, int(id))
+	}
+	reqMu.Unlock()
+	if ch == nil {
+		return
+	}
+	s := Speech{Text: goString(env, text), Done: done != 0}
+	if msg := goString(env, errStr); msg != "" {
+		s.Err = errors.New(msg)
+	}
+	select {
+	case ch <- s:
+	default: // a slow reader misses partial results, never the final one
+		if s.Done {
+			go func() { ch <- s }()
+		}
+	}
 }

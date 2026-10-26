@@ -39,6 +39,10 @@ card := giode.Pressable(func(s giode.PressState) giode.Element {
 | `Source` | `ClickPointer`, `ClickKeyboard`, `ClickProgrammatic` |
 | `Position` | where the pointer was, relative to the pressable |
 
+`OnLongPress(fn)` handles a touch held still on the element for half a second (the touch
+screen's way to open context actions; the release that follows isn't a click). With a
+mouse, use `OnSecondaryClick`. `Styles(st)` replaces the box styles from the next frame.
+
 `OnClick` sees every click; `OnDoubleClick` and `OnSecondaryClick` run in addition for
 those kinds.
 

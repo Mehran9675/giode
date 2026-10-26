@@ -52,8 +52,9 @@ func (f ShareFile) mimeType() string {
 // files to other apps), which needs Android 10 or later.
 //
 // On desktops, ShareText copies the text to the clipboard and
-// ShareFile shows the file in the file manager. Elsewhere Share
-// returns ErrNotSupported.
+// ShareFile shows the file in the file manager. On iOS it opens the
+// share sheet (a popover on iPad). On the web Share returns
+// ErrNotSupported.
 //
 // Share can take a while for a large file, so call it from a
 // goroutine rather than a click handler.

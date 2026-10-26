@@ -26,6 +26,21 @@ giode.Box(giode.Styles{Height: 300}, scroller)
 | `AtBottom() bool` | Whether the scroll is at (or past) its maximum offset - also true when the content already fits the viewport. |
 | `Visible(top, height int) bool` | Whether the vertical range `[top, top+height)` - in the content's own coordinate space, e.g. a running offset tracked while building a long list - is at least partially within the current viewport. |
 | `OnReachBottom(fn func()) *Scroll` | Handler fired once when the scroll reaches its maximum offset (edge-triggered - fires again only after scrolling away and back). |
+| `Anchor(a ScrollAnchor) *Scroll` | `AnchorBottom` keeps a scroll that's at the bottom there as content grows (a chat following a streaming reply), stops once the user scrolls up, and resumes when they scroll back down. It starts at the bottom. |
+| `ScrollToBottom()` | Scrolls to the end, and resumes following with `AnchorBottom`. |
+| `FitContent(on bool) *Scroll` | The viewport hugs the content up to the available space instead of filling it - a sheet with three rows stays three rows tall. |
+| `Axis(a ScrollAxis) *Scroll` | `Vertical` (default), `Horizontal`, or `Vertical\|Horizontal`. A horizontal-only scroll is as tall as its content, like a row - for wide code and tables. |
+| `OffsetX() float32` / `ScrollToX(v float32)` | The horizontal offset. |
+| `OnScroll(fn func(offset, max float32)) *Scroll` | Called after the offset changes, with the offset and its maximum in px (horizontal ones for a horizontal-only scroll). |
+| `Styles(st Styles) *Scroll` | Replaces the styles from the next frame. |
+
+```go
+chat := giode.Scroll(messages).Anchor(giode.AnchorBottom)
+code := giode.Scroll(codeBlock).Axis(giode.Horizontal)
+```
+
+Scrolls nest by axis: a horizontal code block inside a vertical chat scrolls sideways
+with a sideways drag and passes vertical drags and the mouse wheel on to the chat.
 
 ## Detecting scroll position
 

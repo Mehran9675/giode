@@ -26,6 +26,13 @@ giode.Stack(giode.Styles{}, name)
 | `SetText(s string)` | Replaces the content. |
 | `Submit(fn func(text string))` | Handler for Enter. |
 | `Focus()` | Requests keyboard focus. |
+| `OnFocus(fn func())` / `OnBlur(fn func())` | Called when the field gains or loses focus. |
+| `Multiline(on bool)` | Several lines; Enter inserts a newline. |
+| `Lines(min, max int)` | Multiline, growing with the content from `min` to `max` lines, then scrolling; `max` 0 means no limit. |
+| `SubmitOn(m SubmitMode)` | `SubmitDefault` (Enter submits a single-line field), `SubmitEnter`, `SubmitEnterUnlessShift` (Enter sends, Shift+Enter inserts a newline; on a touch screen the on-screen Enter key inserts a newline, since phone apps send with a button), `SubmitNever`. |
+| `SelectAll()` | Selects the whole content. |
+| `InsertText(s string)` | Inserts at the caret (replacing the selection) and calls OnChange, as typing would. |
+| `Placeholder(s string)` / `Styles(st Styles)` | Replace the placeholder or styles from the next frame, keeping the text and focus. |
 | `Password(on bool)` | Masks the content and asks for the password keyboard. |
 | `Keyboard(k Keyboard)` | On-screen keyboard on touch devices: `KeyboardText` (default), `KeyboardNumeric`, `KeyboardEmail`, `KeyboardURL`, `KeyboardPhone`. |
 

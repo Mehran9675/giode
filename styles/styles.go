@@ -71,6 +71,9 @@ type Styles struct {
 	LineHeight properties.LineHeight
 	// MaxLines truncates text after the given number of lines.
 	MaxLines properties.MaxLines
+	// TabWidth is the distance between tab stops in text, in columns
+	// (default 4).
+	TabWidth properties.TabWidth
 	// Cursor is the cursor shown while hovering.
 	Cursor properties.Cursor
 	// Fit controls how images scale into their box.

@@ -131,8 +131,9 @@ This needs Android 10 or later. The helper is a small Java class shipped as a `.
 `internal/mobile`, which gogio packs into the APK automatically.
 
 On desktops, `ShareText` copies the text to the clipboard and `ShareFile` shows the file in
-the file manager (Explorer, Finder, or the freedesktop file manager on Linux). On iOS and
-the web, `Share` returns `ErrNotSupported` for now. A large file takes a moment to copy, so
+the file manager (Explorer, Finder, or the freedesktop file manager on Linux). On iOS it opens
+the share sheet (`UIActivityViewController`, a popover on iPad) with the file itself; on
+the web `Share` returns `ErrNotSupported`. A large file takes a moment to copy, so
 call `Share` from a goroutine too.
 
 ## Background and foreground
@@ -144,7 +145,9 @@ call `Share` from a goroutine too.
   and end it later without warning, so **`OnBackground` is the last reliable moment to
   save** (a draft, unsent input). Don't rely on `OnShutdown` or `OnBeforeClose` there.
 - **Desktop**: when the window is minimized and restored.
-- **iOS**: not reported yet.
+- **iOS**: when the app enters the background and returns (`UIApplication`
+  notifications). iOS suspends a backgrounded app within seconds, so save here too;
+  `KeepAlive` buys about 30 seconds (see [platform.md](platform.md#staying-awake)).
 
 On Android they run synchronously on the platform's main thread, on desktops on the UI
 goroutine. Keep them short, make any state they touch safe to use from another goroutine
