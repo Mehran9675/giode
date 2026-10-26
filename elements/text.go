@@ -120,7 +120,7 @@ func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
 			label.MaxLines = 1
 		}
 	}
-	str := st.TextTransform.Apply(t.str)
+	str := st.TabWidth.Expand(st.TextTransform.Apply(t.str))
 	dims := label.Layout(gtx, shaper, face, properties.ResolveFontSize(st.FontSize), str, textColor)
 
 	paintDecoration(gtx, dims.Size, st.TextDecoration, col)

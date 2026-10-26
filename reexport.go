@@ -336,6 +336,8 @@ var (
 
 var (
 	HexColor = properties.HexColor
+	// Mix blends two colors in sRGB space, like CSS; see properties.Mix.
+	Mix = properties.Mix
 	// ParseColor validates any CSS color (hex, rgb(), hsl(), named).
 	ParseColor = properties.ParseColor
 	// Linear builds a linear gradient for Styles.BackgroundGradient.
@@ -570,13 +572,15 @@ const (
 	TextAlignCenter = properties.TextAlignCenter
 	TextAlignEnd    = properties.TextAlignEnd
 
-	FontWeightThin      = properties.FontWeightThin
-	FontWeightLight     = properties.FontWeightLight
-	FontWeightNormal    = properties.FontWeightNormal
-	FontWeightMedium    = properties.FontWeightMedium
-	FontWeightBold      = properties.FontWeightBold
-	FontWeightExtraBold = properties.FontWeightExtraBold
-	FontWeightBlack     = properties.FontWeightBlack
+	FontWeightThin       = properties.FontWeightThin
+	FontWeightExtraLight = properties.FontWeightExtraLight
+	FontWeightLight      = properties.FontWeightLight
+	FontWeightNormal     = properties.FontWeightNormal
+	FontWeightMedium     = properties.FontWeightMedium
+	FontWeightSemiBold   = properties.FontWeightSemiBold
+	FontWeightBold       = properties.FontWeightBold
+	FontWeightExtraBold  = properties.FontWeightExtraBold
+	FontWeightBlack      = properties.FontWeightBlack
 
 	FontStyleNormal = properties.FontStyleNormal
 	FontStyleItalic = properties.FontStyleItalic

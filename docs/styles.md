@@ -35,6 +35,15 @@ the 148 CSS named colors (`"rebeccapurple"`) or `"transparent"`. Theme tokens
 unparseable value renders white so a typo is visible — validate input with `ParseColor`.
 Parsed colors are cached.
 
+**Translucent colors.** Gio composites translucent colors in linear light, which is
+physically correct but differs from browsers and design tools, which blend in sRGB. A
+faint overlay comes out much brighter than in CSS: `"#ffffff0d"` (5% white) over
+`"#101115"` renders close to `"#434344"`, where a browser shows about `"#1c1d21"`. For
+tints, hover and pressed shades, use an opaque color mixed in sRGB space instead:
+`giode.Mix("#ffffff", "#101115", 0.05)` returns `"#1C1D21FF"`. `Mix` resolves theme tokens
+when it's called, so call it in the view function (`giode.Mix("theme.text",
+"theme.background", 0.08)`) to follow theme changes.
+
 **Inheritance.** Like CSS, a Box's `Color` is inherited: Text, icons and glyphs inside it
 that set no `Color` of their own use it, and the value `"currentColor"` refers to it
 explicitly. A button's icon therefore follows the label color.
@@ -54,7 +63,7 @@ Styles compose with `Merge(base, overrides...)` or the method form
 | `FlexGrow` | int | ≥0 | Share of spare main-axis space. |
 | `Width` / `Height` | int | `0` hug, `-1` expand, `>0` fixed dp | |
 | `WidthPct` / `HeightPct` | int | 1–100 | Percent of available space; takes precedence over `Width`/`Height`. |
-| `MinWidth` / `MaxWidth` / `MinHeight` / `MaxHeight` | int | dp | Clamp the resolved size. |
+| `MinWidth` / `MaxWidth` / `MinHeight` / `MaxHeight` | int | dp | Clamp the resolved size, including for expanding boxes (`Width: -1`, `FlexGrow`): `Width: -1, MaxWidth: 760` is a column at most 760dp wide, placed by the parent's `Justify`/`Align`. A minimum beats a maximum. |
 | `AspectRatio` | float | w/h | Derives the hugging axis from the resized axis. |
 | `Padding` / `Margin` | Inset | dp per side | `UniformInset(v)`, `SymmetricInset(h, v)` or `giode.Inset{Top, Right, Bottom, Left}`. |
 | `Position` | string | `PositionStatic` (default), `PositionRelative`, `PositionAbsolute` | Absolute removes the element from the flow; see below. |
@@ -87,12 +96,13 @@ Styles compose with `Merge(base, overrides...)` or the method form
 | --- | --- | --- | --- |
 | `Color` | string | any color | Text color; empty resolves to black. |
 | `FontSize` | sp | — | Default 14sp. |
-| `FontWeight` | string | `FontWeightThin` … `FontWeightBlack` | Default normal. |
+| `FontWeight` | string | `FontWeightThin`, `FontWeightExtraLight`, `FontWeightLight`, `FontWeightNormal`, `FontWeightMedium`, `FontWeightSemiBold`, `FontWeightBold`, `FontWeightExtraBold`, `FontWeightBlack`, or the CSS numbers `"100"`…`"900"` | Default normal. Register each weight's face (e.g. Inter SemiBold as `font.SemiBold`) with `RegisterFonts`. |
 | `FontStyle` | string | `FontStyleNormal`, `FontStyleItalic` | |
 | `FontFamily` | string | — | Typeface must exist in the registered fonts. |
 | `TextAlign` | string | `TextAlignStart` (default), `TextAlignCenter`, `TextAlignEnd` | |
 | `LineHeight` | sp | — | Distance between baselines. |
 | `MaxLines` | int | — | Limits the number of lines. |
+| `TabWidth` | int | columns | Distance between tab stops (default 4). Tabs are expanded to spaces, since fonts rarely have a tab glyph; in a monospaced font code lines up exactly. |
 | `TextOverflow` | string | `TextOverflowClip` (default), `TextOverflowEllipsis` | Ends cut-off text with "…"; implies one line without `MaxLines`. |
 | `TextTransform` | string | `TextTransformUppercase`, `TextTransformLowercase`, `TextTransformCapitalize` | |
 | `TextDecoration` | string | `TextDecorationNone` (default), `TextDecorationUnderline`, `TextDecorationLineThrough` | |
