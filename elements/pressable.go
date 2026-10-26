@@ -110,6 +110,7 @@ type Pressable struct {
 	st      styles.Styles
 
 	onClick, onDouble, onSecondary func(ClickEvent)
+	onLongPress                    func(ClickEvent)
 	label                          string
 	cursor                         properties.Cursor
 	disabled                       bool
@@ -125,7 +126,17 @@ type Pressable struct {
 	lastClick    time.Time
 	lastClickPos f32.Point
 	clicks       int
+
+	// pressAt is when the current touch press started, for OnLongPress;
+	// longFired is set once it fired, so the release isn't a click.
+	pressAt   time.Time
+	pressSrc  pointer.Source
+	longFired bool
 }
+
+// LongPressDuration is how long a touch must be held still for
+// OnLongPress.
+const LongPressDuration = 500 * time.Millisecond
 
 // NewPressable returns a Pressable around content. The styles argument
 // is optional and styles a box wrapped around the content: padding,
@@ -156,6 +167,22 @@ func (p *Pressable) OnDoubleClick(fn func(e ClickEvent)) *Pressable {
 // OnClick. It returns p for chaining.
 func (p *Pressable) OnSecondaryClick(fn func(e ClickEvent)) *Pressable {
 	p.onSecondary = fn
+	return p
+}
+
+// OnLongPress sets the handler for a touch held on the element for
+// LongPressDuration without sliding off it - the touch screen's way to
+// open context actions. The release that follows isn't a click. With a
+// mouse, use OnSecondaryClick. It returns p for chaining.
+func (p *Pressable) OnLongPress(fn func(e ClickEvent)) *Pressable {
+	p.onLongPress = fn
+	return p
+}
+
+// Styles replaces the styles of the box around the content, from the
+// next frame. It returns p for chaining.
+func (p *Pressable) Styles(st styles.Styles) *Pressable {
+	p.st = st
 	return p
 }
 
@@ -260,6 +287,12 @@ func (p *Pressable) update(gtx layout.Context) {
 			}
 			p.pressed = true
 			p.pressPos = e.Position
+			p.pressSrc = e.Source
+			p.pressAt = gtx.Now
+			p.longFired = false
+			if e.Source == pointer.Touch && p.onLongPress != nil {
+				kit.RequestFrameAt(gtx, gtx.Now.Add(LongPressDuration))
+			}
 			switch {
 			case e.Buttons.Contain(pointer.ButtonSecondary):
 				p.pressBtn = MouseSecondary
@@ -280,7 +313,7 @@ func (p *Pressable) update(gtx layout.Context) {
 			// touch's Enter/Leave up to date as the finger slides, and
 			// delivers the release before the touch's final Leave, so
 			// this holds for touch as well as the mouse.
-			if !p.hovered {
+			if !p.hovered || p.longFired {
 				break
 			}
 			slop := float32(gtx.Dp(multiClickSlop))
@@ -295,6 +328,18 @@ func (p *Pressable) update(gtx layout.Context) {
 				Clicks: p.clicks, Button: p.pressBtn, Modifiers: e.Modifiers,
 				Source: ClickPointer, Position: e.Position.Round(),
 			})
+		}
+	}
+	if p.pressed && p.pressSrc == pointer.Touch && p.onLongPress != nil && !p.longFired {
+		switch {
+		case !p.hovered:
+			// Slid off: neither a long-press nor a click.
+		case gtx.Now.Sub(p.pressAt) >= LongPressDuration:
+			p.longFired = true
+			changed = true
+			p.onLongPress(ClickEvent{Clicks: 1, Source: ClickPointer, Position: p.pressPos.Round()})
+		default:
+			kit.RequestFrameAt(gtx, p.pressAt.Add(LongPressDuration))
 		}
 	}
 	if p.focusable {
@@ -387,7 +432,7 @@ func (p *Pressable) Layout(gtx layout.Context) layout.Dimensions {
 	if p.hovered || p.pressed || p.focused {
 		kit.MarkLive()
 	}
-	if p.onClick != nil || p.onDouble != nil || p.onSecondary != nil {
+	if p.onClick != nil || p.onDouble != nil || p.onSecondary != nil || p.onLongPress != nil {
 		// Only something that reacts to clicks is a button to
 		// automation; a Pressable used just for hover state isn't.
 		RecordSemantic(gtx, SemanticNode{Kind: SemanticButton, Label: p.label, Disabled: p.disabled, Target: p}, dims.Size)

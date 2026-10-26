@@ -22,6 +22,7 @@ import (
 	"github.com/mehran9675/giode/components/scroll"
 	"github.com/mehran9675/giode/components/slider"
 	"github.com/mehran9675/giode/components/spinner"
+	"github.com/mehran9675/giode/components/swipeable"
 	"github.com/mehran9675/giode/components/tabs"
 	"github.com/mehran9675/giode/components/title"
 	"github.com/mehran9675/giode/components/titlebar"
@@ -219,9 +220,12 @@ var (
 	IconButton = iconbutton.New
 	Tabs       = tabs.New
 	Scroll     = scroll.New
-	Drawer     = drawer.New
-	Dialog     = dialog.New
-	Menu       = menu.New
+	// Swipeable makes a row reveal actions when swiped sideways; see
+	// swipeable.New.
+	Swipeable = swipeable.New
+	Drawer    = drawer.New
+	Dialog    = dialog.New
+	Menu      = menu.New
 
 	Progress   = progress.Progress
 	Spinner    = spinner.Spinner
@@ -275,6 +279,35 @@ const (
 	SheetCompact = dropdown.SheetCompact
 	SheetAlways  = dropdown.SheetAlways
 )
+
+// ScrollAxis selects the directions a Scroll scrolls in, and
+// ScrollAnchor where it keeps growing content; see scroll.Scroll.Axis
+// and Anchor.
+type (
+	ScrollAxis   = scroll.Axis
+	ScrollAnchor = scroll.Anchor
+)
+
+const (
+	Vertical     = scroll.Vertical
+	Horizontal   = scroll.Horizontal
+	AnchorTop    = scroll.AnchorTop
+	AnchorBottom = scroll.AnchorBottom
+)
+
+// SubmitMode selects which keys submit an Input; see
+// input.Input.SubmitOn.
+type SubmitMode = input.SubmitMode
+
+const (
+	SubmitDefault          = input.SubmitDefault
+	SubmitEnter            = input.SubmitEnter
+	SubmitEnterUnlessShift = input.SubmitEnterUnlessShift
+	SubmitNever            = input.SubmitNever
+)
+
+// SwipeAction is a button revealed behind a Swipeable row.
+type SwipeAction = swipeable.Action
 
 // Keyboard selects the on-screen keyboard for Input.Text fields; see
 // input.Input.Keyboard.

@@ -273,7 +273,7 @@ func (r *renderer) codeBlock(n gast.Node, lang string) elements.Element {
 	return elements.Stack(styles.Styles{
 		Width: -1, Background: r.o.CodeBackground, BorderRadius: 8,
 		Padding: properties.Inset{Top: 6, Right: 10, Bottom: 10, Left: 12}, Gap: 4,
-	}, header, codeScroll(body))
+	}, header, sideways("code\x00"+code, body))
 }
 
 // list renders a bulleted, numbered or task list.
@@ -352,5 +352,5 @@ func (r *renderer) table(t *east.Table) elements.Element {
 			rows = append(rows, elements.TableRow(styles.Styles{}, cells...))
 		}
 	}
-	return tableScroll(elements.Table(styles.Styles{BorderWidth: 1, BorderColor: "theme.border", BorderRadius: 6}, rows...))
+	return sideways("table\x00"+string(t.Text(r.src)), elements.Table(styles.Styles{BorderWidth: 1, BorderColor: "theme.border", BorderRadius: 6}, rows...))
 }

@@ -4,6 +4,8 @@ package scroll
 import (
 	"image"
 
+	"gioui.org/f32"
+
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
@@ -42,6 +44,116 @@ type Scroll struct {
 	onReachBottom func()
 	wasAtBottom   bool
 	pxPerDp       float32
+
+	axis Axis
+	// Horizontal scrolling: offset, sizes and scrollbar.
+	offsetX   float32
+	scrollX   gesture.Scroll
+	contentW  int
+	viewportW int
+	barX      kit.Scrollbar
+
+	anchor Anchor
+	// following is set while an AnchorBottom scroll keeps to the
+	// bottom: until the user scrolls away from it.
+	following bool
+	fit       bool
+	onScroll  func(offset, max float32)
+	lastOff   [2]float32
+	measured  bool
+}
+
+// Axis selects the directions a Scroll scrolls in.
+type Axis int
+
+const (
+	// Vertical scrolls up and down (the default).
+	Vertical Axis = 1 << iota
+	// Horizontal scrolls sideways, for wide code or tables.
+	Horizontal
+)
+
+// Anchor selects where a Scroll keeps its content when it grows.
+type Anchor int
+
+const (
+	// AnchorTop keeps the offset when content is added (the default).
+	AnchorTop Anchor = iota
+	// AnchorBottom keeps a scroll that's at the bottom there as its
+	// content grows - a chat following a reply as it streams in - and
+	// stops following once the user scrolls up, until they scroll
+	// back to the bottom. It starts at the bottom.
+	AnchorBottom
+)
+
+// Axis sets the directions the content scrolls in: Vertical (the
+// default), Horizontal, or Vertical|Horizontal. Along a scrolling
+// axis the content gets unlimited room; along the other it gets the
+// viewport's size. It returns s for chaining.
+func (s *Scroll) Axis(a Axis) *Scroll {
+	s.axis = a
+	return s
+}
+
+// Anchor sets where the content stays as it grows; see AnchorBottom.
+// It returns s for chaining.
+func (s *Scroll) Anchor(a Anchor) *Scroll {
+	s.anchor = a
+	s.following = a == AnchorBottom
+	return s
+}
+
+// FitContent makes the viewport only as tall (or, scrolling
+// horizontally, as wide) as the content, up to the available space,
+// instead of always filling it: a sheet with three rows stays three
+// rows tall and scrolls once the content outgrows the screen. It
+// returns s for chaining.
+func (s *Scroll) FitContent(on bool) *Scroll {
+	s.fit = on
+	return s
+}
+
+// OnScroll sets a handler called after the offset changes - by the
+// user, ScrollTo or an anchor - with the vertical offset and its
+// maximum in pixels (the horizontal ones for a Horizontal-only
+// scroll). It returns s for chaining.
+func (s *Scroll) OnScroll(fn func(offset, max float32)) *Scroll {
+	s.onScroll = fn
+	return s
+}
+
+// Styles replaces the styles, from the next frame. It returns s for
+// chaining.
+func (s *Scroll) Styles(st styles.Styles) *Scroll {
+	s.st = st
+	return s
+}
+
+// OffsetX returns the horizontal offset in pixels.
+func (s *Scroll) OffsetX() float32 {
+	return s.offsetX
+}
+
+// ScrollToX sets the horizontal offset in pixels.
+func (s *Scroll) ScrollToX(v float32) {
+	s.offsetX = v
+}
+
+// ScrollToBottom scrolls to the end of the content, and resumes
+// following it with AnchorBottom.
+func (s *Scroll) ScrollToBottom() {
+	s.offset = unbounded
+	if s.anchor == AnchorBottom {
+		s.following = true
+	}
+}
+
+func (s *Scroll) vertical() bool   { return s.axis == 0 || s.axis&Vertical != 0 }
+func (s *Scroll) horizontal() bool { return s.axis&Horizontal != 0 }
+
+// maxOffsetX returns the largest valid horizontal offset.
+func (s *Scroll) maxOffsetX() int {
+	return max(0, s.contentW-s.viewportW)
 }
 
 // New returns a Scroll around content, rebuilt fresh every frame. The
@@ -168,21 +280,59 @@ func (s *Scroll) clamp(v float32) float32 {
 
 // Layout lays out the scrollable content.
 func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
-	viewport := gtx.Constraints.Constrain(image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y))
-	gtx.Constraints = layout.Exact(viewport)
-	s.viewportH = viewport.Y
 	s.pxPerDp = gtx.Metric.PxPerDp
+	vert, horiz := s.vertical(), s.horizontal()
 
-	// Lay the content out with unbounded height.
-	macro := op.Record(gtx.Ops)
+	// Lay the content out with unlimited room along the scrolling
+	// axes.
 	cgtx := gtx
-	cgtx.Constraints.Min.Y = 0
-	cgtx.Constraints.Max.Y = unbounded
+	if vert {
+		cgtx.Constraints.Min.Y = 0
+		cgtx.Constraints.Max.Y = unbounded
+	}
+	if horiz {
+		cgtx.Constraints.Min.X = 0
+		cgtx.Constraints.Max.X = unbounded
+	} else if !s.fit || vert {
+		cgtx.Constraints.Min.X = gtx.Constraints.Max.X
+	}
+	macro := op.Record(gtx.Ops)
 	track := elements.TrackChild()
 	dims := s.content().Layout(cgtx)
 	track.End()
 	contentOps := macro.Stop()
-	s.contentH = dims.Size.Y
+
+	// The viewport fills the space, or with FitContent hugs the
+	// content up to it.
+	viewport := gtx.Constraints.Max
+	if s.fit && vert {
+		viewport.Y = dims.Size.Y
+	}
+	if s.fit && horiz {
+		viewport.X = dims.Size.X
+	}
+	if !vert {
+		// Scrolling only sideways, it's as tall as its content, like a
+		// row.
+		viewport.Y = dims.Size.Y
+	}
+	viewport = gtx.Constraints.Constrain(viewport)
+	if !s.measured {
+		s.measured = true
+		s.following = s.anchor == AnchorBottom
+	}
+	follow := s.following
+	s.contentH, s.viewportH = dims.Size.Y, viewport.Y
+	s.contentW, s.viewportW = dims.Size.X, viewport.X
+	if !vert {
+		s.contentH = viewport.Y
+	}
+	if !horiz {
+		s.contentW = viewport.X
+	}
+	if follow {
+		s.offset = float32(s.maxOffset())
+	}
 
 	// Wheel and touch scrolling. The scroll region covers the
 	// viewport and must be registered below the content so
@@ -192,25 +342,46 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	// window's whole-window drag area - see slider.Layout's identical
 	// comment.
 	kit.BlockDragHere(gtx)
-	s.scroll.Add(gtx.Ops)
+	if vert {
+		s.scroll.Add(gtx.Ops)
+	}
+	if horiz {
+		// A gesture per axis: a drag scrolls along whichever axis it
+		// moves in first, and a nested scroll on the other axis (code
+		// inside a chat) passes the rest on.
+		s.scrollX.Add(gtx.Ops)
+	}
 
-	// Clamp the offset to the content.
+	// Clamp the offsets to the content.
 	s.offset = s.clamp(s.offset)
+	s.offsetX = max(0, min(s.offsetX, float32(s.maxOffsetX())))
 
 	// The ranges accept any scroll distance that stays within the
 	// content.
-	scrollY := pointer.ScrollRange{
-		Min: -int(s.offset),
-		Max: s.maxOffset() - int(s.offset),
+	var dist, distX int
+	if vert {
+		rangeY := pointer.ScrollRange{Min: -int(s.offset), Max: s.maxOffset() - int(s.offset)}
+		dist = s.scroll.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Vertical, pointer.ScrollRange{}, rangeY)
+		if dist != 0 {
+			s.offset = s.clamp(s.offset + float32(dist))
+		}
 	}
-	dist := s.scroll.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Vertical, pointer.ScrollRange{}, scrollY)
-	if dist != 0 {
-		s.offset = s.clamp(s.offset + float32(dist))
+	if horiz {
+		rangeX := pointer.ScrollRange{Min: -int(s.offsetX), Max: s.maxOffsetX() - int(s.offsetX)}
+		distX = s.scrollX.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Horizontal, rangeX, pointer.ScrollRange{})
+		if distX != 0 {
+			s.offsetX = max(0, min(s.offsetX+float32(distX), float32(s.maxOffsetX())))
+		}
 	}
-	if dist != 0 || s.scroll.State() != gesture.StateIdle {
+	if dist != 0 || distX != 0 || s.scroll.State() != gesture.StateIdle || s.scrollX.State() != gesture.StateIdle {
 		// Flings keep scrolling between input events; cached
 		// ancestors must keep laying the content out.
 		kit.MarkLive()
+	}
+	if s.anchor == AnchorBottom && (dist != 0 || s.bar.Dragging()) {
+		// The user scrolled: follow the content again only once they're
+		// back at the bottom.
+		s.following = s.AtBottom()
 	}
 
 	atBottom := s.AtBottom()
@@ -225,13 +396,50 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	// The content was laid out before the offset was final: move what
 	// it registered (dropdown anchors, semantic nodes) with it.
-	track.Place(image.Pt(0, -int(s.offset)))
-	off := op.Offset(image.Pt(0, -int(s.offset))).Push(gtx.Ops)
+	off := image.Pt(-int(s.offsetX), -int(s.offset))
+	track.Place(off)
+	offOp := op.Offset(off).Push(gtx.Ops)
 	contentOps.Add(gtx.Ops)
-	off.Pop()
+	offOp.Pop()
 
-	s.layoutScrollbar(gtx, viewport)
+	if vert {
+		s.layoutScrollbar(gtx, viewport)
+	}
+	if horiz {
+		s.layoutScrollbarX(gtx, viewport)
+	}
+	if s.anchor == AnchorBottom && s.bar.Dragging() {
+		s.following = s.AtBottom()
+	}
+	s.notify()
 	return layout.Dimensions{Size: viewport}
+}
+
+// notify calls OnScroll when an offset changed since the last call.
+func (s *Scroll) notify() {
+	cur := [2]float32{s.offset, s.offsetX}
+	if cur == s.lastOff {
+		return
+	}
+	s.lastOff = cur
+	if s.onScroll == nil {
+		return
+	}
+	if s.vertical() {
+		s.onScroll(s.offset, float32(s.maxOffset()))
+	} else {
+		s.onScroll(s.offsetX, float32(s.maxOffsetX()))
+	}
+}
+
+// layoutScrollbarX draws the horizontal scrollbar along the bottom
+// edge: the vertical one, with the axes swapped.
+func (s *Scroll) layoutScrollbarX(gtx layout.Context, viewport image.Point) {
+	swap := f32.NewAffine2D(0, 1, 0, 1, 0, 0)
+	defer op.Affine(swap).Push(gtx.Ops).Pop()
+	sgtx := gtx
+	sgtx.Constraints = layout.Exact(image.Pt(viewport.Y, viewport.X))
+	s.barX.Layout(sgtx, image.Pt(viewport.Y, viewport.X), s.contentW, &s.offsetX, s.st.ScrollBar)
 }
 
 // layoutScrollbar draws the track and draggable thumb when the

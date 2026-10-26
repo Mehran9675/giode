@@ -31,6 +31,7 @@ stateless elements.
 | AppShell | [appshell.md](appshell.md) | stateless (Section wraps Scroll) |
 | Accordion | [accordion.md](accordion.md) | expanded sections |
 | Pagination | [pagination.md](pagination.md) | current page |
+| Swipeable | [swipeable.md](swipeable.md) | offset, open side |
 | Table | [table.md](table.md) | stateless |
 
 Common patterns:

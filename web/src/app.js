@@ -56,6 +56,7 @@ const NAV = [
 			{ path: "components/image", label: "Image" },
 			{ path: "components/icons", label: "Icons" },
 			{ path: "components/title", label: "Title" },
+			{ path: "components/swipeable", label: "Swipeable" },
 		],
 	},
 ];

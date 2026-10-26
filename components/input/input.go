@@ -46,6 +46,25 @@ func (k Keyboard) hint() key.InputHint {
 	return key.HintAny
 }
 
+// SubmitMode selects which key presses submit a field.
+type SubmitMode int
+
+const (
+	// SubmitDefault submits on Enter in a single-line field; a
+	// multiline field inserts a newline and never submits.
+	SubmitDefault SubmitMode = iota
+	// SubmitEnter submits on Enter, also in a multiline field.
+	SubmitEnter
+	// SubmitEnterUnlessShift submits on Enter and inserts a newline on
+	// Shift+Enter, as chat composers do. On a touch screen the
+	// on-screen keyboard's Enter key inserts a newline instead, since
+	// phone apps send with a button.
+	SubmitEnterUnlessShift
+	// SubmitNever never submits; Enter inserts a newline in a
+	// multiline field.
+	SubmitNever
+)
+
 // Input is a stateful text field, single-line by default. Create it
 // once with New and lay it out every frame.
 type Input struct {
@@ -58,6 +77,11 @@ type Input struct {
 	onChange     func(text string)
 	requestFocus bool
 	focused      bool
+	submitOn     SubmitMode
+	minLines     int
+	maxLines     int
+	onFocus      func()
+	onBlur       func()
 	// tap is the event tag for presses anywhere on the field, padding
 	// and border included, which focus the editor.
 	tap int
@@ -129,11 +153,82 @@ func (i *Input) updateHint() {
 }
 
 // Multiline lets the field hold several lines; Enter inserts a newline
-// instead of submitting. It returns i for chaining.
+// instead of submitting (see SubmitOn). It returns i for chaining.
 func (i *Input) Multiline(on bool) *Input {
 	i.editor.SingleLine = !on
 	i.editor.Submit = !on
 	return i
+}
+
+// SubmitOn selects which key presses call the Submit handler; see
+// SubmitMode. It returns i for chaining.
+func (i *Input) SubmitOn(m SubmitMode) *Input {
+	i.submitOn = m
+	return i
+}
+
+// Lines makes a multiline field grow with its content from min to max
+// lines, then scroll; 0 for max means no limit. It also turns
+// Multiline on. It returns i for chaining.
+func (i *Input) Lines(min, max int) *Input {
+	i.minLines, i.maxLines = min, max
+	return i.Multiline(true)
+}
+
+// OnFocus sets a handler called when the field gains keyboard focus.
+// It returns i for chaining.
+func (i *Input) OnFocus(fn func()) *Input {
+	i.onFocus = fn
+	return i
+}
+
+// OnBlur sets a handler called when the field loses keyboard focus.
+// It returns i for chaining.
+func (i *Input) OnBlur(fn func()) *Input {
+	i.onBlur = fn
+	return i
+}
+
+// Placeholder replaces the text shown while the field is empty. It
+// returns i for chaining.
+func (i *Input) Placeholder(s string) *Input {
+	i.placeholder = s
+	return i
+}
+
+// Styles replaces the field's styles, from the next frame, keeping its
+// text and focus. It returns i for chaining.
+func (i *Input) Styles(st styles.Styles) *Input {
+	i.st = st
+	return i
+}
+
+// SelectAll selects the whole content.
+func (i *Input) SelectAll() {
+	i.editor.SetCaret(i.editor.Len(), 0)
+}
+
+// InsertText replaces the selection (or inserts at the caret) with s
+// and invokes OnChange, as typing would.
+func (i *Input) InsertText(s string) {
+	i.editor.Insert(s)
+	if i.onChange != nil {
+		i.onChange(i.editor.Text())
+	}
+}
+
+// applySubmit sets the editor's submit behavior for this frame.
+func (i *Input) applySubmit() {
+	switch i.submitOn {
+	case SubmitEnter:
+		i.editor.Submit = true
+	case SubmitEnterUnlessShift:
+		i.editor.Submit = !elements.TouchInput()
+	case SubmitNever:
+		i.editor.Submit = false
+	default:
+		i.editor.Submit = i.editor.SingleLine
+	}
 }
 
 // ReadOnly makes the content selectable but not editable. It returns i
@@ -204,6 +299,7 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 			}
 		}
 	}
+	i.applySubmit()
 	for {
 		ev, ok := i.editor.Update(gtx)
 		if !ok {
@@ -222,7 +318,16 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 			}
 		}
 	}
-	i.focused = gtx.Source.Focused(&i.editor)
+	focused := gtx.Source.Focused(&i.editor)
+	if focused != i.focused {
+		if focused && i.onFocus != nil {
+			i.onFocus()
+		}
+		if !focused && i.onBlur != nil {
+			i.onBlur()
+		}
+	}
+	i.focused = focused
 	if i.focused {
 		// A focused field receives key events and blinks its caret, so
 		// cached ancestors must keep laying it out.

@@ -8,7 +8,9 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
+	"github.com/mehran9675/giode/components/scroll"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
@@ -40,6 +42,22 @@ func quote(content elements.Element) elements.Element {
 	})
 }
 
-// codeScroll and tableScroll hold wide code and tables.
-func codeScroll(el elements.Element) elements.Element  { return el }
-func tableScroll(el elements.Element) elements.Element { return el }
+// hscroll is a horizontal scroll kept across frames for one code block
+// or table; el is what it shows this frame.
+type hscroll struct {
+	s  *scroll.Scroll
+	el elements.Element
+}
+
+// sideways lets el scroll horizontally when it's wider than the
+// space, as code and tables are on a phone, instead of wrapping or
+// squeezing. key identifies the block across frames.
+func sideways(key string, el elements.Element) elements.Element {
+	h := elements.Keyed("giode.markdown.scroll", key, func() *hscroll {
+		h := &hscroll{}
+		h.s = scroll.New(func() elements.Element { return h.el }, styles.Styles{ScrollBar: properties.ScrollBar{Width: 4}}).Axis(scroll.Horizontal)
+		return h
+	})
+	h.el = el
+	return h.s
+}
