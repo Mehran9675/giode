@@ -56,3 +56,18 @@ jobs:
         with:
           name: showcase-apk
           path: showcase.apk
+
+  ios:
+    # Builds the showcase for the iOS simulator, compiling giode's
+    # Objective-C (share sheet, lifecycle, haptics, photo picker,
+    # Keychain) with the real SDK.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install gogio
+        run: go install gioui.org/cmd/gogio@v0.10.3
+      - name: Build the showcase for the simulator
+        run: gogio -target ios -arch arm64 -appid org.giode.showcase -o showcase.app ./examples/showcase

@@ -23,6 +23,7 @@ const NAV = [
 		items: [
 			{ path: "window", label: "Window configuration" },
 			{ path: "mobile", label: "Mobile (Android)" },
+			{ path: "platform", label: "Platform services" },
 			{ path: "elements", label: "Elements" },
 			{ path: "styles", label: "Style properties" },
 			{ path: "routing", label: "Routing" },

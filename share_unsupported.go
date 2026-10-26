@@ -1,4 +1,4 @@
-//go:build ios || js
+//go:build js
 
 package giode
 

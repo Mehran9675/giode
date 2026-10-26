@@ -110,7 +110,8 @@ type Config struct {
 	// freeze or end the app afterwards without warning. It runs
 	// synchronously on the platform's main thread (Android) or the UI
 	// goroutine (desktop): keep it short, and don't wait on the UI
-	// (RunOnUI) from it. Not reported on iOS yet.
+	// (RunOnUI) from it. On iOS it runs on UIApplication's
+	// background notification.
 	OnBackground func()
 	// OnForeground runs when the app comes back after OnBackground,
 	// on the same goroutine.
