@@ -88,7 +88,59 @@ giode.Text("Hello", giode.Styles{Color: "#fff", FontSize: 18})
 ```
 
 The styles argument is optional. Supports text alignment, weight, style, family,
-line-height, max-lines and decoration.
+line-height, max-lines, tab width and decoration.
+
+### Selectable text
+
+```go
+giode.Text(reply, styles).Selectable(msg.ID)
+```
+
+`Selectable(key)` lets the user select and copy the text. With a mouse: drag to select,
+double-click for a word, Ctrl+C (Cmd+C) to copy, or right-click to select it all and get a
+Copy button. On a touch screen: long-press to select it all and get a Copy button; dragging
+over the text still scrolls whatever it's in. `key` identifies the text across frames (a
+message ID), since `Text` is rebuilt every frame and the selection has to live somewhere.
+
+## RichText
+
+One wrapping paragraph of differently styled runs:
+
+```go
+giode.RichText(giode.Styles{FontSize: 15, LineHeight: 22},
+	giode.Span("Run "),
+	giode.Span("go test", giode.Styles{FontFamily: "JetBrains Mono", Background: "theme.surface"}),
+	giode.Span(" or read the "),
+	giode.Link("docs", "https://gioui.org"),
+).OnLink(func(url string) { ... })
+```
+
+The paragraph's styles (`Color`, `FontSize`, `FontWeight`, `FontStyle`, `FontFamily`) are
+the defaults each span inherits; `TextAlign`, `LineHeight` and `TabWidth` apply to the
+paragraph. A span can also set `TextDecoration` (underline, line-through) and
+`Background`, a rounded highlight behind it as for inline code. `Link` is underlined in
+`theme.primary`; tapping it calls `OnLink`, or opens the URL in the browser when no
+handler is set.
+
+`Selectable(key)` works as for `Text`, except that the whole paragraph is selected and
+copied at once: selecting part of a rich paragraph isn't supported.
+
+## Markdown
+
+```go
+giode.Markdown(reply, giode.MarkdownOptions{
+	Styles:     giode.Styles{FontSize: 15, LineHeight: 22},
+	CodeFont:   "JetBrains Mono",
+	OnLink:     openURL,
+	Selectable: msg.ID,
+})
+```
+
+Renders CommonMark with the GitHub extensions: headings, paragraphs with bold, italic,
+strikethrough, inline code and links, bulleted, numbered and task lists, block quotes,
+fenced code blocks (with the language and a copy button), tables and rules. Parsing is
+cached per source, so a document laid out every frame is parsed once, and a streaming
+reply only when it changes. Raw HTML is dropped and images show their alt text.
 
 ## Divider
 

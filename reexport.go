@@ -15,6 +15,7 @@ import (
 	"github.com/mehran9675/giode/components/imageutil"
 	"github.com/mehran9675/giode/components/input"
 	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/components/markdown"
 	"github.com/mehran9675/giode/components/menu"
 	"github.com/mehran9675/giode/components/pagination"
 	"github.com/mehran9675/giode/components/progress"
@@ -46,6 +47,13 @@ type BoxShadow = properties.BoxShadow
 type ScrollBar = properties.ScrollBar
 
 type Breakpoint = elements.Breakpoint
+
+// RichTextSpan is one run of a RichText paragraph, made with Span or
+// Link.
+type RichTextSpan = elements.Span
+
+// MarkdownOptions configures Markdown.
+type MarkdownOptions = markdown.Options
 
 type (
 	Corners         = properties.Corners
@@ -150,7 +158,15 @@ var (
 	Text  = elements.Text
 	Raw   = elements.Raw
 
-	Divider    = elements.Divider
+	Divider = elements.Divider
+	// RichText lays out differently styled spans as one wrapping
+	// paragraph; see elements.RichText.
+	RichText = elements.RichText
+	// Span is a run of text in a RichText; Link a tappable one.
+	Span = elements.SpanText
+	Link = elements.Link
+	// Markdown renders Markdown as giode elements; see markdown.New.
+	Markdown   = markdown.New
 	Responsive = elements.Responsive
 	// ActiveBreakpoint returns the name of the breakpoint the innermost
 	// enclosing Responsive matched.
