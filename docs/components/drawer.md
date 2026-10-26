@@ -13,9 +13,12 @@ drawer := giode.Drawer(open, giode.SideLeft, 260, func() giode.Element {
 
 *open = true  // or false
 
-// in the view, last so it renders above the UI:
+// in the view, anywhere: it takes no space and paints over the window
 giode.Stack(giode.Styles{}, page, drawer)
 ```
+
+The drawer takes no space in the layout. While it's open (or sliding), it paints over the
+whole window as an overlay, so it can sit anywhere in the tree.
 
 ## API
 
@@ -23,7 +26,12 @@ giode.Stack(giode.Styles{}, page, drawer)
 | --- | --- |
 | `Drawer(open *bool, side Side, width int, content func() Element, st ...Styles) *Drawer` | Creates the drawer; `side` is `SideLeft` or `SideRight`. |
 | `Opened() bool` | Whether the drawer is open. |
-| `Dismissible(on bool) *Drawer` | Whether the scrim, Back and Escape close it (on by default). |
+| `Dismissible(on bool) *Drawer` | Whether the scrim, Back, Escape and dragging close it (on by default). |
+| `SwipeToOpen(on bool) *Drawer` | Drag from the window edge to open it (off by default). |
+| `Styles(st Styles) *Drawer` | Replaces the panel styles from the next frame. |
 
-Clicking the scrim, pressing Escape or pressing the system Back button (Android) sets
-`*open` to false, unless `Dismissible(false)` was set.
+Clicking the scrim, pressing Escape, pressing the system Back button (Android) or dragging
+the panel toward its edge sets `*open` to false, unless `Dismissible(false)` was set.
+With `SwipeToOpen(true)`, dragging from the drawer's edge of the window opens it; on
+Android with gesture navigation that edge swipe is also the system Back gesture, which is
+why it's off by default.

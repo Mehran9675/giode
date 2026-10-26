@@ -157,19 +157,26 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 }
 
 // applyMinMax clamps the resolved constraints with the min/max size
-// properties.
+// properties. A maximum caps the minimum too: an expanding box (Width
+// -1, or one a flex parent grows) is handed a minimum equal to the
+// space it fills, which would otherwise override MaxWidth - the CSS
+// "width: 100%; max-width: 760px" column. The parent's Justify or
+// Align then places the narrower box. As in CSS, a minimum beats a
+// maximum.
 func applyMinMax(c *layout.Constraints, st styles.Styles) {
+	if st.MaxWidth > 0 {
+		c.Max.X = min(c.Max.X, int(st.MaxWidth))
+		c.Min.X = min(c.Min.X, int(st.MaxWidth))
+	}
+	if st.MaxHeight > 0 {
+		c.Max.Y = min(c.Max.Y, int(st.MaxHeight))
+		c.Min.Y = min(c.Min.Y, int(st.MaxHeight))
+	}
 	if st.MinWidth > 0 && c.Min.X < int(st.MinWidth) {
 		c.Min.X = int(st.MinWidth)
 	}
-	if st.MaxWidth > 0 && c.Max.X > int(st.MaxWidth) {
-		c.Max.X = int(st.MaxWidth)
-	}
 	if st.MinHeight > 0 && c.Min.Y < int(st.MinHeight) {
 		c.Min.Y = int(st.MinHeight)
-	}
-	if st.MaxHeight > 0 && c.Max.Y > int(st.MaxHeight) {
-		c.Max.Y = int(st.MaxHeight)
 	}
 	if c.Max.X < c.Min.X {
 		c.Max.X = c.Min.X
