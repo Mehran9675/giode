@@ -7,13 +7,13 @@ require (
 	gioui.org/x v0.10.2
 	git.wow.st/gmp/jni v0.0.0-20210610011705-34026c7e22d0
 	github.com/godbus/dbus/v5 v5.0.6
+	github.com/yuin/goldmark v1.4.13
 	golang.org/x/sys v0.39.0
 )
 
 require (
 	gioui.org/shader v1.0.9 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
-	github.com/yuin/goldmark v1.4.13 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/image v0.26.0 // indirect

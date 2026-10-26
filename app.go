@@ -44,6 +44,7 @@ func (a *App) Run(view func() Element) error {
 	a.logf(LogLevelInfo, "giode: app started")
 	a.watchLifecycle()
 	ctx, cancel := context.WithCancel(context.Background())
+	a.watchSystemTheme(ctx.Done())
 	if a.mcp != nil {
 		a.mcp.start(ctx, a)
 	}
@@ -99,7 +100,8 @@ func (a *App) runLoop(view func() Element) error {
 			a.handleConfig(e.Config)
 		case app.FrameEvent:
 			a.runUICalls()
-			gtx := app.NewContext(&ops, e)
+			gtx := a.frameContext(&ops, e)
+			a.applyHideKeyboard(gtx)
 			elements.BeginFrame()
 			if a.mcp != nil {
 				elements.BeginSemantics()

@@ -27,6 +27,12 @@ func (f ShareFile) share(ctx context.Context, a *App) error {
 	})
 }
 
+func (a *App) openURL(ctx context.Context, u string) error {
+	return a.onAndroidMain(ctx, func(view uintptr) error {
+		return mobile.OpenURL(app.JavaVM(), app.AppContext(), view, u)
+	})
+}
+
 // onAndroidMain runs fn with the GioView on the Android main thread
 // and waits for it.
 func (a *App) onAndroidMain(ctx context.Context, fn func(view uintptr) error) error {

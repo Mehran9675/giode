@@ -38,3 +38,22 @@ func notify(p *atomic.Pointer[func()]) {
 		(*fn)()
 	}
 }
+
+// ErrCanceled is returned when the user dismisses a picker.
+var ErrCanceled = errors.New("canceled")
+
+// Photo is the result of PickPhoto: a JPEG, its display name, or an
+// error (ErrCanceled when the user backed out).
+type Photo struct {
+	JPEG []byte
+	Name string
+	Err  error
+}
+
+// Speech is one dictation result: partial while Done is false, final
+// when it's true.
+type Speech struct {
+	Text string
+	Done bool
+	Err  error
+}

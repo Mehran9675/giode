@@ -89,6 +89,9 @@ func (a *App) handleConfig(cfg app.Config) {
 	}
 	old := WindowState(a.winState.Swap(int32(s)))
 	focusChanged := a.winFocused.Swap(cfg.Focused) != cfg.Focused
+	if focusChanged && cfg.Focused {
+		a.checkSystemTheme()
+	}
 	if old == s && !focusChanged {
 		return
 	}
