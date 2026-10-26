@@ -62,6 +62,11 @@ func pickExtensions(types []string) []string {
 		case strings.HasSuffix(t, "/*"):
 			exts = append(exts, commonExts[strings.TrimSuffix(t, "/*")]...)
 		case strings.Contains(t, "/"):
+			for ext, kt := range knownTypes {
+				if strings.HasPrefix(kt, t) {
+					exts = append(exts, ext)
+				}
+			}
 			if e, _ := mime.ExtensionsByType(t); len(e) > 0 {
 				exts = append(exts, e...)
 			}
@@ -105,6 +110,38 @@ func (a *App) PickFiles(ctx context.Context, opts PickOptions) ([]PickedFile, er
 	return files, nil
 }
 
+// knownTypes covers common files Go's built-in MIME table lacks; the
+// system table that fills the gap on Linux isn't there on Windows or
+// the phones.
+var knownTypes = map[string]string{
+	".md":       "text/markdown; charset=utf-8",
+	".markdown": "text/markdown; charset=utf-8",
+	".txt":      "text/plain; charset=utf-8",
+	".csv":      "text/csv; charset=utf-8",
+	".heic":     "image/heic",
+	".heif":     "image/heif",
+	".mp3":      "audio/mpeg",
+	".wav":      "audio/wav",
+	".m4a":      "audio/mp4",
+	".ogg":      "audio/ogg",
+	".flac":     "audio/flac",
+	".mp4":      "video/mp4",
+	".mov":      "video/quicktime",
+	".zip":      "application/zip",
+	".docx":     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	".xlsx":     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	".pptx":     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+// typeByExtension returns the MIME type for a file extension, or "".
+func typeByExtension(ext string) string {
+	ext = strings.ToLower(ext)
+	if t, ok := knownTypes[ext]; ok {
+		return t
+	}
+	return mime.TypeByExtension(ext)
+}
+
 // describe fills in what's known about a picked file.
 func describe(f io.ReadCloser) PickedFile {
 	p := PickedFile{ReadCloser: f, Size: -1}
@@ -124,7 +161,7 @@ func describe(f io.ReadCloser) PickedFile {
 			p.Size = s
 		}
 	}
-	if t := mime.TypeByExtension(strings.ToLower(filepath.Ext(p.Name))); t != "" {
+	if t := typeByExtension(filepath.Ext(p.Name)); t != "" {
 		p.MIME = t
 		return p
 	}

@@ -72,4 +72,8 @@ jobs:
       - name: Build the showcase for the simulator
         # gogio builds simulator apps for amd64 only; Xcode cross-compiles
         # them on the arm64 runner.
-        run: gogio -target ios -arch amd64 -appid org.giode.showcase -o showcase.app ./examples/showcase
+        # Go's cgo needs an explicit deployment target for the iOS
+        # runtime, or clang gets -miphoneos-version-min=0.0.
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+        run: gogio -target ios -arch amd64 -minsdk 15 -appid org.giode.showcase -o showcase.app ./examples/showcase
