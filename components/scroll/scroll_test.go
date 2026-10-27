@@ -222,3 +222,38 @@ func TestScroll_Horizontal(t *testing.T) {
 		t.Errorf("OnScroll calls %v, want the last to report 700 of 700", seen)
 	}
 }
+
+func TestScroll_FingerScrollsUpWhileContentGrows(t *testing.T) {
+	h := 400
+	s := New(func() elements.Element { return elements.Box(styles.Styles{Width: -1, Height: properties.Height(h)}) }).Anchor(AnchorBottom)
+	var r input.Router
+	frame := func() {
+		h += 30 // a reply streams in
+		var ops op.Ops
+		s.Layout(layout.Context{Ops: &ops, Source: r.Source(), Constraints: layout.Constraints{Max: image.Pt(200, 200)}})
+		r.Frame(&ops)
+	}
+	touch := func(kind pointer.Kind, y float32) {
+		r.Queue(pointer.Event{Kind: kind, Source: pointer.Touch, Position: f32.Pt(50, y), PointerID: 1})
+		frame()
+	}
+	frame()
+	frame()
+	// A little towards the end first, then down: scrolling up.
+	touch(pointer.Press, 100)
+	touch(pointer.Move, 90)
+	touch(pointer.Move, 85)
+	touch(pointer.Move, 150)
+	off := s.Offset()
+	for i := 0; i < 5; i++ {
+		frame()
+		if s.Offset() != off {
+			t.Fatalf("frame %d: offset %v while the finger rests, want %v", i, s.Offset(), off)
+		}
+	}
+	touch(pointer.Release, 150)
+	frame()
+	if s.Offset() != off {
+		t.Errorf("offset %v after letting go above the bottom, want %v", s.Offset(), off)
+	}
+}

@@ -68,6 +68,7 @@ type List struct {
 
 	offset    float32 // px
 	scroll    gesture.Scroll
+	gest      kit.ScrollGesture
 	bar       kit.Scrollbar
 	viewportH int
 	itemPx    int
@@ -374,6 +375,7 @@ func (l *List) Layout(gtx layout.Context) layout.Dimensions {
 	if dist != 0 {
 		l.offset = l.clamp(l.offset + float32(dist))
 	}
+	l.gest.Track(&l.scroll, dist)
 	if dist != 0 || l.scroll.State() != gesture.StateIdle {
 		kit.MarkLive()
 	}

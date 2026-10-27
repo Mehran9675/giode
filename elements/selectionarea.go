@@ -317,6 +317,10 @@ func (s *selArea) update(gtx layout.Context) bool {
 			}
 		}
 	}
+	if s.pressing && kit.Scrolling() {
+		// A finger resting during a scroll isn't a long-press.
+		s.pressing = false
+	}
 	if s.pressing {
 		if gtx.Now.Sub(s.pressAt) >= longPress {
 			s.pressing = false
@@ -338,6 +342,16 @@ func (s *selArea) abs(p f32.Point) image.Point {
 }
 
 func (s *selArea) pointer(gtx layout.Context, e pointer.Event) {
+	if e.Kind == pointer.Cancel {
+		// Another handler grabbed the pointer - a list scrolling. Gio's
+		// cancel event carries no source, so it ends any gesture.
+		s.pressing, s.dragging = false, false
+		if s.touchSel {
+			s.touchSel = false
+			s.showCopy = !s.empty()
+		}
+		return
+	}
 	if e.Source == pointer.Touch {
 		s.touch(gtx, e)
 		return

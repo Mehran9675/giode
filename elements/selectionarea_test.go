@@ -3,15 +3,19 @@ package elements
 import (
 	"image"
 	"testing"
+	"time"
 
 	"gioui.org/f32"
+	"gioui.org/gesture"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -161,5 +165,74 @@ func TestSelectionArea_TouchLongPress(t *testing.T) {
 	h.frame()
 	if !a.showCopy {
 		t.Error("no Copy action after the long-press")
+	}
+}
+
+// fakeList scrolls its child with a touch drag, as the scrolling
+// components do.
+type fakeList struct {
+	scroll gesture.Scroll
+	gest   kit.ScrollGesture
+	off    int
+	child  Element
+}
+
+func (l *fakeList) Layout(gtx layout.Context) layout.Dimensions {
+	d := l.scroll.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Vertical, pointer.ScrollRange{}, pointer.ScrollRange{Min: -1000, Max: 1000})
+	l.off += d
+	l.gest.Track(&l.scroll, d)
+	defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
+	l.scroll.Add(gtx.Ops)
+	st := op.Offset(image.Pt(0, -l.off)).Push(gtx.Ops)
+	l.child.Layout(gtx)
+	st.Pop()
+	return layout.Dimensions{Size: gtx.Constraints.Max}
+}
+
+func TestSelectionArea_ScrollIsNotALongPress(t *testing.T) {
+	fonts.UseGofont()
+	list := &fakeList{child: Text("one two three four five six seven eight", styles.Styles{FontSize: 20})}
+	h := &selHarness{build: func() Element { return SelectionArea("scrolling", list) }}
+	now := time.Unix(0, 0)
+	frame := func() {
+		BeginFrame()
+		var ops op.Ops
+		gtx := layout.Context{Ops: &ops, Source: h.r.Source(), Now: now, Constraints: layout.Exact(image.Pt(600, 300)), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
+		h.build().Layout(gtx)
+		h.r.Frame(&ops)
+		EndFrame()
+	}
+	touch := func(kind pointer.Kind, y float32) {
+		h.r.Queue(pointer.Event{Kind: kind, Source: pointer.Touch, Position: f32.Pt(30, y), PointerID: 1, Time: now.Sub(time.Unix(0, 0))})
+		frame()
+	}
+	frame()
+	frame()
+	a := area("scrolling")
+
+	// Down, scroll a bit, then rest past the long-press time.
+	touch(pointer.Press, 15)
+	now = now.Add(50 * time.Millisecond)
+	touch(pointer.Move, 10) // the list grabs the pointer
+	now = now.Add(50 * time.Millisecond)
+	touch(pointer.Move, 5)
+	if list.off == 0 {
+		t.Fatal("the list didn't scroll")
+	}
+	for i := 0; i < 4; i++ {
+		now = now.Add(300 * time.Millisecond)
+		frame()
+	}
+	if !a.empty() {
+		t.Errorf("a resting finger mid-scroll selected %q", a.selectedText())
+	}
+	touch(pointer.Release, 5)
+
+	// A real long-press still selects.
+	touch(pointer.Press, 15)
+	now = now.Add(600 * time.Millisecond)
+	frame()
+	if a.empty() {
+		t.Error("a long-press without scrolling selected nothing")
 	}
 }

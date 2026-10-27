@@ -6,7 +6,9 @@ import (
 	"sort"
 	"testing"
 
+	"gioui.org/f32"
 	"gioui.org/io/input"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -248,5 +250,66 @@ func TestLazyList_ScrollToKey(t *testing.T) {
 	keys, top := visible(h.frame())
 	if keys[0] != "500" || top != 0 {
 		t.Errorf("ScrollToKey: first row %s at %d", keys[0], top)
+	}
+}
+
+// touch queues a touch event at y and lays out a frame.
+func (h *harness) touch(kind pointer.Kind, y float32) []elements.SemanticNode {
+	h.r.Queue(pointer.Event{Kind: kind, Source: pointer.Touch, Position: f32.Pt(150, y), PointerID: 1})
+	return h.frame()
+}
+
+func TestLazyList_FingerScrollsUpWhileLastRowGrows(t *testing.T) {
+	m := newModel(100)
+	h := newHarness(m, AnchorBottom, false)
+	h.frame()
+	h.frame()
+	grow := func() { m.heights[99] += 30 }
+
+	// The finger goes down and first moves a little up - towards the
+	// end - then down, scrolling up; the reply keeps streaming.
+	grow()
+	h.touch(pointer.Press, 200)
+	grow()
+	h.touch(pointer.Move, 190) // past the slop: the list grabs
+	grow()
+	h.touch(pointer.Move, 185)
+	if h.l.Following() {
+		t.Fatal("still following once a finger moves the rows")
+	}
+	grow()
+	h.touch(pointer.Move, 260)
+	before, top := visible(h.frame())
+	// Resting, then moving a little, while the last row grows.
+	for i := 0; i < 5; i++ {
+		grow()
+		keys, top2 := visible(h.frame())
+		if keys[0] != before[0] || top2 != top {
+			t.Fatalf("frame %d: view moved to %s at %d, was %s at %d", i, keys[0], top2, before[0], top)
+		}
+	}
+	grow()
+	keys, top2 := visible(h.touch(pointer.Move, 280))
+	if keys[0] != before[0] || top2 != top+20 {
+		t.Errorf("finger moved 20px: %s at %d, want %s at %d", keys[0], top2, before[0], top+20)
+	}
+	grow()
+	h.touch(pointer.Release, 280)
+	h.frame()
+	if h.l.Following() {
+		t.Error("following after letting go above the end")
+	}
+
+	// Dragged back to the end and let go there: following again.
+	h.touch(pointer.Press, 100)
+	h.touch(pointer.Move, 90)
+	h.touch(pointer.Move, -5000)
+	h.touch(pointer.Release, -5000)
+	for i := 0; i < 3; i++ {
+		grow()
+		h.frame()
+	}
+	if !h.l.Following() {
+		t.Error("not following after letting go at the end")
 	}
 }

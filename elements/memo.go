@@ -364,6 +364,7 @@ var (
 // the view; component authors don't need to.
 func BeginFrame() {
 	frameNumber++
+	kit.NextFrame()
 	textrender.Tick()
 	clear(probes)
 	probes = probes[:0]

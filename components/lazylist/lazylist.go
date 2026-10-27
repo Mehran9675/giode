@@ -101,7 +101,10 @@ type List struct {
 	measure int // average measured height, for rows never laid out
 	frame   uint64
 
-	scroll    gesture.Scroll
+	scroll gesture.Scroll
+	gest   kit.ScrollGesture
+	// atBottom is set when the last layout ended at the last row.
+	atBottom  bool
 	bar       kit.Scrollbar
 	barOffset float32
 	contentH  int
@@ -391,7 +394,9 @@ func (l *List) Layout(gtx layout.Context) layout.Dimensions {
 }
 
 // updateScroll returns the wheel and touch scroll distance since the
-// last frame, and stops following the end on a scroll up.
+// last frame. It stops following the end on a scroll up or when a
+// touch drag starts, and follows again when the drag (or its fling)
+// ends at the end.
 func (l *List) updateScroll(gtx layout.Context) int {
 	// The range comes from last frame's estimate; layout clamps the
 	// distance to the content's actual ends.
@@ -403,6 +408,15 @@ func (l *List) updateScroll(gtx layout.Context) int {
 	dist := l.scroll.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Vertical, pointer.ScrollRange{}, rng)
 	if dist < 0 {
 		l.following = false
+	}
+	started, ended := l.gest.Track(&l.scroll, dist)
+	switch {
+	case started:
+		// A finger moves the rows: stop following the end, whichever
+		// way it goes, or a growing last row undoes its movement.
+		l.following = false
+	case ended && l.anchor == AnchorBottom && l.atBottom:
+		l.following = true
 	}
 	l.movedBy += dist
 	return dist
@@ -454,6 +468,7 @@ func (l *List) place(gtx layout.Context, viewport image.Point, gap, overscan int
 			y -= gap
 		}
 		reverse(rows)
+		l.atBottom = true
 		if top := rows[0]; top.idx == 0 && top.y > 0 {
 			// Shorter than the viewport: from the top.
 			shift := -top.y
@@ -495,9 +510,12 @@ func (l *List) place(gtx layout.Context, viewport image.Point, gap, overscan int
 				rows[i].y += shift
 			}
 		}
-		if l.anchor == AnchorBottom {
-			last := rows[len(rows)-1]
-			l.following = last.idx == n-1 && last.y+last.h <= viewport.Y
+		last := rows[len(rows)-1]
+		l.atBottom = last.idx == n-1 && last.y+last.h <= viewport.Y
+		if l.anchor == AnchorBottom && !l.gest.Moving() {
+			// Back at the end: follow it again - but not while a finger
+			// is still moving the rows.
+			l.following = l.atBottom
 		}
 	}
 	// The anchor: the first row whose bottom is in view.
