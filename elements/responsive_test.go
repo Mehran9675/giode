@@ -7,6 +7,8 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+
+	"github.com/mehran9675/giode/components/kit"
 )
 
 func TestResponsive_MaxWidthInDp(t *testing.T) {
@@ -78,5 +80,23 @@ func TestResponsive_DeprecatedWidthInPx(t *testing.T) {
 	r.Layout(layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 3}, Constraints: layout.Constraints{Max: image.Pt(450, 300)}})
 	if picked != "narrow" {
 		t.Errorf("picked %q, want narrow (Width stays in pixels)", picked)
+	}
+}
+
+func TestResponsive_ReportsScreenToScrollbars(t *testing.T) {
+	SetWindowSize(image.Pt(500, 800))
+	defer SetWindowSize(image.Point{})
+	var bp string
+	var w int
+	r := Responsive(Breakpoint{MaxWidth: 600, Name: "compact", View: func() Element {
+		return Raw(func(gtx layout.Context) layout.Dimensions {
+			w, bp = kit.Screen()
+			return layout.Dimensions{}
+		})
+	}})
+	gtx := layout.Context{Ops: new(op.Ops), Constraints: layout.Exact(image.Pt(500, 800)), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
+	r.Layout(gtx)
+	if w != 500 || bp != "compact" {
+		t.Errorf("kit.Screen() = %d, %q; want 500, \"compact\"", w, bp)
 	}
 }

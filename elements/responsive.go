@@ -3,6 +3,8 @@ package elements
 import (
 	"gioui.org/layout"
 	"gioui.org/unit"
+
+	"github.com/mehran9675/giode/components/kit"
 )
 
 // Breakpoint is a simplified media query: it matches when the
@@ -70,6 +72,10 @@ func (r *responsiveEl) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 	return layout.Dimensions{}
+}
+
+func init() {
+	kit.Screen = func() (int, string) { return windowSize.X, ActiveBreakpoint() }
 }
 
 // breakpointStack holds the names of the breakpoints whose views are
