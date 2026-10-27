@@ -49,6 +49,8 @@ type Scroll struct {
 	// Horizontal scrolling: offset, sizes and scrollbar.
 	offsetX   float32
 	scrollX   gesture.Scroll
+	gest      kit.ScrollGesture
+	gestX     kit.ScrollGesture
 	contentW  int
 	viewportW int
 	barX      kit.Scrollbar
@@ -449,6 +451,17 @@ func (s *Scroll) updateGestures(gtx layout.Context) (dist, distX int) {
 		if dist != 0 {
 			s.offset = s.clamp(s.offset + float32(dist))
 		}
+		started, ended := s.gest.Track(&s.scroll, dist)
+		if s.anchor == AnchorBottom {
+			switch {
+			case started || s.gest.Moving():
+				// A finger is moving the content: don't pull it back
+				// to the bottom as the content grows.
+				s.following = false
+			case ended:
+				s.following = s.AtBottom()
+			}
+		}
 	}
 	if s.horizontal() {
 		rangeX := pointer.ScrollRange{Min: -int(s.offsetX), Max: s.maxOffsetX() - int(s.offsetX)}
@@ -456,8 +469,9 @@ func (s *Scroll) updateGestures(gtx layout.Context) (dist, distX int) {
 		if distX != 0 {
 			s.offsetX = max(0, min(s.offsetX+float32(distX), float32(s.maxOffsetX())))
 		}
+		s.gestX.Track(&s.scrollX, distX)
 	}
-	if s.anchor == AnchorBottom && (dist != 0 || s.bar.Dragging()) {
+	if s.anchor == AnchorBottom && !s.gest.Moving() && (dist != 0 || s.bar.Dragging()) {
 		// The user scrolled: follow the content again only once they're
 		// back at the bottom.
 		s.following = s.AtBottom()
