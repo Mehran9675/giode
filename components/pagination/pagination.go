@@ -3,6 +3,7 @@
 package pagination
 
 import (
+	"github.com/mehran9675/giode/components/kit"
 	"strconv"
 
 	"gioui.org/layout"
@@ -136,6 +137,8 @@ func (p *Pagination) windowed() []int {
 
 // Layout lays out prev, the windowed page buttons, and next.
 func (p *Pagination) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	if p.total <= 0 {
 		return layout.Dimensions{}
 	}

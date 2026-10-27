@@ -1,6 +1,7 @@
 package menu
 
 import (
+	"github.com/mehran9675/giode/components/kit"
 	"image"
 
 	"gioui.org/layout"
@@ -14,6 +15,8 @@ import (
 // called from. A submenu (see SubMenu) skips the dismissal layer -
 // its own parent row's hover state controls it instead.
 func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	if !m.open {
 		return layout.Dimensions{}
 	}
@@ -24,9 +27,9 @@ func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
 			m.Close()
 			return layout.Dimensions{}
 		}
-		m.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		m.scrim.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
-		})
+		}))
 
 		// Back and Escape close the menu.
 		elements.HandleDismiss(m.Close)

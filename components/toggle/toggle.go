@@ -26,6 +26,7 @@ type Switch struct {
 	label    string
 	st       styles.Styles
 	click    widget.Clickable
+	pass     func(gtx layout.Context) bool
 	on       bool
 	onChange func(on bool)
 	disabled bool
@@ -80,14 +81,30 @@ func (s *Switch) Toggle() {
 }
 
 // Layout lays out and updates the switch.
+// update handles clicks, reporting whether one toggled the switch.
+func (s *Switch) update(gtx layout.Context) bool {
+	if s.click.Clicked(gtx) {
+		s.Toggle()
+		kit.RequestFrame(gtx)
+		return true
+	}
+	return false
+}
+
 func (s *Switch) Layout(gtx layout.Context) layout.Dimensions {
 	if s.disabled {
 		gtx = gtx.Disabled()
 	}
-	if s.click.Clicked(gtx) {
-		s.Toggle()
-		kit.RequestFrame(gtx)
+	s.update(gtx)
+	if s.pass == nil {
+		s.pass = kit.ClickablePass(&s.click, func(gtx layout.Context) bool {
+			if s.disabled {
+				gtx = gtx.Disabled()
+			}
+			return s.update(gtx)
+		})
 	}
+	kit.HandleInput(s.pass)
 	target := float32(0)
 	if s.on {
 		target = 1
@@ -117,12 +134,12 @@ func (s *Switch) Layout(gtx layout.Context) layout.Dimensions {
 			elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(s.label, styles.Styles{Color: st.Color, FontSize: st.FontSize})),
 			track)
 	}
-	dims := s.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	dims := s.click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		if s.click.Hovered() && !s.disabled {
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		return elements.MinTouchTarget(gtx, content.Layout)
-	})
+	}))
 	kit.BlockDrag(gtx, dims.Size)
 	if s.pos != target {
 		kit.MarkLive()

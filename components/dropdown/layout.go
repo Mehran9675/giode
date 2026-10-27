@@ -18,6 +18,8 @@ import (
 // it paints above everything else regardless of where Layout is
 // called from.
 func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	st := styles.Merge(styles.Styles{
 		Background:   properties.CalcColorReverse(defaultBackground),
 		Color:        properties.CalcColorReverse(defaultText),
@@ -38,7 +40,7 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	// Field.
-	fieldDims := s.field.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	fieldDims := s.field.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		if s.st.Width > 0 {
 			w := gtx.Dp(unit.Dp(s.st.Width))
 			gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
@@ -63,7 +65,7 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 			elements.Glyph(kit.GlyphChevronDown, styles.Styles{Color: st.Color, Width: 16}),
 		)
 		return elements.Box(fieldSt, row).Layout(gtx)
-	})
+	}))
 	// Keep the field clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.
 	kit.BlockDrag(gtx, fieldDims.Size)

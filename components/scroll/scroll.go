@@ -60,7 +60,9 @@ type Scroll struct {
 	fit       bool
 	onScroll  func(offset, max float32)
 	// movedBy is set by ScrollBy until the next layout settles it.
-	movedBy  bool
+	movedBy bool
+	// pass is the input pass (see kit.HandleInput).
+	pass     func(gtx layout.Context) bool
 	lastOff  [2]float32
 	measured bool
 }
@@ -368,33 +370,24 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 
-	// The ranges accept any scroll distance that stays within the
-	// content.
-	var dist, distX int
-	if vert {
-		rangeY := pointer.ScrollRange{Min: -int(s.offset), Max: s.maxOffset() - int(s.offset)}
-		dist = s.scroll.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Vertical, pointer.ScrollRange{}, rangeY)
-		if dist != 0 {
-			s.offset = s.clamp(s.offset + float32(dist))
-		}
-	}
-	if horiz {
-		rangeX := pointer.ScrollRange{Min: -int(s.offsetX), Max: s.maxOffsetX() - int(s.offsetX)}
-		distX = s.scrollX.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Horizontal, rangeX, pointer.ScrollRange{})
-		if distX != 0 {
-			s.offsetX = max(0, min(s.offsetX+float32(distX), float32(s.maxOffsetX())))
-		}
-	}
+	dist, distX := s.updateGestures(gtx)
 	if dist != 0 || distX != 0 || s.scroll.State() != gesture.StateIdle || s.scrollX.State() != gesture.StateIdle {
 		// Flings keep scrolling between input events; cached
 		// ancestors must keep laying the content out.
 		kit.MarkLive()
 	}
-	if s.anchor == AnchorBottom && (dist != 0 || s.bar.Dragging()) {
-		// The user scrolled: follow the content again only once they're
-		// back at the bottom.
-		s.following = s.AtBottom()
+	if s.pass == nil {
+		s.pass = func(gtx layout.Context) bool {
+			y, x := s.offset, s.offsetX
+			s.updateGestures(gtx)
+			bar := s.vertical() && s.bar.Update(gtx, &s.offset)
+			if bar && s.anchor == AnchorBottom {
+				s.following = s.AtBottom()
+			}
+			return bar || y != s.offset || x != s.offsetX
+		}
 	}
+	kit.HandleInput(s.pass)
 
 	atBottom := s.AtBottom()
 	if atBottom && !s.wasAtBottom && s.onReachBottom != nil {
@@ -444,6 +437,32 @@ func (s *Scroll) ScrollBy(dx, dy float32) {
 // ScrollOffset returns the horizontal and vertical offsets in pixels.
 func (s *Scroll) ScrollOffset() (x, y float32) {
 	return s.offsetX, s.offset
+}
+
+// updateGestures applies wheel and touch scrolling to the offsets,
+// within the content measured by the last layout, and returns the
+// distances.
+func (s *Scroll) updateGestures(gtx layout.Context) (dist, distX int) {
+	if s.vertical() {
+		rangeY := pointer.ScrollRange{Min: -int(s.offset), Max: s.maxOffset() - int(s.offset)}
+		dist = s.scroll.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Vertical, pointer.ScrollRange{}, rangeY)
+		if dist != 0 {
+			s.offset = s.clamp(s.offset + float32(dist))
+		}
+	}
+	if s.horizontal() {
+		rangeX := pointer.ScrollRange{Min: -int(s.offsetX), Max: s.maxOffsetX() - int(s.offsetX)}
+		distX = s.scrollX.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Horizontal, rangeX, pointer.ScrollRange{})
+		if distX != 0 {
+			s.offsetX = max(0, min(s.offsetX+float32(distX), float32(s.maxOffsetX())))
+		}
+	}
+	if s.anchor == AnchorBottom && (dist != 0 || s.bar.Dragging()) {
+		// The user scrolled: follow the content again only once they're
+		// back at the bottom.
+		s.following = s.AtBottom()
+	}
+	return dist, distX
 }
 
 // notify calls OnScroll when an offset changed since the last call.

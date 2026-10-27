@@ -56,6 +56,42 @@ component authors need:
 | `kit.Margin` | Default overlay-to-edge distance (8px). |
 | `kit.BlockDrag(gtx, size)` / `kit.BlockDragHere(gtx)` | Keeps a clickable/draggable/scrollable component working inside a frameless, draggable window (`Config{Frameless: true, Draggable: true}`): without it, a press on the component would be hijacked into moving the window instead of reaching the component. Call once after laying the component's own visual out, passing its measured size (`BlockDrag`), or inline if a clip scope for the component's own pointer/gesture registration is already open (`BlockDragHere`) — see `components/button`, `components/slider` for each pattern. |
 
+## Input inside a memo
+
+A `Memo` replays its recorded drawing while nothing inside changed, including frames with
+input aimed at it, so the widgets inside aren't laid out on those frames. A widget that
+handles events registers an *input pass* while it's laid out: a function that handles the
+same events its `Layout` does and reports whether its appearance changed. Replaying memos
+run the passes and rebuild only when one returns true.
+
+```go
+func (r *Rating) Layout(gtx layout.Context) layout.Dimensions {
+	r.update(gtx)
+	kit.HandleInput(r.pass) // r.pass is created once, not per frame
+	...
+}
+
+func (r *Rating) update(gtx layout.Context) (changed bool) {
+	for {
+		ev, ok := gtx.Event(pointer.Filter{Target: r, Kinds: pointer.Press | pointer.Enter | pointer.Leave})
+		if !ok {
+			return changed
+		}
+		... // update r's state; changed = true when it looks different now
+	}
+}
+
+r.pass = func(gtx layout.Context) bool { return r.update(gtx) }
+```
+
+For a widget built on a `widget.Clickable`, `kit.ClickablePass(&clickable, update)` builds
+the pass for you, reporting clicks and hover or press changes. A widget that can't provide
+a pass calls `kit.OpaqueInput()` instead; enclosing memos then lay it out on every frame
+the pointer is over them.
+
+Wrap the content of interactive components in `kit.Unselectable(w)`, so their labels stay
+out of an enclosing `SelectionArea`'s selection.
+
 ## Rendering above everything: portals
 
 `elements.RegisterPortal(gtx, anchor, build)` queues `build` to be laid out and painted

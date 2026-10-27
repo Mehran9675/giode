@@ -310,6 +310,8 @@ func (t *Toaster) toastView(ts *toast) elements.Element {
 
 // Layout queues the toasts above everything else. It takes no space.
 func (t *Toaster) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	t.sync()
 
 	// Start the timers of toasts coming into view, pause hovered ones,

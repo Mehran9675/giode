@@ -7,6 +7,13 @@ but fewer of the mobile APIs below are implemented there yet.
 
 ## Building
 
+The [giode CLI](https://github.com/mehran9675/giode-cli) wraps everything below:
+`giode build android` reads the app's name, ID, version, icon and permissions from
+`giode.toml`, `giode run android` builds, installs and launches on a connected device,
+and `giode doctor` checks the tools listed here. It also adds what gogio can't: the
+foreground service `KeepAlive` needs, any manifest permission, and Info.plist keys on
+iOS. The rest of this section uses gogio directly.
+
 Install the tools once:
 
 - **gogio**: `go install gioui.org/cmd/gogio@latest`

@@ -89,9 +89,10 @@ only runs a service the app's manifest declares:
 </application>
 ```
 
-gogio's manifest template has no way to add these yet, so for now `KeepAlive` checks for
-the declaration and returns an error wrapping `ErrNotSupported` without it; keep the app
-open with `KeepScreenOn` and save progress in `OnBackground` as a fallback. Android 15
+The [giode CLI](https://github.com/mehran9675/giode-cli) adds them when `giode.toml` has
+`keep_alive = true` under `[android]`; gogio alone can't. Without the declaration
+`KeepAlive` returns an error wrapping `ErrNotSupported`; keep the app open with
+`KeepScreenOn` and save progress in `OnBackground` as a fallback. Android 15
 limits `dataSync` services to six hours a day, after which the service stops.
 
 ## Secure storage
@@ -151,8 +152,18 @@ error wrapping `ErrNotSupported`.
 ## Info.plist keys on iOS
 
 iOS ends an app that uses the camera, microphone or speech recognition without a line in
-its Info.plist explaining why, shown in the permission prompt. gogio writes Info.plist
-itself and has no option to add keys, so add them to the built app before installing it:
+its Info.plist explaining why, shown in the permission prompt. With the
+[giode CLI](https://github.com/mehran9675/giode-cli), list them in `giode.toml`:
+
+```toml
+[ios.usage]
+camera = "To attach photos you take."
+microphone = "To dictate messages."
+speech = "To dictate messages."
+```
+
+gogio writes Info.plist itself and has no option to add keys, so with gogio add them to
+the built app before installing it:
 
 ```sh
 gogio -target ios -arch amd64 -appid com.example.app -o App.app .

@@ -21,6 +21,8 @@ type BoxElement struct {
 	hover   *gesture.Hover
 	hoverSt styles.Styles
 	hovered bool
+	// hoverPass is the hover input pass (see kit.HandleInput).
+	hoverPass func(gtx layout.Context) bool
 	hoverAnim
 
 	// press makes the box clickable; see OnClick.

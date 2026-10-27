@@ -88,6 +88,8 @@ func (a *Accordion) SetExpanded(i int, v bool) {
 // Layout lays out every section header, and the content of whichever
 // sections are expanded.
 func (a *Accordion) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	st := styles.Merge(styles.Styles{
 		Color:       defaultText,
 		BorderColor: defaultBorder,
@@ -115,7 +117,7 @@ func (a *Accordion) Layout(gtx layout.Context) layout.Dimensions {
 // chevron indicating open/closed, and a hover highlight.
 func (a *Accordion) header(it *item, st styles.Styles) elements.Element {
 	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
-		dims := it.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := it.click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			hst := styles.Styles{Padding: properties.SymmetricInset(12, 12)}
 			if it.click.Hovered() {
 				hst.Background = defaultHover
@@ -130,7 +132,7 @@ func (a *Accordion) header(it *item, st styles.Styles) elements.Element {
 				elements.Glyph(chevron, styles.Styles{Color: st.Color, Width: 16}),
 			)
 			return elements.Box(hst, row).Layout(gtx)
-		})
+		}))
 		// Keep the header clickable even when an ancestor is a
 		// frameless window's whole-window drag area - see
 		// button.Layout's identical comment.

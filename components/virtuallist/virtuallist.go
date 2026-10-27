@@ -330,6 +330,8 @@ func (l *List) handleKeys(gtx layout.Context) {
 
 // Layout lays out the visible rows.
 func (l *List) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	viewport := gtx.Constraints.Max
 	if viewport.X >= 1e6 {
 		viewport.X = gtx.Constraints.Min.X

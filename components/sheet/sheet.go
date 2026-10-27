@@ -153,6 +153,8 @@ func (s *Sheet) close() {
 // Layout updates the sheet and, while it's visible, registers the
 // overlay that paints it. It takes no space.
 func (s *Sheet) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	isOpen := s.Opened()
 	if isOpen && !s.wasOpen {
 		s.detent = 0

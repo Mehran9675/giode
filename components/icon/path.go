@@ -7,6 +7,8 @@ import (
 
 	"gioui.org/f32"
 	"gioui.org/op/clip"
+
+	"github.com/mehran9675/giode/internal/raster"
 )
 
 // segment is one command of a compiled path, in absolute coordinates.
@@ -36,6 +38,15 @@ func (c compiled) add(p *clip.Path) {
 			p.Close()
 		}
 	}
+}
+
+// segments returns c for internal/raster.
+func (c compiled) segments() []raster.Segment {
+	out := make([]raster.Segment, len(c))
+	for i, s := range c {
+		out[i] = raster.Segment{Op: s.op, Pts: s.pts}
+	}
+	return out
 }
 
 // transform returns c with every point mapped through t.

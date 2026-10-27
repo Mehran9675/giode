@@ -42,8 +42,17 @@ go get github.com/mehran9675/giode
 ```
 
 Requires Go 1.26 or later. On Linux, Gio needs the usual development packages (Wayland,
-X11, EGL, Vulkan headers); see [Gio's install guide](https://gioui.org/doc/install). Android
-builds use Gio's `gogio` tool; see [docs/mobile.md](docs/mobile.md).
+X11, EGL, Vulkan headers); see [Gio's install guide](https://gioui.org/doc/install).
+
+The [giode CLI](https://github.com/mehran9675/giode-cli) creates projects and builds and
+runs them on every platform:
+
+```sh
+go install github.com/mehran9675/giode-cli/cmd/giode@latest
+giode new myapp && cd myapp && giode run
+```
+
+Mobile builds can also use Gio's `gogio` tool directly; see [docs/mobile.md](docs/mobile.md).
 
 ## Features
 

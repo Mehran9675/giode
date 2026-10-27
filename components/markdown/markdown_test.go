@@ -65,3 +65,28 @@ func TestMarkdown_ParseCached(t *testing.T) {
 		t.Error("same source parsed twice")
 	}
 }
+
+func TestMarkdown_ListItemBesideMarker(t *testing.T) {
+	fonts.UseGofont()
+	elements.BeginFrame()
+	elements.BeginSemantics()
+	var ops op.Ops
+	long := "1. " + strings.Repeat("a long list item that wraps ", 6) + "\n"
+	New(long).Layout(layout.Context{Ops: &ops, Constraints: layout.Constraints{Max: image.Pt(300, 1e6)}})
+	nodes := elements.EndSemantics()
+	var marker, item image.Rectangle
+	for _, n := range nodes {
+		switch {
+		case n.Label == "1.":
+			marker = n.Bounds
+		case strings.HasPrefix(n.Label, "a long"):
+			item = n.Bounds
+		}
+	}
+	if marker.Empty() || item.Empty() {
+		t.Fatalf("marker %v, item %v", marker, item)
+	}
+	if item.Min.Y != marker.Min.Y || item.Min.X < marker.Max.X {
+		t.Errorf("item at %v, marker at %v: the item should sit beside the marker", item, marker)
+	}
+}

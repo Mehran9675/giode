@@ -13,6 +13,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/internal/textrender"
 	"github.com/mehran9675/giode/state"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -33,10 +34,15 @@ import (
 //   - the layout constraints, the display density or the active
 //     breakpoint (see ActiveBreakpoint);
 //   - the theme (SetMode/SetPalette);
-//   - a widget inside asked for it: an animation, a focused field, a
-//     widget that handled an event (see kit.MarkLive);
-//   - the pointer is over the subtree, so hover, press and scroll are
-//     always handled live.
+//   - a widget inside asked for it: an animation, or a change that
+//     came from outside input (see kit.MarkLive);
+//   - input changed a widget inside: on a replayed frame the cache runs
+//     its widgets' input passes (see kit.HandleInput) - so hovering,
+//     tapping or scrolling over it still reaches them - and lays the
+//     subtree out again only when one reports a visible change, like a
+//     hover highlight or a press. A subtree with input handling that
+//     registers no pass (see kit.OpaqueInput) is instead laid out on
+//     every frame the pointer is active over it.
 //
 // Values read from plain variables (not States) must be passed as
 // deps, or the cache won't notice them change.
@@ -58,10 +64,24 @@ type MemoCache struct {
 	breakpoint  string
 	deps        []any
 	reads       *state.Tracker
+	// selection is the version of the enclosing SelectionArea's
+	// selection, which the subtree's text draws.
+	selection uint64
 
 	// live is set (through kit.MarkLive) by widgets that changed
 	// while the subtree was laid out.
 	live bool
+	// input holds the input passes of the subtree's widgets, run on
+	// replayed frames.
+	input kit.InputScope
+	// retain keeps the subtree's keyed state alive on replayed frames,
+	// when its Keyed lookups don't run.
+	retain []func()
+	// dirty is set when an enclosing cache ran this one's passes and
+	// one reported a change, so its next layout must rebuild.
+	dirty bool
+	// passFn is the cache's own pass, registered with enclosing caches.
+	passFn func(gtx layout.Context) bool
 	// inside tracks whether the pointer is over the subtree.
 	inside bool
 	// portal is set when the subtree registered portals or Back
@@ -77,6 +97,9 @@ type MemoCache struct {
 	probeRel []image.Point
 
 	frame uint64
+	// alive is the last frame the cache was laid out or replayed by an
+	// enclosing cache; keyed memos not alive in a frame are dropped.
+	alive uint64
 
 	// Stats, for tests and diagnostics.
 	hits, misses uint64
@@ -109,42 +132,43 @@ func (c *MemoCache) Layout(gtx layout.Context, build func() Element, deps ...any
 	}
 	c.frame = frameNumber
 
-	// Pointer activity over the subtree means its widgets must see the
-	// events, so it's laid out live.
+	// A subtree with input handling but no passes is laid out live
+	// while the pointer is active over it, so those widgets see their
+	// events.
 	active := false
-	for {
-		ev, ok := gtx.Event(pointer.Filter{
-			Target: c,
-			Kinds:  pointer.Enter | pointer.Leave | pointer.Move | pointer.Press | pointer.Release | pointer.Drag | pointer.Cancel,
-		})
-		if !ok {
-			break
-		}
-		pe, ok := ev.(pointer.Event)
-		if !ok {
-			continue
-		}
-		active = true
-		switch pe.Kind {
-		case pointer.Leave, pointer.Cancel:
-			c.inside = false
-		default:
-			c.inside = true
+	if c.input.Opaque {
+		for {
+			ev, ok := gtx.Event(pointer.Filter{
+				Target: c,
+				Kinds:  pointer.Enter | pointer.Leave | pointer.Move | pointer.Press | pointer.Release | pointer.Drag | pointer.Cancel,
+			})
+			if !ok {
+				break
+			}
+			pe, ok := ev.(pointer.Event)
+			if !ok {
+				continue
+			}
+			active = true
+			switch pe.Kind {
+			case pointer.Leave, pointer.Cancel:
+				c.inside = false
+			default:
+				c.inside = true
+			}
 		}
 	}
 
-	reuse := c.valid && !active && !c.inside && !c.live && !c.portal &&
-		c.constraints == gtx.Constraints &&
-		c.metric == gtx.Metric &&
-		c.theme == properties.ThemeVersion() &&
-		c.epoch == cacheEpoch.Load() &&
-		c.color == CurrentColor() &&
-		c.breakpoint == ActiveBreakpoint() &&
-		depsEqual(c.deps, deps) &&
-		!c.reads.Changed()
+	reuse := c.fresh(gtx, deps) && !(c.input.Opaque && (active || c.inside))
+	// Deliver input to the widgets inside without laying them out;
+	// rebuild only if one changed.
+	if reuse && len(c.input.Passes) > 0 && kit.RunPasses(gtx, c.input.Passes) {
+		reuse = false
+	}
 
 	if reuse {
 		c.hits++
+		c.keepAlive()
 		origin := AbsolutePosition()
 		for i, p := range c.probes {
 			*p = origin.Add(c.probeRel[i])
@@ -161,15 +185,71 @@ func (c *MemoCache) Layout(gtx layout.Context, build func() Element, deps ...any
 		c.misses++
 		c.record(gtx, build, deps)
 	}
+	c.dirty = false
 
-	// Observe the pointer over the subtree without blocking anything
-	// beneath it.
-	ps := pointer.PassOp{}.Push(gtx.Ops)
-	cl := clip.Rect{Max: c.dims.Size}.Push(gtx.Ops)
-	event.Op(gtx.Ops, c)
-	cl.Pop()
-	ps.Pop()
+	// Enclosing caches replaying this one run its passes and keep its
+	// state alive through it.
+	if c.input.Opaque {
+		kit.OpaqueInput()
+	} else {
+		// Registered even without passes of its own: the pass also
+		// notices state the subtree reads changing.
+		if c.passFn == nil {
+			c.passFn = c.pass
+		}
+		kit.HandleInput(c.passFn)
+	}
+	retainKeyed(c.keepAlive)
+
+	if c.input.Opaque {
+		// Observe the pointer over the subtree without blocking
+		// anything beneath it.
+		ps := pointer.PassOp{}.Push(gtx.Ops)
+		cl := clip.Rect{Max: c.dims.Size}.Push(gtx.Ops)
+		event.Op(gtx.Ops, c)
+		cl.Pop()
+		ps.Pop()
+	}
 	return c.dims
+}
+
+// fresh reports whether the recorded output is still valid for gtx and
+// deps, input aside.
+func (c *MemoCache) fresh(gtx layout.Context, deps []any) bool {
+	return c.valid && !c.live && !c.portal && !c.dirty &&
+		c.constraints == gtx.Constraints &&
+		c.metric == gtx.Metric &&
+		c.theme == properties.ThemeVersion() &&
+		c.epoch == cacheEpoch.Load() &&
+		c.color == CurrentColor() &&
+		c.breakpoint == ActiveBreakpoint() &&
+		c.selection == selectionVersion() &&
+		depsEqual(c.deps, deps) &&
+		!c.reads.Changed()
+}
+
+// pass is the cache's input pass, run by an enclosing cache replaying
+// it: it delivers input to the widgets inside, and reports a change
+// when they changed or the cache must rebuild anyway.
+func (c *MemoCache) pass(gtx layout.Context) bool {
+	if !c.valid || c.live || c.reads.Changed() || c.epoch != cacheEpoch.Load() || c.theme != properties.ThemeVersion() {
+		c.dirty = true
+		return true
+	}
+	if kit.RunPasses(gtx, c.input.Passes) {
+		c.dirty = true
+		return true
+	}
+	return false
+}
+
+// keepAlive refreshes the keyed state the subtree looked up when it was
+// recorded.
+func (c *MemoCache) keepAlive() {
+	c.alive = frameNumber
+	for _, f := range c.retain {
+		f()
+	}
 }
 
 // record rebuilds and lays out the subtree into the cache's own ops.
@@ -180,6 +260,10 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 
 	c.live = false
 	popLive := kit.PushLiveScope(&c.live)
+	c.input = kit.InputScope{Passes: c.input.Passes[:0]}
+	popInput := kit.PushInputScope(&c.input)
+	c.retain = c.retain[:0]
+	popRetain := pushRetainScope(&c.retain)
 	reads := state.Track()
 	portals, backs, probeStart := len(portalQueue), len(backStack), len(probes)
 	semStart := 0
@@ -192,7 +276,10 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.call = macro.Stop()
 
 	reads.Stop()
+	popRetain()
+	popInput()
 	popLive()
+	c.alive = frameNumber
 
 	c.reads = reads
 	c.portal = len(portalQueue) > portals || len(backStack) > backs
@@ -215,6 +302,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.epoch = cacheEpoch.Load()
 	c.color = CurrentColor()
 	c.breakpoint = ActiveBreakpoint()
+	c.selection = selectionVersion()
 	c.deps = append(c.deps[:0], deps...)
 	c.valid = true
 
@@ -276,6 +364,7 @@ var (
 // the view; component authors don't need to.
 func BeginFrame() {
 	frameNumber++
+	textrender.Tick()
 	clear(probes)
 	probes = probes[:0]
 }
@@ -284,7 +373,7 @@ func BeginFrame() {
 // weren't laid out during it. The app calls it after every frame.
 func EndFrame() {
 	for k, c := range memos {
-		if c.frame != frameNumber {
+		if c.alive != frameNumber {
 			delete(memos, k)
 		}
 	}

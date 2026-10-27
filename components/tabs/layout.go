@@ -61,15 +61,21 @@ func (t *Tabs) tabButtons(active, activeText properties.Color) []elements.Elemen
 // tabButton renders one clickable tab header.
 func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.Element {
 	click := t.clicks[i]
-	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
+	update := func(gtx layout.Context) bool {
 		if click.Clicked(gtx) {
 			t.selected = i
 			if t.onChange != nil {
 				t.onChange(i)
 			}
 			kit.RequestFrame(gtx)
+			return true
 		}
-		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return false
+	}
+	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
+		update(gtx)
+		kit.HandleInput(kit.ClickablePass(click, update))
+		dims := click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			sel := i == t.selected
 			textColor := defaultText
 			if sel {
@@ -98,7 +104,7 @@ func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.El
 			paint.FillShape(gtx.Ops, properties.CalcColor(active), clip.Rect{Max: image.Pt(dims.Size.X, line)}.Op())
 			off.Pop()
 			return dims
-		})
+		}))
 		// Keep the tab clickable even inside a frameless window's
 		// whole-window drag area - see button.Layout's identical
 		// comment.

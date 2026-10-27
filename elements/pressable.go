@@ -130,8 +130,12 @@ type Pressable struct {
 
 	// pressAt is when the current touch press started, for OnLongPress;
 	// longFired is set once it fired, so the release isn't a click.
-	pressAt   time.Time
-	pressSrc  pointer.Source
+	pressAt  time.Time
+	pressSrc pointer.Source
+	// fired counts handler calls, so an input pass can report them;
+	// passFn is the pass, registered with enclosing caches.
+	fired     uint64
+	passFn    func(gtx layout.Context) bool
 	longFired bool
 }
 
@@ -259,6 +263,7 @@ func (p *Pressable) percentOf(axis layout.Axis) int  { return percentOf(p.st, ax
 func (p *Pressable) zIndex() int                     { return int(p.st.ZIndex) }
 
 func (p *Pressable) fire(e ClickEvent) {
+	p.fired++
 	if p.onClick != nil {
 		p.onClick(e)
 	}
@@ -271,11 +276,10 @@ func (p *Pressable) fire(e ClickEvent) {
 }
 
 // update processes the events queued since the last frame.
-func (p *Pressable) update(gtx layout.Context) {
+func (p *Pressable) update(gtx layout.Context) (changed bool) {
 	if p.disabled {
-		return
+		return false
 	}
-	changed := false
 	for {
 		ev, ok := gtx.Event(pointer.Filter{
 			Target: p,
@@ -355,6 +359,7 @@ func (p *Pressable) update(gtx layout.Context) {
 			if fn := longPressFeedback.Load(); fn != nil {
 				(*fn)()
 			}
+			p.fired++
 			p.onLongPress(ClickEvent{Clicks: 1, Source: ClickPointer, Position: p.pressPos.Round()})
 		default:
 			kit.RequestFrameAt(gtx, p.pressAt.Add(LongPressDuration))
@@ -397,6 +402,19 @@ func (p *Pressable) update(gtx layout.Context) {
 	if changed {
 		kit.RequestFrame(gtx)
 	}
+	return changed
+}
+
+// pass is the Pressable's input pass (see kit.HandleInput): it handles
+// clicks, hover and focus while an enclosing cache replays it, and
+// reports a change in the state its content is built from, or a fired
+// handler.
+func (p *Pressable) pass(gtx layout.Context) bool {
+	before, fired := p.State(), p.fired
+	if !p.update(gtx) {
+		return false
+	}
+	return p.State() != before || p.fired != fired
 }
 
 // Layout lays out the content over the hit area.
@@ -417,7 +435,7 @@ func (p *Pressable) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	macro := op.Record(gtx.Ops)
-	dims := content.Layout(gtx)
+	dims := kit.Unselectable(content.Layout)(gtx)
 	call := macro.Stop()
 
 	// Hit area first, content on top: interactive children win.
@@ -447,7 +465,12 @@ func (p *Pressable) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	call.Add(gtx.Ops)
 
-	if p.hovered || p.pressed || p.focused {
+	// Enclosing caches deliver input through the pass; without one
+	// (or in an opaque subtree), stay live while interacting.
+	if p.passFn == nil {
+		p.passFn = p.pass
+	}
+	if !kit.HandleInput(p.passFn) && (p.hovered || p.pressed || p.focused) {
 		kit.MarkLive()
 	}
 	if p.onClick != nil || p.onDouble != nil || p.onSecondary != nil || p.onLongPress != nil {

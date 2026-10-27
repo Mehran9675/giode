@@ -79,6 +79,8 @@ func (a *AutoComplete) OnSelect(fn func(value string)) *AutoComplete {
 // Layout lays out the field and, while it has matching suggestions,
 // queues the suggestion panel as a portal anchored just below it.
 func (a *AutoComplete) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	dims := a.field.Layout(gtx)
 	// Keep the field clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.
@@ -147,7 +149,7 @@ func (a *AutoComplete) row(i int, opt string) elements.Element {
 			}
 			kit.RequestFrame(gtx)
 		}
-		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			textColor := a.st.Color
 			if textColor == "" {
 				textColor = defaultText
@@ -161,7 +163,7 @@ func (a *AutoComplete) row(i int, opt string) elements.Element {
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
 			return elements.Box(rowSt, elements.Text(opt, styles.Styles{Color: textColor})).Layout(gtx)
-		})
+		}))
 		// Keep the suggestion clickable even when a frameless window's
 		// whole-window drag area happens to reach this portal - see
 		// button.Layout's identical comment.

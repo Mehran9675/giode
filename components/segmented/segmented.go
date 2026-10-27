@@ -31,6 +31,7 @@ type Control struct {
 	onChange func(i int)
 	st       styles.Styles
 	clicks   []widget.Clickable
+	pass     func(gtx layout.Context) bool
 
 	// pos animates the highlight, in segments.
 	pos  float32
@@ -90,18 +91,44 @@ func (c *Control) Choose(i int) {
 	}
 }
 
+// update handles clicks, reporting whether one chose an option.
+func (c *Control) update(gtx layout.Context) bool {
+	chose := false
+	for i := range c.clicks {
+		if c.clicks[i].Clicked(gtx) {
+			c.Choose(i)
+			kit.RequestFrame(gtx)
+			chose = true
+		}
+	}
+	return chose
+}
+
 // Layout lays out and updates the control.
 func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 	n := len(c.options)
 	if n == 0 {
 		return layout.Dimensions{}
 	}
-	for i := range c.clicks {
-		if c.clicks[i].Clicked(gtx) {
-			c.Choose(i)
-			kit.RequestFrame(gtx)
+	c.update(gtx)
+	if c.pass == nil {
+		c.pass = func(gtx layout.Context) bool {
+			var hov [16]bool
+			for i := range c.clicks {
+				if i < len(hov) {
+					hov[i] = c.clicks[i].Hovered()
+				}
+			}
+			changed := c.update(gtx)
+			for i := range c.clicks {
+				if i < len(hov) && hov[i] != c.clicks[i].Hovered() {
+					changed = true
+				}
+			}
+			return changed
 		}
 	}
+	kit.HandleInput(c.pass)
 	dt := gtx.Now.Sub(c.last)
 	if c.last.IsZero() || dt < 0 || dt > animDuration {
 		dt = animDuration
@@ -167,12 +194,12 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 			defer pop()
 			sgtx := gtx
 			sgtx.Constraints = layout.Exact(image.Pt(segW, segH))
-			d := c.clicks[i].Layout(sgtx, func(gtx layout.Context) layout.Dimensions {
+			d := c.clicks[i].Layout(sgtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 				if c.clicks[i].Hovered() {
 					pointer.CursorPointer.Add(gtx.Ops)
 				}
 				return elements.Box(styles.Styles{Width: -1, Height: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter}, segment(i)).Layout(gtx)
-			})
+			}))
 			elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticTab, Label: c.options[i], Value: boolString(i == c.selected), Target: &c.clicks[i]}, d.Size)
 		}()
 	}

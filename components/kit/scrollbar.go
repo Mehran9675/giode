@@ -27,6 +27,49 @@ type Scrollbar struct {
 	drag  gesture.Drag
 	hover gesture.Hover
 	dragY float32
+
+	// hovered, and the geometry of the last layout, for Update.
+	hovered     bool
+	shown       bool
+	maxOff      float32
+	maxThumbOff int
+}
+
+// Update handles thumb drags and hover with the geometry of the last
+// Layout, applying drags to *offset, and reports whether anything
+// changed - for a scrolling component's input pass (see HandleInput).
+func (s *Scrollbar) Update(gtx layout.Context, offset *float32) bool {
+	if !s.shown {
+		return false
+	}
+	h, d, o := s.hovered, s.drag.Dragging(), *offset
+	s.handle(gtx, offset)
+	return h != s.hovered || d != s.drag.Dragging() || o != *offset
+}
+
+// handle processes the thumb's events.
+func (s *Scrollbar) handle(gtx layout.Context, offset *float32) {
+	s.hovered = s.hover.Update(gtx.Source)
+	for {
+		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Both)
+		if !ok {
+			break
+		}
+		switch ev.Kind {
+		case pointer.Press:
+			if ev.Priority == pointer.Grabbed {
+				s.dragY = ev.Position.Y
+			}
+		case pointer.Drag:
+			if ev.Priority == pointer.Grabbed {
+				dy := ev.Position.Y - s.dragY
+				s.dragY = ev.Position.Y
+				if dy != 0 && s.maxThumbOff > 0 {
+					*offset = max(0, min(s.maxOff, *offset+dy*s.maxOff/float32(s.maxThumbOff)))
+				}
+			}
+		}
+	}
 }
 
 // Dragging reports whether the thumb is being dragged.
@@ -42,8 +85,10 @@ func (s *Scrollbar) Dragging() bool {
 func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH int, offset *float32, sb properties.ScrollBar) {
 	viewH := viewport.Y
 	if contentH <= viewH || viewH <= 0 {
+		s.shown = false
 		return
 	}
+	s.shown = true
 	barWidth := gtx.Dp(unit.Dp(sb.Width))
 	if sb.Width <= 0 {
 		barWidth = gtx.Dp(8)
@@ -65,7 +110,6 @@ func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH in
 		thumb = defaultScrollThumb
 	}
 	maxOff := float32(contentH - viewH)
-	clamp := func(v float32) float32 { return max(0, min(maxOff, v)) }
 
 	x := viewport.X - barWidth
 	trackH := viewH
@@ -78,27 +122,9 @@ func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH in
 	BlockDragHere(gtx)
 	s.drag.Add(gtx.Ops)
 	s.hover.Add(gtx.Ops)
-	hovered := s.hover.Update(gtx.Source)
-	for {
-		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Both)
-		if !ok {
-			break
-		}
-		switch ev.Kind {
-		case pointer.Press:
-			if ev.Priority == pointer.Grabbed {
-				s.dragY = ev.Position.Y
-			}
-		case pointer.Drag:
-			if ev.Priority == pointer.Grabbed {
-				dy := ev.Position.Y - s.dragY
-				s.dragY = ev.Position.Y
-				if dy != 0 && maxThumbOff > 0 {
-					*offset = clamp(*offset + dy*maxOff/float32(maxThumbOff))
-				}
-			}
-		}
-	}
+	s.maxOff, s.maxThumbOff = maxOff, maxThumbOff
+	s.handle(gtx, offset)
+	hovered := s.hovered
 	switch {
 	case s.drag.Dragging():
 		thumb = Pressed(thumb)

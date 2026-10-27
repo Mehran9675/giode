@@ -419,6 +419,8 @@ func labelOf(n Node) string {
 
 // Layout lays out the visible rows.
 func (t *Tree) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	t.flatten()
 	if t.hasReveal {
 		if i, ok := t.byKey[t.reveal]; ok {

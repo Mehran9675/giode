@@ -36,7 +36,7 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 			}
 			kit.RequestFrame(gtx)
 		}
-		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			rowSt := styles.Styles{
 				Padding:      properties.SymmetricInset(12, 8),
 				BorderRadius: 4,
@@ -49,7 +49,7 @@ func (s *Select) optionRow(i int, st styles.Styles) elements.Element {
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
 			return elements.Box(rowSt, elements.Text(s.options[i], styles.Styles{Color: st.Color})).Layout(gtx)
-		})
+		}))
 		// Keep the option clickable even when a frameless window's
 		// whole-window drag area happens to reach this portal - see
 		// button.Layout's identical comment.

@@ -42,27 +42,17 @@ type selectState struct {
 	// shows.
 	all      bool
 	copyText string
-	copyBtn  *Pressable
-	dismiss  widget.Clickable
-	copyNow  bool
+	copy     *copyAction
 	// applied is set once a select-all reached sel (mouse).
 	applied bool
 	// origin is the text's position, exact from the last frame, to
 	// place the Copy action.
 	origin image.Point
+	pass   func(gtx layout.Context) bool
 }
 
 func newSelectState() *selectState {
-	s := &selectState{}
-	s.copyBtn = NewPressable(func(p PressState) Element {
-		bg := "#1f2937"
-		if p.Pressed || p.Hovered {
-			bg = "#374151"
-		}
-		return Box(styles.Styles{Background: bg, BorderRadius: 8, Padding: properties.SymmetricInset(14, 8)},
-			Text("Copy", styles.Styles{Color: "#f9fafb", FontSize: 14}))
-	}).Label("Copy").OnClick(func(ClickEvent) { s.copyNow = true })
-	return s
+	return &selectState{copy: newCopyAction()}
 }
 
 // update processes presses on the text: a touch held still for
@@ -110,6 +100,19 @@ func (s *selectState) update(gtx layout.Context) {
 	}
 }
 
+// passFunc returns the input pass (see kit.HandleInput): long-presses
+// and right-clicks select it all.
+func (s *selectState) passFunc() func(gtx layout.Context) bool {
+	if s.pass == nil {
+		s.pass = func(gtx layout.Context) bool {
+			was := s.all
+			s.update(gtx)
+			return s.all != was
+		}
+	}
+	return s.pass
+}
+
 func (s *selectState) selectAll() {
 	s.all = true
 }
@@ -129,36 +132,64 @@ func (s *selectState) layoutCopy(gtx layout.Context, size image.Point, text stri
 	if !s.all {
 		return
 	}
-	origin := s.origin
+	s.copy.show(image.Rectangle{Min: s.origin, Max: s.origin.Add(size)}, s.copyText, func() { s.all = false })
+}
+
+// copyAction is the Copy button shown above selected text on touch
+// screens and after a right-click.
+type copyAction struct {
+	btn     *Pressable
+	dismiss widget.Clickable
+	now     bool
+}
+
+func newCopyAction() *copyAction {
+	c := &copyAction{}
+	c.btn = NewPressable(func(p PressState) Element {
+		bg := "#1f2937"
+		if p.Pressed || p.Hovered {
+			bg = "#374151"
+		}
+		return Box(styles.Styles{Background: bg, BorderRadius: 8, Padding: properties.SymmetricInset(14, 8)},
+			Text("Copy", styles.Styles{Color: "#f9fafb", FontSize: 14}))
+	}).Label("Copy").OnClick(func(ClickEvent) { c.now = true })
+	return c
+}
+
+// show registers an overlay with the Copy button above (or below) at,
+// the selection's bounds in window coordinates, and a tap-anywhere-else
+// area. A copy writes text to the clipboard; either ends the selection
+// by calling done.
+func (c *copyAction) show(at image.Rectangle, text string, done func()) {
 	RegisterOverlay(func() Element {
 		return Raw(func(gtx layout.Context) layout.Dimensions {
 			win := gtx.Constraints.Max
-			if s.copyNow {
-				s.copyNow = false
-				s.all = false
-				kit.WriteClipboard(gtx, s.copyText)
+			if c.now {
+				c.now = false
+				done()
+				kit.WriteClipboard(gtx, text)
 				kit.RequestFrame(gtx)
 				return layout.Dimensions{}
 			}
-			if s.dismiss.Clicked(gtx) {
-				s.all = false
+			if c.dismiss.Clicked(gtx) {
+				done()
 				kit.RequestFrame(gtx)
 				return layout.Dimensions{}
 			}
 			// A tap anywhere else ends the selection.
-			s.dismiss.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			c.dismiss.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Dimensions{Size: win}
 			})
 			track := TrackChild()
 			macro := op.Record(gtx.Ops)
 			cgtx := gtx
 			cgtx.Constraints.Min = image.Point{}
-			dims := s.copyBtn.Layout(cgtx)
+			dims := c.btn.Layout(cgtx)
 			call := macro.Stop()
 			track.End()
-			pos := image.Pt(origin.X, origin.Y-dims.Size.Y-gtx.Dp(8))
+			pos := image.Pt(at.Min.X, at.Min.Y-dims.Size.Y-gtx.Dp(8))
 			if pos.Y < gtx.Dp(8) {
-				pos.Y = origin.Y + size.Y + gtx.Dp(8)
+				pos.Y = at.Max.Y + gtx.Dp(8)
 			}
 			pos.X = max(gtx.Dp(8), min(pos.X, win.X-dims.Size.X-gtx.Dp(8)))
 			track.Place(pos)
@@ -186,6 +217,11 @@ func (t *TextElement) Selectable(key any) *TextElement {
 func (t *TextElement) layoutSelectable(gtx layout.Context, st styles.Styles, str string, face font.Font, size unit.Sp, textColor op.CallOp) layout.Dimensions {
 	s := Keyed("giode.selectable", t.selKey, newSelectState)
 	s.update(gtx)
+	kit.HandleInput(s.passFunc())
+	if !TouchInput() {
+		// widget.Selectable's mouse selection handles its own events.
+		kit.OpaqueInput()
+	}
 
 	selMacro := op.Record(gtx.Ops)
 	paint.ColorOp{Color: properties.CalcColor(selectionColor(st.Color))}.Add(gtx.Ops)

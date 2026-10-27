@@ -18,6 +18,8 @@ import (
 // centered panel. A click on the scrim, Back or Escape closes it
 // unless Dismissible(false) was set.
 func (d *Dialog) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	if !d.Opened() {
 		return layout.Dimensions{}
 	}

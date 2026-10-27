@@ -186,6 +186,8 @@ func (t *TitleBar) barHeight() unit.Dp {
 
 // Layout lays out the bar across the available width.
 func (t *TitleBar) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	for i := range t.buttons {
 		if t.buttons[i].Clicked(gtx) {
 			t.Press(Button(i))

@@ -154,3 +154,31 @@ func BenchmarkRoundedCards(b *testing.B) {
 		})
 	}
 }
+
+func drawImage(ops *op.Ops, img image.Image, at image.Point) {
+	defer op.Offset(at).Push(ops).Pop()
+	paint.NewImageOp(img).Add(ops)
+	paint.PaintOp{}.Add(ops)
+}
+
+// benchScreen renders a phone screen of cards drawn by draw.
+func benchScreen(b *testing.B, draw func(ops *op.Ops, r image.Rectangle)) {
+	if runtime.GOOS == "linux" && os.Getenv("EGL_PLATFORM") == "" {
+		b.Setenv("EGL_PLATFORM", "surfaceless")
+	}
+	win, err := headless.NewWindow(1080, 2400)
+	if err != nil {
+		b.Skipf("no offscreen renderer: %v", err)
+	}
+	defer win.Release()
+	px := image.NewRGBA(image.Rect(0, 0, 1080, 2400))
+	var ops op.Ops
+	for i := 0; i < b.N; i++ {
+		ops.Reset()
+		for y := 0; y < 2400; y += 240 {
+			draw(&ops, image.Rect(60, y+40, 1020, y+200))
+		}
+		win.Frame(&ops)
+		win.Screenshot(px)
+	}
+}

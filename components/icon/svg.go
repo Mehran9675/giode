@@ -2,14 +2,15 @@ package icon
 
 import (
 	"image"
+	"image/color"
 
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
+
+	"github.com/mehran9675/giode/internal/raster"
 )
 
 // SVG renders SVG path data (commands M, L, H, V, C, S, Q, T, A, Z in
@@ -40,25 +41,35 @@ type svgEl struct {
 	stroke       float32
 }
 
-// Layout fills (or strokes) the path into the element's size.
+// Layout fills (or strokes) the path into the element's size, as an
+// image rasterized once per path, size and color.
 func (s *svgEl) Layout(gtx layout.Context) layout.Dimensions {
 	size, ok := iconSize(gtx, s.st)
 	if !ok {
 		return layout.Dimensions{}
 	}
+	col := elements.ResolveColor(s.st.Color)
+	img := raster.Image(svgKey{&s.path[0], len(s.path), s.viewW, s.viewH, s.stroke, size, col}, func() *image.RGBA {
+		shape := raster.Shape{Path: s.path.segments()}
+		if s.stroke > 0 {
+			shape.Stroke, shape.StrokeWidth, shape.Round = col, s.stroke, true
+		} else {
+			shape.Fill = col
+		}
+		return raster.Render(size, viewBoxTransform(0, 0, s.viewW, s.viewH, size), []raster.Shape{shape})
+	})
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
-	defer op.Affine(viewBoxTransform(0, 0, s.viewW, s.viewH, size)).Push(gtx.Ops).Pop()
-
-	col := paint.ColorOp{Color: elements.ResolveColor(s.st.Color)}
-	if s.stroke > 0 {
-		strokePath(gtx.Ops, s.path, s.stroke, true, col)
-		return layout.Dimensions{Size: size}
-	}
-	var p clip.Path
-	p.Begin(gtx.Ops)
-	s.path.add(&p)
-	defer clip.Outline{Path: p.End()}.Op().Push(gtx.Ops).Pop()
-	col.Add(gtx.Ops)
-	paint.PaintOp{}.Add(gtx.Ops)
+	raster.Draw(gtx.Ops, img)
 	return layout.Dimensions{Size: size}
+}
+
+// svgKey identifies a path's rasterized image: compiled paths are
+// cached by their data, so the first segment's address identifies one.
+type svgKey struct {
+	path         *segment
+	n            int
+	viewW, viewH float32
+	stroke       float32
+	size         image.Point
+	col          color.NRGBA
 }
