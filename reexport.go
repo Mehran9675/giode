@@ -36,6 +36,7 @@ import (
 	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/components/transition"
 	"github.com/mehran9675/giode/components/treeview"
+	"github.com/mehran9675/giode/components/lazylist"
 	"github.com/mehran9675/giode/components/virtuallist"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
@@ -551,6 +552,33 @@ const (
 	ScrollAlignStart   = virtuallist.AlignStart
 	ScrollAlignCenter  = virtuallist.AlignCenter
 	ScrollAlignEnd     = virtuallist.AlignEnd
+)
+
+// --- Lazy list ------------------------------------------------------------------
+
+// LazyList is a vertical list of rows of any height, identified by
+// keys, that only builds the rows in or near the viewport. It keeps its
+// place when rows above change, and can stick to the end like a chat:
+//
+//	list := giode.LazyList(
+//		func() int { return len(msgs) },
+//		func(i int) any { return msgs[i].ID },
+//		func(i int) giode.Element { return messageRow(msgs[i]) },
+//	).Anchor(giode.LazyAnchorBottom)
+var LazyList = lazylist.New
+
+type (
+	LazyListElement = lazylist.List
+	LazyAnchor      = lazylist.Anchor
+	LazyAlign       = lazylist.Align
+)
+
+const (
+	LazyAnchorTop    = lazylist.AnchorTop
+	LazyAnchorBottom = lazylist.AnchorBottom
+	LazyAlignStart   = lazylist.AlignStart
+	LazyAlignCenter  = lazylist.AlignCenter
+	LazyAlignEnd     = lazylist.AlignEnd
 )
 
 // --- Transitions ----------------------------------------------------------------
