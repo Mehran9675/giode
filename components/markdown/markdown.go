@@ -262,7 +262,7 @@ func (r *renderer) codeBlock(n gast.Node, lang string) elements.Element {
 	copyBtn := elements.Keyed("giode.markdown.copy", code, func() *copybutton.CopyButton {
 		return copybutton.New(func() string { return code }, styles.Styles{FontSize: 12, Color: "theme.muted"})
 	})
-	header := elements.Row(styles.Styles{Width: -1, Align: properties.AlignCenter},
+	header := elements.Row(styles.Styles{Width: -1, Align: properties.AlignCenter, Wrap: properties.WrapNoWrap},
 		elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(lang, styles.Styles{Color: "theme.muted", FontSize: 12})),
 		copyBtn,
 	)
@@ -283,7 +283,7 @@ func (r *renderer) list(n *gast.List) elements.Element {
 	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 		marker := r.marker(n, c, num)
 		num++
-		items = append(items, elements.Row(styles.Styles{Gap: 8, Width: -1},
+		items = append(items, elements.Row(styles.Styles{Gap: 8, Width: -1, Wrap: properties.WrapNoWrap},
 			marker,
 			elements.Box(styles.Styles{FlexGrow: 1}, r.blocks(c)),
 		))
