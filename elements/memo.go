@@ -13,6 +13,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/internal/textrender"
 	"github.com/mehran9675/giode/state"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -276,6 +277,7 @@ var (
 // the view; component authors don't need to.
 func BeginFrame() {
 	frameNumber++
+	textrender.Tick()
 	clear(probes)
 	probes = probes[:0]
 }

@@ -9,13 +9,15 @@ import (
 	"gioui.org/font"
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
-	"gioui.org/x/styledtext"
 
 	"github.com/mehran9675/giode/fonts"
+	"github.com/mehran9675/giode/internal/textrender"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -202,66 +204,73 @@ func (r *RichTextElement) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 
-	styled := make([]styledtext.SpanStyle, len(spans))
+	// Laid out from cache and drawn as cached line images; see
+	// internal/textrender.
+	trSpans := make([]textrender.Span, len(spans))
+	colors := make([]color.NRGBA, len(spans))
 	hasBackground := false
 	for i, s := range spans {
-		styled[i] = styledtext.SpanStyle{
+		trSpans[i] = textrender.Span{
 			Font: font.Font{
 				Typeface: font.Typeface(s.st.FontFamily),
 				Weight:   s.st.FontWeight.Weight(),
 				Style:    s.st.FontStyle.Style(),
 			},
 			Size:    properties.ResolveFontSize(s.st.FontSize),
-			Color:   ResolveColor(s.st.Color),
 			Content: s.text,
 		}
+		colors[i] = ResolveColor(s.st.Color)
 		if s.st.Background != "" {
 			hasBackground = true
 		}
 	}
-	text := styledtext.Text(shaper, styled...)
-	text.Alignment = pst.TextAlign.LayoutAlignment()
-	text.LineHeight = unit.Sp(pst.LineHeight)
+	rp := textrender.RichParams{
+		Alignment:  pst.TextAlign.LayoutAlignment(),
+		LineHeight: unit.Sp(pst.LineHeight),
+	}
 	if pst.LineHeight != 0 {
 		// LineHeight is the baseline distance, as for Text.
-		text.LineHeightScale = 1
+		rp.LineHeightScale = 1
 	}
+	laid := textrender.LayoutRich(shaper, gtx, rp, trSpans)
 
 	sel := r.selection(gtx)
 	selected := sel != nil && sel.all
 
-	// Backgrounds go under the text, so a first pass paints them with
-	// the text itself transparent.
+	// Backgrounds go under the text.
 	if hasBackground || selected {
-		clear := text
-		clear.Styles = make([]styledtext.SpanStyle, len(styled))
-		copy(clear.Styles, styled)
-		for i := range clear.Styles {
-			clear.Styles[i].Color = color.NRGBA{}
-		}
-		clear.Layout(gtx, func(gtx layout.Context, i int, dims layout.Dimensions) {
-			bg := spans[i].st.Background
+		rr := gtx.Dp(3)
+		for _, seg := range laid.Segments {
+			bg := spans[seg.Span].st.Background
 			if selected {
-				bg = selectionColor(spans[i].st.Color)
+				bg = selectionColor(spans[seg.Span].st.Color)
 			}
 			if bg == "" {
-				return
+				continue
 			}
-			rr := gtx.Dp(3)
-			defer clip.UniformRRect(image.Rectangle{Max: dims.Size}, rr).Push(gtx.Ops).Pop()
+			st := op.Offset(seg.Offset).Push(gtx.Ops)
+			cl := clip.UniformRRect(image.Rectangle{Max: seg.Size}, rr).Push(gtx.Ops)
 			paint.Fill(gtx.Ops, properties.CalcColor(bg))
-		})
+			cl.Pop()
+			st.Pop()
+		}
 	}
 
-	dims := text.Layout(gtx, func(gtx layout.Context, i int, dims layout.Dimensions) {
-		s := spans[i]
-		paintDecoration(gtx, dims.Size, s.st.TextDecoration, ResolveColor(s.st.Color))
+	semantic.LabelOp(r.PlainText()).Add(gtx.Ops)
+	laid.Draw(gtx.Ops, shaper, func(i int) color.NRGBA { return colors[i] })
+	for _, seg := range laid.Segments {
+		s := spans[seg.Span]
+		st := op.Offset(seg.Offset).Push(gtx.Ops)
+		paintDecoration(gtx, seg.Size, s.st.TextDecoration, colors[seg.Span])
 		if s.click != nil {
-			defer clip.Rect{Max: dims.Size}.Push(gtx.Ops).Pop()
+			cl := clip.Rect{Max: seg.Size}.Push(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			s.click.Add(gtx.Ops)
+			cl.Pop()
 		}
-	})
+		st.Pop()
+	}
+	dims := laid.Dims
 
 	plain := r.PlainText()
 	if sel != nil {

@@ -12,11 +12,21 @@ import (
 	"gioui.org/text"
 )
 
-var shaper *text.Shaper
+var (
+	shaper     *text.Shaper
+	collection []font.FontFace
+)
 
 // Register replaces the font collection used to shape text.
 func Register(faces []font.FontFace) {
+	collection = faces
 	shaper = text.NewShaper(text.WithCollection(faces))
+}
+
+// Collection returns the registered font collection, in the order the
+// shaper loaded it.
+func Collection() []font.FontFace {
+	return collection
 }
 
 // UseGofont embeds the Go fonts for portable text rendering.

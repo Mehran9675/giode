@@ -8,12 +8,16 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
+	"gioui.org/io/semantic"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
+	"golang.org/x/image/math/fixed"
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/fonts"
+	"github.com/mehran9675/giode/internal/textrender"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -133,7 +137,23 @@ func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
 	if t.selKey != nil && st.Visibility != properties.VisibilityHidden {
 		dims = t.layoutSelectable(gtx, st, str, face, properties.ResolveFontSize(st.FontSize), textColor)
 	} else {
-		dims = label.Layout(gtx, shaper, face, properties.ResolveFontSize(st.FontSize), str, textColor)
+		// Laid out from cache and drawn as cached line images; see
+		// internal/textrender.
+		l := textrender.Layout(shaper, text.Parameters{
+			Font:            face,
+			PxPerEm:         fixed.I(gtx.Sp(properties.ResolveFontSize(st.FontSize))),
+			MaxLines:        label.MaxLines,
+			Truncator:       label.Truncator,
+			Alignment:       label.Alignment,
+			Locale:          gtx.Locale,
+			LineHeight:      fixed.I(gtx.Sp(label.LineHeight)),
+			LineHeightScale: label.LineHeightScale,
+		}, gtx.Constraints, str)
+		if st.Visibility != properties.VisibilityHidden {
+			semantic.LabelOp(str).Add(gtx.Ops)
+			l.Draw(gtx.Ops, shaper, col)
+		}
+		dims = l.Dims
 	}
 
 	paintDecoration(gtx, dims.Size, st.TextDecoration, col)
