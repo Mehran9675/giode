@@ -32,7 +32,7 @@ giode.Stack(giode.Styles{}, name)
 | `SubmitOn(m SubmitMode)` | `SubmitDefault` (Enter submits a single-line field), `SubmitEnter`, `SubmitEnterUnlessShift` (Enter sends, Shift+Enter inserts a newline; on a touch screen the on-screen Enter key inserts a newline, since phone apps send with a button), `SubmitNever`. |
 | `SelectAll()` | Selects the whole content. |
 | `InsertText(s string)` | Inserts at the caret (replacing the selection) and calls OnChange, as typing would. |
-| `Placeholder(s string)` / `Styles(st Styles)` | Replace the placeholder or styles from the next frame, keeping the text and focus. |
+| `Placeholder(s string)` / `Styles(st Styles)` | Replace the placeholder or styles from the next frame, keeping the text and focus. A placeholder too long for the field is cut off with "…" (at one line, or at `Lines`' maximum). |
 | `Password(on bool)` | Masks the content and asks for the password keyboard. |
 | `Keyboard(k Keyboard)` | On-screen keyboard on touch devices: `KeyboardText` (default), `KeyboardNumeric`, `KeyboardEmail`, `KeyboardURL`, `KeyboardPhone`. |
 

@@ -93,3 +93,41 @@ func TestSwipeable(t *testing.T) {
 		t.Errorf("tap on closed row: rowTaps=%d, want 1", rowTaps)
 	}
 }
+
+func TestSwipeable_SetActions(t *testing.T) {
+	var got []string
+	pin := func(label string) []Action {
+		return []Action{{Label: label, OnTap: func() { got = append(got, label) }}}
+	}
+	row := elements.Box(styles.Styles{Width: -1, Height: 60, Background: "#ffffff"})
+	s := New(func() elements.Element { return row }, nil, pin("Pin"))
+	h := &harness{s: s, now: time.Unix(0, 0)}
+	h.settle()
+	h.drag(f32.Pt(300, 30), f32.Pt(150, 30))
+	h.tap(380, 30)
+	s.SetActions(nil, pin("Unpin"))
+	h.drag(f32.Pt(300, 30), f32.Pt(150, 30))
+	h.tap(380, 30)
+	if len(got) != 2 || got[0] != "Pin" || got[1] != "Unpin" {
+		t.Fatalf("taps ran %v, want [Pin Unpin]", got)
+	}
+
+	// Two trailing actions open wider; dropping back to one, or to
+	// none, resizes or closes the open row.
+	s.SetActions(nil, append(pin("A"), pin("B")...))
+	h.drag(f32.Pt(390, 30), f32.Pt(100, 30))
+	h.settle()
+	if s.offset != -160 {
+		t.Fatalf("open with two actions at %v, want -160", s.offset)
+	}
+	s.SetActions(nil, pin("A"))
+	h.settle()
+	if s.offset != -80 {
+		t.Errorf("after dropping to one action, offset %v, want -80", s.offset)
+	}
+	s.SetActions(nil, nil)
+	h.settle()
+	if s.Opened() || s.offset != 0 {
+		t.Errorf("with no actions left: opened=%v offset=%v, want closed", s.Opened(), s.offset)
+	}
+}

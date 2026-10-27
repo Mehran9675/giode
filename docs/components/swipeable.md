@@ -19,9 +19,21 @@ reaching the content. Vertical drags still scroll the list around it.
 
 The content should paint an opaque background, since the actions sit behind it.
 
+When an action depends on state, update it on the existing row rather than creating a new
+one:
+
+```go
+label := "Pin"
+if chat.Pinned {
+	label = "Unpin"
+}
+row.SetActions([]giode.SwipeAction{{Label: label, OnTap: func() { togglePin(chat) }}}, deleteAction)
+```
+
 | Member | Description |
 | --- | --- |
 | `Swipeable(content func() Element, leading, trailing []SwipeAction) *Swipeable` | Creates the row; either action list may be nil. |
+| `SetActions(leading, trailing []SwipeAction)` | Replaces the actions, for labels that follow state (Pin becomes Unpin). An open row stays open, resized, while its side still has actions. |
 | `Close()` | Slides the row back. |
 | `Opened() bool` | Whether the row is open or opening. |
 
