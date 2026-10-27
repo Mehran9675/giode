@@ -59,8 +59,10 @@ type Scroll struct {
 	following bool
 	fit       bool
 	onScroll  func(offset, max float32)
-	lastOff   [2]float32
-	measured  bool
+	// movedBy is set by ScrollBy until the next layout settles it.
+	movedBy  bool
+	lastOff  [2]float32
+	measured bool
 }
 
 // Axis selects the directions a Scroll scrolls in.
@@ -298,7 +300,9 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	macro := op.Record(gtx.Ops)
 	track := elements.TrackChild()
+	popSem := elements.PushSemanticScroll(s)
 	dims := s.content().Layout(cgtx)
+	popSem()
 	track.End()
 	contentOps := macro.Stop()
 
@@ -355,6 +359,14 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	// Clamp the offsets to the content.
 	s.offset = s.clamp(s.offset)
 	s.offsetX = max(0, min(s.offsetX, float32(s.maxOffsetX())))
+	if s.movedBy {
+		// ScrollBy moved it: follow the content again only at the
+		// bottom, as after the user scrolls.
+		s.movedBy = false
+		if s.anchor == AnchorBottom {
+			s.following = s.AtBottom()
+		}
+	}
 
 	// The ranges accept any scroll distance that stays within the
 	// content.
@@ -412,7 +424,26 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 		s.following = s.AtBottom()
 	}
 	s.notify()
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticScroll, Target: s}, viewport)
 	return layout.Dimensions{Size: viewport}
+}
+
+// ScrollBy moves the content by dx, dy pixels, as a wheel or drag
+// would: positive dy scrolls down. The offsets are clamped to the
+// content on the next layout. It's how automation (the MCP server's
+// ui_scroll) scrolls.
+func (s *Scroll) ScrollBy(dx, dy float32) {
+	s.offset += dy
+	s.offsetX += dx
+	if dy < 0 {
+		s.following = false
+	}
+	s.movedBy = true
+}
+
+// ScrollOffset returns the horizontal and vertical offsets in pixels.
+func (s *Scroll) ScrollOffset() (x, y float32) {
+	return s.offsetX, s.offset
 }
 
 // notify calls OnScroll when an offset changed since the last call.

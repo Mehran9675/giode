@@ -2,6 +2,8 @@ package giode
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"gioui.org/app"
 
@@ -20,6 +22,36 @@ func (a *App) keepScreenOn(ctx context.Context, on bool) error {
 	})
 }
 
+// keepAlives counts KeepAlive holds; the service runs while any is
+// held, showing the latest reason.
+var keepAlives struct {
+	sync.Mutex
+	n int
+}
+
 func (a *App) keepAlive(reason string) (func(), error) {
-	return func() {}, ErrNotSupported
+	vm, ctx := app.JavaVM(), app.AppContext()
+	ok, err := mobile.KeepAliveDeclared(vm, ctx)
+	if err != nil {
+		return func() {}, err
+	}
+	if !ok {
+		return func() {}, fmt.Errorf("%w: the app manifest doesn't declare giode's foreground service (see docs/platform.md)", ErrNotSupported)
+	}
+	keepAlives.Lock()
+	defer keepAlives.Unlock()
+	if err := mobile.StartKeepAlive(vm, ctx, reason); err != nil {
+		return func() {}, err
+	}
+	keepAlives.n++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			keepAlives.Lock()
+			defer keepAlives.Unlock()
+			if keepAlives.n--; keepAlives.n == 0 {
+				mobile.StopKeepAlive(vm, ctx)
+			}
+		})
+	}, nil
 }

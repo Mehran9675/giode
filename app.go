@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -99,6 +100,7 @@ func (a *App) runLoop(view func() Element) error {
 		case app.ConfigEvent:
 			a.handleConfig(e.Config)
 		case app.FrameEvent:
+			start := time.Now()
 			a.runUICalls()
 			gtx := a.frameContext(&ops, e)
 			a.applyHideKeyboard(gtx)
@@ -125,7 +127,12 @@ func (a *App) runLoop(view func() Element) error {
 			if a.mcp != nil {
 				nodes = elements.EndSemantics()
 			}
+			if a.cfg.ShowFrameTimes {
+				a.layoutFrameTimes(gtx)
+			}
+			built := time.Now()
 			e.Frame(gtx.Ops)
+			a.frames.add(start, built, time.Now())
 			elements.EndFrame()
 			a.updateSystemBars()
 			if a.mcp != nil {

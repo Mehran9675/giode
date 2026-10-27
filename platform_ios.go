@@ -2,7 +2,7 @@ package giode
 
 /*
 #cgo CFLAGS: -Werror -fmodules -fobjc-arc -x objective-c
-#cgo LDFLAGS: -framework UIKit -framework PhotosUI
+#cgo LDFLAGS: -framework UIKit -framework PhotosUI -framework AVFoundation -framework Speech
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -16,12 +16,18 @@ uintptr_t giodeBeginBackgroundTask(const char *name);
 void giodeEndBackgroundTask(uintptr_t task);
 void giodeWatchLifecycle(void);
 int giodePickPhoto(CFTypeRef vc, int id, int maxSide);
+int giodeHasInfoKey(const char *key);
+int giodePickCamera(CFTypeRef vc, int id, int maxSide);
+void giodeDictate(int id, const char *lang);
+void giodeStopDictation(int id);
 */
 import "C"
 
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -147,9 +153,10 @@ type photoResult struct {
 
 func (a *App) pickPhoto(ctx context.Context, opts PhotoOptions) (PickedFile, error) {
 	if opts.Source == Camera {
-		// The camera needs NSCameraUsageDescription in Info.plist, which
-		// gogio doesn't let apps add; using it without one crashes.
-		return PickedFile{}, ErrNotSupported
+		// Using the camera without its usage text crashes the app.
+		if err := requireInfoKeys("NSCameraUsageDescription"); err != nil {
+			return PickedFile{}, err
+		}
 	}
 	vc, err := a.viewController()
 	if err != nil {
@@ -164,10 +171,22 @@ func (a *App) pickPhoto(ctx context.Context, opts PhotoOptions) (PickedFile, err
 	ch := make(chan photoResult, 1)
 	photoReqs.ch[id] = ch
 	photoReqs.Unlock()
-	if C.giodePickPhoto(vc, C.int(id), C.int(opts.MaxSide)) == 0 {
+	forget := func() {
 		photoReqs.Lock()
 		delete(photoReqs.ch, id)
 		photoReqs.Unlock()
+	}
+	if opts.Source == Camera {
+		switch C.giodePickCamera(vc, C.int(id), C.int(opts.MaxSide)) {
+		case 0:
+			forget()
+			return PickedFile{}, fmt.Errorf("%w: this device has no camera", ErrNotSupported)
+		case -1:
+			forget()
+			return PickedFile{}, errors.New("camera access isn't allowed for this app (Settings > Privacy & Security > Camera)")
+		}
+	} else if C.giodePickPhoto(vc, C.int(id), C.int(opts.MaxSide)) == 0 {
+		forget()
 		return PickedFile{}, ErrNotSupported // PHPicker needs iOS 14
 	}
 	select {
@@ -201,4 +220,95 @@ func giodePhotoDone(id C.int, data unsafe.Pointer, n C.int, name, errMsg *C.char
 		r.name = C.GoString(name)
 	}
 	ch <- r
+}
+
+// requireInfoKeys returns an error wrapping ErrNotSupported unless the
+// app's Info.plist has every key: iOS ends an app that uses the camera
+// or microphone without the text explaining why.
+func requireInfoKeys(keys ...string) error {
+	var missing []string
+	for _, k := range keys {
+		ck, free := cstr(k)
+		ok := C.giodeHasInfoKey(ck) != 0
+		free()
+		if !ok {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%w: Info.plist lacks %s (see docs/platform.md)", ErrNotSupported, strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+var speechReqs struct {
+	sync.Mutex
+	next int
+	ch   map[int]chan Transcript
+}
+
+func (a *App) dictate(ctx context.Context, lang string) (<-chan Transcript, error) {
+	if err := requireInfoKeys("NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription"); err != nil {
+		return nil, err
+	}
+	in := make(chan Transcript, 16)
+	speechReqs.Lock()
+	if speechReqs.ch == nil {
+		speechReqs.ch = map[int]chan Transcript{}
+	}
+	speechReqs.next++
+	id := speechReqs.next
+	speechReqs.ch[id] = in
+	speechReqs.Unlock()
+	cl, free := cstr(lang)
+	C.giodeDictate(C.int(id), cl)
+	free()
+	out := make(chan Transcript, 16)
+	go func() {
+		defer close(out)
+		stopped := false
+		for {
+			select {
+			case t := <-in:
+				out <- t
+				if t.Final {
+					return
+				}
+			case <-ctx.Done():
+				if !stopped {
+					stopped = true
+					C.giodeStopDictation(C.int(id))
+				}
+				ctx = context.Background() // keep waiting for the final result
+			}
+		}
+	}()
+	return out, nil
+}
+
+//export giodeSpeech
+func giodeSpeech(id C.int, text *C.char, final C.int, errMsg *C.char) {
+	speechReqs.Lock()
+	ch := speechReqs.ch[int(id)]
+	if final != 0 {
+		delete(speechReqs.ch, int(id))
+	}
+	speechReqs.Unlock()
+	if ch == nil {
+		return
+	}
+	t := Transcript{Text: C.GoString(text), Final: final != 0}
+	if errMsg != nil {
+		t.Err = errors.New(C.GoString(errMsg))
+	}
+	if t.Final {
+		// Never block the main thread on a slow reader; the final
+		// result still arrives.
+		go func() { ch <- t }()
+		return
+	}
+	select {
+	case ch <- t:
+	default: // a slow reader misses partial results
+	}
 }

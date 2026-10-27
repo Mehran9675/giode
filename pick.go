@@ -183,7 +183,8 @@ const (
 	// PhotoLibrary picks an existing photo: the system photo picker on
 	// Android, an image file elsewhere.
 	PhotoLibrary PhotoSource = iota
-	// Camera takes a new photo with the camera app. Android only.
+	// Camera takes a new photo with the camera: Android, and iOS when
+	// the app's Info.plist has NSCameraUsageDescription.
 	Camera
 )
 

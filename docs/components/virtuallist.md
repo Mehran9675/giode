@@ -24,6 +24,7 @@ is given (give it a height, or `FlexGrow`).
 | Method | Effect |
 | --- | --- |
 | `ScrollToIndex(i, align)` | `ScrollAlignNearest` (scroll as little as needed), `ScrollAlignStart`, `ScrollAlignCenter`, `ScrollAlignEnd`. Applied on the next frame. |
+| `ScrollBy(dx, dy float32)` / `ScrollOffset() (x, y float32)` | Scroll by pixels (positive `dy` scrolls down; `dx` is ignored), and read the offset. The MCP server's `ui_scroll` uses them. |
 | `VisibleRange()` | First and last row at least partly visible in the last frame. |
 | `Overscan(n)` | Rows built beyond each edge (default 3). |
 | `OnReachEnd(fn)` | Runs once when the last row scrolls into view — for loading more. |

@@ -74,6 +74,25 @@ func New(content func() elements.Element, leading, trailing []Action) *Swipeable
 	}
 }
 
+// SetActions replaces the row's leading and trailing actions (either
+// may be nil), for labels that follow state, a Pin that becomes Unpin,
+// say. Call it before Layout whenever they change; an open row stays
+// open as long as its side still has actions, resized to fit them.
+func (s *Swipeable) SetActions(leading, trailing []Action) {
+	s.leading, s.trailing = leading, trailing
+	s.leadClicks = resize(s.leadClicks, len(leading))
+	s.trailClicks = resize(s.trailClicks, len(trailing))
+}
+
+// resize returns clicks with n entries, keeping the existing ones so a
+// press in progress survives a relabel.
+func resize(clicks []widget.Clickable, n int) []widget.Clickable {
+	if n <= len(clicks) {
+		return clicks[:n]
+	}
+	return append(clicks, make([]widget.Clickable, n-len(clicks))...)
+}
+
 // Close slides the row back.
 func (s *Swipeable) Close() {
 	s.target = 0
@@ -88,6 +107,13 @@ func (s *Swipeable) Opened() bool {
 func (s *Swipeable) Layout(gtx layout.Context) layout.Dimensions {
 	aw := gtx.Dp(unit.Dp(actionWidth))
 	leadW, trailW := float32(aw*len(s.leading)), float32(aw*len(s.trailing))
+	// SetActions may have changed the widths under an open row.
+	switch {
+	case s.target > 0:
+		s.target = leadW
+	case s.target < 0:
+		s.target = -trailW
+	}
 
 	// Drags move the row; releasing settles it open or closed.
 	for {

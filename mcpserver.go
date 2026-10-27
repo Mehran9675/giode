@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -172,7 +173,7 @@ func newMCPBridge(a *App, opts MCPOptions) *mcpBridge {
 	if b.srv.Instructions == "" {
 		b.srv.Instructions = "This server controls a running desktop app built with Giode. " +
 			"Call ui_snapshot to see the visible UI as a list of nodes with ids, then act on them with " +
-			"ui_click, ui_type and ui_set_value, and verify with ui_snapshot or screenshot."
+			"ui_click, ui_type, ui_set_value and ui_scroll, and verify with ui_snapshot or screenshot."
 	}
 	if !opts.DisableBuiltinTools {
 		b.registerBuiltins(a)
@@ -260,9 +261,9 @@ func (b *mcpBridge) node(id string) (elements.SemanticNode, bool) {
 	return elements.SemanticNode{}, false
 }
 
-// screenshot renders the next frame's ops offscreen and encodes it as
-// PNG. It runs on the UI goroutine.
-func (b *mcpBridge) screenshot(ops *op.Ops, size image.Point) ([]byte, error) {
+// screenshot renders the next frame's ops offscreen. It runs on the UI
+// goroutine.
+func (b *mcpBridge) screenshot(ops *op.Ops, size image.Point) (*image.RGBA, error) {
 	if size.X <= 0 || size.Y <= 0 {
 		return nil, errors.New("window has no size")
 	}
@@ -284,6 +285,10 @@ func (b *mcpBridge) screenshot(ops *op.Ops, size image.Point) ([]byte, error) {
 	if err := b.headless.Screenshot(img); err != nil {
 		return nil, err
 	}
+	return img, nil
+}
+
+func encodePNG(img image.Image) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		return nil, err
@@ -309,6 +314,7 @@ type snapshotNode struct {
 	Bounds   [4]int `json:"bounds"`
 	Disabled bool   `json:"disabled,omitempty"`
 	Actions  string `json:"actions,omitempty"`
+	Scroll   string `json:"scroll,omitempty"`
 }
 
 // Interfaces stateful components implement for automation.
@@ -357,9 +363,10 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 
 	snapshotTool := mcp.Func("ui_snapshot", "Returns the visible UI of the app as a flat list of nodes: "+
 		"text runs and controls with an id, kind, label, current value, window-relative bounds [x, y, width, height] "+
-		"in pixels and the actions they accept. Use the ids with ui_click, ui_type and ui_set_value.",
+		"in pixels and the actions they accept. Use the ids with ui_click, ui_type and ui_set_value. "+
+		"Nodes inside a scroll area name it in scroll; they can lie outside its bounds, scrolled out of view (see ui_scroll).",
 		func(ctx context.Context, in struct {
-			Kind  string `json:"kind,omitempty" description:"Only return nodes of this kind (text, button, input, checkbox, slider, select, tab, menuitem, image)"`
+			Kind  string `json:"kind,omitempty" description:"Only return nodes of this kind (text, button, input, checkbox, slider, select, tab, menuitem, image, scroll)"`
 			Query string `json:"query,omitempty" description:"Only return nodes whose label or value contains this text (case-insensitive)"`
 		}) (any, error) {
 			ctx, cancel := ctxFor(ctx)
@@ -381,6 +388,7 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 					ID: n.ID, Kind: string(n.Kind), Label: n.Label, Value: n.Value, Disabled: n.Disabled,
 					Bounds:  [4]int{n.Bounds.Min.X, n.Bounds.Min.Y, n.Bounds.Dx(), n.Bounds.Dy()},
 					Actions: actionsOf(n.Target),
+					Scroll:  n.Scroll,
 				})
 			}
 			return map[string]any{
@@ -391,8 +399,11 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 	snapshotTool.ReadOnly = true
 	b.srv.AddTool(snapshotTool)
 
-	shot := mcp.Func("screenshot", "Captures the app window as a PNG image.",
-		func(ctx context.Context, in struct{}) (any, error) {
+	shot := mcp.Func("screenshot", "Captures the app window as a PNG image, or with id only one node's area.",
+		func(ctx context.Context, in struct {
+			ID      string `json:"id,omitempty" description:"Capture only this node from ui_snapshot (its visible part)"`
+			Padding int    `json:"padding,omitempty" description:"Pixels of surroundings to include around the node"`
+		}) (any, error) {
 			ctx, cancel := ctxFor(ctx)
 			defer cancel()
 			var (
@@ -400,7 +411,26 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 				serr error
 			)
 			if err := b.afterFrame(ctx, a, func(ops *op.Ops, size image.Point) {
-				data, serr = b.screenshot(ops, size)
+				area := image.Rectangle{Max: size}
+				if in.ID != "" {
+					// The node as laid out in this frame.
+					n, ok := b.node(in.ID)
+					if !ok {
+						serr = fmt.Errorf("no node %q on screen; call ui_snapshot again", in.ID)
+						return
+					}
+					area = n.Bounds.Inset(-max(0, in.Padding)).Intersect(area)
+					if area.Empty() {
+						serr = fmt.Errorf("node %q is outside the window; scroll it into view with ui_scroll", in.ID)
+						return
+					}
+				}
+				img, err := b.screenshot(ops, size)
+				if err != nil {
+					serr = err
+					return
+				}
+				data, serr = encodePNG(img.SubImage(area))
 			}); err != nil {
 				return nil, err
 			}
@@ -427,9 +457,50 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 	stateList.ReadOnly = true
 	b.srv.AddTool(stateList)
 
+	frames := mcp.Func("frame_stats", "Reports how long the app's recent frames (up to 240) took: build (running the view and "+
+		"laying it out), render (handing the frame to the GPU and presenting it, which waits when the GPU is behind) "+
+		"and the interval between frames while they follow each other, as average, 95th percentile and max in "+
+		"milliseconds, plus the frame rate. Reset, do the interaction (scroll, stream a reply), then read.",
+		func(ctx context.Context, in struct {
+			Reset bool `json:"reset,omitempty" description:"Discard the frames measured so far, after reporting them"`
+		}) (any, error) {
+			st := a.FrameStats()
+			if in.Reset {
+				a.ResetFrameStats()
+			}
+			t := func(ft FrameTiming) map[string]float64 {
+				m := func(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
+				return map[string]float64{"avg_ms": m(ft.Avg), "p95_ms": m(ft.P95), "max_ms": m(ft.Max)}
+			}
+			return map[string]any{
+				"frames":   st.Frames,
+				"build":    t(st.Build),
+				"render":   t(st.Render),
+				"interval": t(st.Interval),
+				"fps":      math.Round(st.FPS*10) / 10,
+				"note":     "Build includes recording the semantic tree for MCP; render can include waiting for the display refresh.",
+			}, nil
+		})
+	frames.ReadOnly = true
+	b.srv.AddTool(frames)
+
 	if b.opts.ReadOnly {
 		return
 	}
+
+	b.srv.AddTool(mcp.Func("ui_scroll", "Scrolls a scroll area by an amount, or until a node is fully visible. "+
+		"Without id it scrolls the main scroll area (the largest one not inside another). "+
+		"With until, it scrolls toward the node - paging through lists whose rows aren't laid out yet - and reports whether it's visible.",
+		func(ctx context.Context, in struct {
+			ID    string `json:"id,omitempty" description:"A scroll node from ui_snapshot, or any node inside one (scrolls its scroll area)"`
+			DX    int    `json:"dx,omitempty" description:"Pixels to scroll right (negative: left)"`
+			DY    int    `json:"dy,omitempty" description:"Pixels to scroll down (negative: up); with until, the direction to page in when the node isn't found (default down)"`
+			Until string `json:"until,omitempty" description:"A node id, or a node's label or value (an exact match first, otherwise text it contains), to bring into view"`
+		}) (any, error) {
+			ctx, cancel := context.WithTimeout(ctx, 4*b.opts.Timeout)
+			defer cancel()
+			return b.scroll(ctx, a, in.ID, in.DX, in.DY, in.Until)
+		}))
 
 	b.srv.AddTool(mcp.Func("ui_click", "Clicks a node from ui_snapshot: a button, tab, menu item, or toggles a checkbox.",
 		func(ctx context.Context, in struct {

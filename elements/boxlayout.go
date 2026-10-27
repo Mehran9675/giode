@@ -110,28 +110,58 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	}
 	corners := st.Corners()
 	box := image.Rectangle{Max: size}
-	properties.PaintBoxShadowCorners(gtx.Ops, box, corners, st.BoxShadow)
-	properties.PaintBackgroundCorners(gtx.Ops, size, st.Background, corners)
-	properties.PaintGradientCorners(gtx.Ops, size, st.BackgroundGradient, corners)
-	if st.BackgroundImage != nil {
-		cl := properties.RRect(box, corners).Push(gtx.Ops)
-		properties.PaintBackgroundImage(gtx.Ops, box, st.BackgroundImage, st.BackgroundFit)
-		cl.Pop()
+	// Rounded shapes are drawn as rectangles plus small corner paths
+	// (see properties.FillRRect); under a scale or rotation those pieces
+	// could show seams, so a transformed box draws each as one path.
+	exact := !st.Transform.IsIdentity()
+	if exact {
+		properties.PaintBoxShadowExact(gtx.Ops, box, corners, st.BoxShadow)
+	} else {
+		properties.PaintBoxShadowCorners(gtx.Ops, box, corners, st.BoxShadow)
 	}
-
-	properties.PaintBorderCorners(gtx.Ops, size, st.BorderWidth, st.BorderColor, corners)
+	if col := properties.CalcColor(st.Background); col.A != 0 {
+		properties.FillRRect(gtx.Ops, box, corners, exact, func() {
+			paint.ColorOp{Color: col}.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+		})
+	}
+	if g := st.BackgroundGradient; g != nil {
+		properties.FillRRect(gtx.Ops, box, corners, exact, func() { properties.PaintGradient(gtx.Ops, size, g) })
+	}
+	if st.BackgroundImage != nil {
+		properties.FillRRect(gtx.Ops, box, corners, true, func() {
+			properties.PaintBackgroundImage(gtx.Ops, box, st.BackgroundImage, st.BackgroundFit)
+		})
+	}
+	if col := properties.CalcColor(st.BorderColor); col.A != 0 {
+		properties.StrokeRRect(gtx.Ops, box, corners, int(st.BorderWidth), exact, func() {
+			paint.ColorOp{Color: col}.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+		})
+	}
 
 	// Replay the content at its padded position. When overflow is
 	// hidden it's clipped to the padding box - inside the border, with
 	// the corner radii shrunk to match, like CSS - so children can't
-	// cover the border or spill past rounded corners.
+	// cover the border or spill past rounded corners. A rounded clip is
+	// a path over the whole box, so when the content's own bounds stay
+	// clear of the rounding a plain rectangle clips it instead; content
+	// painting outside its bounds (a child's shadow, say) then isn't
+	// rounded off. Absolutely positioned children can sit anywhere, so
+	// they keep the rounded clip.
 	var clipStack clip.Stack
 	hidden := st.Overflow.Mode() == properties.OverflowHidden
 	if hidden {
 		bw := int(st.BorderWidth)
 		shrink := func(v int) int { return max(0, v-bw) }
 		inner := properties.Corners{TopLeft: shrink(corners.TopLeft), TopRight: shrink(corners.TopRight), BottomRight: shrink(corners.BottomRight), BottomLeft: shrink(corners.BottomLeft)}
-		clipStack = properties.RRect(box.Inset(bw), inner).Push(gtx.Ops)
+		pbox := box.Inset(bw)
+		contentRect := image.Rectangle{Max: dims.Size}.Add(image.Pt(padding.Left, padding.Top))
+		if !exact && len(absolute) == 0 && properties.RoundedCornersClear(pbox, contentRect, inner) {
+			clipStack = clip.Rect(pbox).Push(gtx.Ops)
+		} else {
+			clipStack = properties.RRect(pbox, inner).Push(gtx.Ops)
+		}
 	}
 	off := op.Offset(image.Pt(padding.Left, padding.Top)).Push(gtx.Ops)
 	content.Add(gtx.Ops)

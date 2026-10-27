@@ -4,6 +4,7 @@ import (
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
 	"github.com/mehran9675/giode/elements"
@@ -64,7 +65,18 @@ func (e *editorEl) Layout(gtx layout.Context) layout.Dimensions {
 	if e.input.editor.Text() == "" && e.input.placeholder != "" {
 		hintColor := properties.ResolveColor(st.Color)
 		hintColor.A = uint8(float32(hintColor.A) * 0.5)
-		elements.Text(e.input.placeholder, styles.Styles{Color: properties.CalcColorReverse(hintColor), FontSize: st.FontSize}).Layout(gtx)
+		hint := styles.Styles{Color: properties.CalcColorReverse(hintColor), FontSize: st.FontSize}
+		// The placeholder gets the field's line limit, cut off with an
+		// ellipsis, so a long one can't wrap out of a single-line field.
+		switch {
+		case e.input.editor.SingleLine:
+			hint.MaxLines, hint.TextOverflow = 1, properties.TextOverflowEllipsis
+		case e.input.maxLines > 0:
+			hint.MaxLines, hint.TextOverflow = properties.MaxLines(e.input.maxLines), properties.TextOverflowEllipsis
+		}
+		cl := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+		elements.Text(e.input.placeholder, hint).Layout(gtx)
+		cl.Pop()
 	}
 
 	return e.input.editor.Layout(gtx, fonts.Shaper(), font.Font{}, size, textColor, selColor)

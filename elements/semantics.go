@@ -22,6 +22,7 @@ const (
 	SemanticMenuItem SemanticKind = "menuitem"
 	SemanticLink     SemanticKind = "link"
 	SemanticImage    SemanticKind = "image"
+	SemanticScroll   SemanticKind = "scroll"
 	SemanticCustom   SemanticKind = "custom"
 )
 
@@ -44,6 +45,10 @@ type SemanticNode struct {
 	Bounds image.Rectangle `json:"bounds"`
 	// Disabled marks a control that doesn't accept input.
 	Disabled bool `json:"disabled,omitempty"`
+	// Scroll is the ID of the innermost scroll container the node is
+	// laid out in, or "" outside any. A node in a scroll container may
+	// lie outside the container's Bounds, scrolled out of view.
+	Scroll string `json:"scroll,omitempty"`
 	// Target is the stateful component behind the node, if any, so
 	// automation can act on it (e.g. call Click). It is not
 	// serialized.
@@ -54,6 +59,7 @@ type SemanticNode struct {
 // default) disables recording, which then costs a nil check.
 var (
 	semantics   *[]SemanticNode
+	scrollStack []string
 	semanticIDs = map[any]string{}
 	semanticSeq = map[SemanticKind]int{}
 	semanticMu  sync.Mutex
@@ -65,6 +71,7 @@ var (
 func BeginSemantics() {
 	nodes := make([]SemanticNode, 0, 64)
 	semantics = &nodes
+	scrollStack = scrollStack[:0]
 }
 
 // EndSemantics stops recording and returns the frame's nodes.
@@ -103,7 +110,38 @@ func RecordSemantic(gtx layout.Context, n SemanticNode, size image.Point) {
 	if n.ID == "" {
 		n.ID = semanticID(n.Kind, n.Target)
 	}
+	if n.Scroll == "" && len(scrollStack) > 0 {
+		n.Scroll = scrollStack[len(scrollStack)-1]
+	}
 	*semantics = append(*semantics, n)
+}
+
+// PushSemanticScroll marks the nodes recorded until pop is called as
+// content of the scroll container target, which should then record
+// itself as a SemanticScroll node with that Target. A scroll component
+// calls it around laying out its content, so automation can scroll the
+// container to reach a node:
+//
+//	pop := elements.PushSemanticScroll(s)
+//	dims := s.content().Layout(cgtx)
+//	pop()
+//	...
+//	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticScroll, Target: s}, viewport)
+//
+// For automation to scroll it, target should have the methods
+// ScrollBy(dx, dy float32) and ScrollOffset() (x, y float32), in
+// pixels.
+func PushSemanticScroll(target any) (pop func()) {
+	if semantics == nil {
+		return func() {}
+	}
+	scrollStack = append(scrollStack, semanticID(SemanticScroll, target))
+	n := len(scrollStack)
+	return func() {
+		if len(scrollStack) >= n {
+			scrollStack = scrollStack[:n-1]
+		}
+	}
 }
 
 // recordSemantic records a node without a target.

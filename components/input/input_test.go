@@ -2,15 +2,20 @@ package input
 
 import (
 	"image"
+	"image/color"
+	"os"
+	"runtime"
 	"strings"
 	"testing"
 
 	"gioui.org/f32"
+	"gioui.org/gpu/headless"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/paint"
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
@@ -166,5 +171,37 @@ func TestInput_FocusBlurAndSelectAll(t *testing.T) {
 	in.SelectAll()
 	if s, e := in.editor.Selection(); min(s, e) != 0 || max(s, e) != 5 {
 		t.Errorf("selection %d..%d, want 0..5", s, e)
+	}
+}
+
+func TestInput_PlaceholderStaysOneLine(t *testing.T) {
+	fonts.UseGofont()
+	if runtime.GOOS == "linux" && os.Getenv("EGL_PLATFORM") == "" {
+		t.Setenv("EGL_PLATFORM", "surfaceless")
+	}
+	win, err := headless.NewWindow(200, 300)
+	if err != nil {
+		t.Skipf("no offscreen renderer: %v", err)
+	}
+	defer win.Release()
+	long := strings.Repeat("a long placeholder that would wrap ", 8)
+	in := New("x", styles.Styles{Color: "#000000"}).Placeholder(long)
+	var ops op.Ops
+	paint.Fill(&ops, color.NRGBA{255, 255, 255, 255})
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Constraints{Max: image.Pt(200, 300)}}
+	h := in.Layout(gtx).Size.Y
+	if err := win.Frame(&ops); err != nil {
+		t.Fatal(err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 200, 300))
+	if err := win.Screenshot(img); err != nil {
+		t.Fatal(err)
+	}
+	for y := h; y < 300; y++ {
+		for x := 0; x < 200; x++ {
+			if c := img.RGBAAt(x, y); c.R < 200 {
+				t.Fatalf("placeholder painted at (%d, %d), below the %d px field", x, y, h)
+			}
+		}
 	}
 }

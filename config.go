@@ -146,6 +146,12 @@ type Config struct {
 	MCP bool
 	// MCPOptions configures the MCP server.
 	MCPOptions MCPOptions
+	// ShowFrameTimes draws a small counter in the top right corner with
+	// how long frames take to build and to render, and the frame rate:
+	// a development aid for finding what makes scrolling or a stream
+	// stutter on a device. App.FrameStats returns the same numbers, and
+	// the MCP server reports them as frame_stats.
+	ShowFrameTimes bool
 }
 
 // WindowStartState selects the initial state of the window.
@@ -218,6 +224,7 @@ type App struct {
 	navColor    color.NRGBA
 
 	hideKeyboard atomic.Bool
+	frames       frameRecorder
 	themeCheck   chan struct{}
 
 	// explorer shows the file dialogs; it sees every window event.

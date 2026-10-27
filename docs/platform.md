@@ -14,11 +14,11 @@ File dialogs, sharing, the Back button and background/foreground callbacks are i
 | `Haptic` | ✓ | ✓ | – | – | – | – |
 | `Notify` | ✓ | – | ✓ | ✓ | ✓ | – |
 | `KeepScreenOn` | ✓ | ✓ | ✓ | ✓ | ✓ | – |
-| `KeepAlive` | – (see below) | ~30 s | ✓ | ✓ | ✓ (logind) | – |
+| `KeepAlive` | manifest entry (see below) | ~30 s | ✓ | ✓ | ✓ (logind) | – |
 | `SecureStore` | Keystore | Keychain | Keychain | DPAPI | Secret Service | – |
 | `PickFiles` | ✓ | ✓ | ✓ | ✓ | ✓ (portal) | ✓ |
-| `PickPhoto` library / camera | ✓ / ✓ | ✓ / – | file / – | file / – | file / – | file / – |
-| `Dictate` | ✓ | – | – | – | – | – |
+| `PickPhoto` library / camera | ✓ / ✓ | ✓ / Info.plist key | file / – | file / – | file / – | file / – |
+| `Dictate` | ✓ | Info.plist keys | – | – | – | – |
 | `Share` | share sheet | share sheet | reveal / clipboard | reveal / clipboard | reveal / clipboard | – |
 
 "–" means the call returns `ErrNotSupported` (or, for `Haptic`, does nothing). The iOS
@@ -73,10 +73,26 @@ generation the user is watching.
 
 `release, err := app.KeepAlive("Researching")` keeps work running: desktops don't go to
 idle sleep, and iOS grants its short background grace period (about 30 seconds).
-**Android isn't supported**: work that continues after the app leaves the screen needs a
-foreground service, which must be declared in the app manifest, and gogio's manifest
-template has no way to add one. `KeepAlive` returns `ErrNotSupported` there; keep the app
-open with `KeepScreenOn`, and save progress in `OnBackground`.
+
+On Android it starts a foreground service, which keeps the app running after it leaves
+the screen and shows an ongoing notification with the reason; tapping it brings the app
+back. Call it while the app is shown (Android doesn't let a backgrounded app start one),
+and call `release` when the work is done. The service is in giode's helper, but Android
+only runs a service the app's manifest declares:
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+<application ...>
+	<service android:name="org.giode.mobile.KeepAliveService"
+		android:foregroundServiceType="dataSync" android:exported="false"/>
+</application>
+```
+
+gogio's manifest template has no way to add these yet, so for now `KeepAlive` checks for
+the declaration and returns an error wrapping `ErrNotSupported` without it; keep the app
+open with `KeepScreenOn` and save progress in `OnBackground` as a fallback. Android 15
+limits `dataSync` services to six hours a day, after which the service stops.
 
 ## Secure storage
 
@@ -108,9 +124,10 @@ photo, err := app.PickPhoto(ctx, giode.PhotoOptions{Source: giode.PhotoLibrary, 
 the content) and `Size` (-1 when unknown). `PickPhoto` returns an upright JPEG scaled to
 `MaxSide`: Android's photo picker (Android 13+, the image picker before) or camera, and
 PHPicker on iOS 14+, decode HEIC on the device, so HEIC never reaches the app. On desktops
-it picks an image file (JPEG, PNG, GIF, WebP). The camera isn't available on iOS: it needs
-`NSCameraUsageDescription` in Info.plist, which gogio can't add. Like `OpenFile`, these
-block: call them from a goroutine.
+it picks an image file (JPEG, PNG, GIF, WebP). The iOS camera needs
+`NSCameraUsageDescription` in Info.plist (see [Info.plist keys on iOS](#infoplist-keys-on-ios));
+without it `PickPhoto` returns an error wrapping `ErrNotSupported` rather than letting iOS
+end the app. Like `OpenFile`, these block: call them from a goroutine.
 
 Reading an image from the clipboard isn't supported yet.
 
@@ -124,6 +141,26 @@ for r := range results {
 }
 ```
 
-Android's `SpeechRecognizer`, asking for the microphone permission the first time; import
-`gioui.org/app/permission/microphone`. iOS isn't supported: speech recognition needs usage
-descriptions in Info.plist that gogio can't add.
+On Android it uses `SpeechRecognizer`, asking for the microphone permission the first
+time; import `gioui.org/app/permission/microphone`. On iOS it uses `SFSpeechRecognizer`
+with the microphone, asking for both permissions the first time, and ends after a two
+second pause, as Android does. It needs `NSMicrophoneUsageDescription` and
+`NSSpeechRecognitionUsageDescription` in Info.plist; without them `Dictate` returns an
+error wrapping `ErrNotSupported`.
+
+## Info.plist keys on iOS
+
+iOS ends an app that uses the camera, microphone or speech recognition without a line in
+its Info.plist explaining why, shown in the permission prompt. gogio writes Info.plist
+itself and has no option to add keys, so add them to the built app before installing it:
+
+```sh
+gogio -target ios -arch amd64 -appid com.example.app -o App.app .
+plutil -insert NSCameraUsageDescription -string "To attach photos you take." App.app/Info.plist
+plutil -insert NSMicrophoneUsageDescription -string "To dictate messages." App.app/Info.plist
+plutil -insert NSSpeechRecognitionUsageDescription -string "To dictate messages." App.app/Info.plist
+codesign -f -s - App.app   # re-sign after editing; use your identity for a device build
+```
+
+For a device `.ipa`, unzip it, edit `Payload/App.app/Info.plist` the same way, and
+re-sign the app with your identity and its entitlements before zipping it again.
