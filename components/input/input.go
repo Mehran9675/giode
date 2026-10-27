@@ -68,6 +68,7 @@ const (
 // Input is a stateful text field, single-line by default. Create it
 // once with New and lay it out every frame.
 type Input struct {
+	pass         func(gtx layout.Context) bool
 	editor       widget.Editor
 	placeholder  string
 	label        string
@@ -281,18 +282,16 @@ func (i *Input) Focused() bool {
 	return i.focused
 }
 
-// Layout lays out and updates the field.
-func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
-	if i.requestFocus {
-		i.requestFocus = false
-		gtx.Execute(key.FocusCmd{Tag: &i.editor})
-	}
+// update handles taps, editing and focus, reporting whether anything
+// happened that changes how the field looks.
+func (i *Input) update(gtx layout.Context) (changed bool) {
 	for {
 		ev, ok := gtx.Event(pointer.Filter{Target: &i.tap, Kinds: pointer.Press})
 		if !ok {
 			break
 		}
 		if e, ok := ev.(pointer.Event); ok && (e.Source == pointer.Touch || e.Buttons.Contain(pointer.ButtonPrimary)) {
+			changed = true
 			gtx.Execute(key.FocusCmd{Tag: &i.editor})
 			if !i.editor.ReadOnly {
 				gtx.Execute(key.SoftKeyboardCmd{Show: true})
@@ -305,6 +304,7 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 		if !ok {
 			break
 		}
+		changed = true
 		switch e := ev.(type) {
 		case widget.SubmitEvent:
 			if i.onSubmit != nil {
@@ -320,6 +320,7 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	focused := gtx.Source.Focused(&i.editor)
 	if focused != i.focused {
+		changed = true
 		if focused && i.onFocus != nil {
 			i.onFocus()
 		}
@@ -328,6 +329,20 @@ func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 	i.focused = focused
+	return changed
+}
+
+// Layout lays out and updates the field.
+func (i *Input) Layout(gtx layout.Context) layout.Dimensions {
+	if i.requestFocus {
+		i.requestFocus = false
+		gtx.Execute(key.FocusCmd{Tag: &i.editor})
+	}
+	i.update(gtx)
+	if i.pass == nil {
+		i.pass = i.update
+	}
+	kit.HandleInput(i.pass)
 	if i.focused {
 		// A focused field receives key events and blinks its caret, so
 		// cached ancestors must keep laying it out.

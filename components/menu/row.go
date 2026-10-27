@@ -71,6 +71,8 @@ type menuRow struct {
 // submenu - opens/renders it while it's the active one (see
 // Menu.openSubmenu).
 func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	item := r.item
 	if item.submenu == nil && item.click.Clicked(gtx) {
 		if item.action != nil {

@@ -26,6 +26,8 @@ const edgeWidth = 20
 // Layout updates the drawer and, while it's visible, registers the
 // overlay that paints it. It takes no space in the layout.
 func (d *Drawer) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	isOpen := d.Opened()
 	if isOpen && !d.fixed {
 		elements.HandleDismiss(func() { *d.open = false })

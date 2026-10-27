@@ -50,6 +50,7 @@ type selectState struct {
 	// origin is the text's position, exact from the last frame, to
 	// place the Copy action.
 	origin image.Point
+	pass   func(gtx layout.Context) bool
 }
 
 func newSelectState() *selectState {
@@ -108,6 +109,19 @@ func (s *selectState) update(gtx layout.Context) {
 		HandleDismiss(func() { s.all = false })
 		kit.MarkLive()
 	}
+}
+
+// passFunc returns the input pass (see kit.HandleInput): long-presses
+// and right-clicks select it all.
+func (s *selectState) passFunc() func(gtx layout.Context) bool {
+	if s.pass == nil {
+		s.pass = func(gtx layout.Context) bool {
+			was := s.all
+			s.update(gtx)
+			return s.all != was
+		}
+	}
+	return s.pass
 }
 
 func (s *selectState) selectAll() {
@@ -186,6 +200,11 @@ func (t *TextElement) Selectable(key any) *TextElement {
 func (t *TextElement) layoutSelectable(gtx layout.Context, st styles.Styles, str string, face font.Font, size unit.Sp, textColor op.CallOp) layout.Dimensions {
 	s := Keyed("giode.selectable", t.selKey, newSelectState)
 	s.update(gtx)
+	kit.HandleInput(s.passFunc())
+	if !TouchInput() {
+		// widget.Selectable's mouse selection handles its own events.
+		kit.OpaqueInput()
+	}
 
 	selMacro := op.Record(gtx.Ops)
 	paint.ColorOp{Color: properties.CalcColor(selectionColor(st.Color))}.Add(gtx.Ops)

@@ -26,6 +26,7 @@ type Switch struct {
 	label    string
 	st       styles.Styles
 	click    widget.Clickable
+	pass     func(gtx layout.Context) bool
 	on       bool
 	onChange func(on bool)
 	disabled bool
@@ -80,14 +81,30 @@ func (s *Switch) Toggle() {
 }
 
 // Layout lays out and updates the switch.
+// update handles clicks, reporting whether one toggled the switch.
+func (s *Switch) update(gtx layout.Context) bool {
+	if s.click.Clicked(gtx) {
+		s.Toggle()
+		kit.RequestFrame(gtx)
+		return true
+	}
+	return false
+}
+
 func (s *Switch) Layout(gtx layout.Context) layout.Dimensions {
 	if s.disabled {
 		gtx = gtx.Disabled()
 	}
-	if s.click.Clicked(gtx) {
-		s.Toggle()
-		kit.RequestFrame(gtx)
+	s.update(gtx)
+	if s.pass == nil {
+		s.pass = kit.ClickablePass(&s.click, func(gtx layout.Context) bool {
+			if s.disabled {
+				gtx = gtx.Disabled()
+			}
+			return s.update(gtx)
+		})
 	}
+	kit.HandleInput(s.pass)
 	target := float32(0)
 	if s.on {
 		target = 1

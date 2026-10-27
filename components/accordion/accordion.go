@@ -88,6 +88,8 @@ func (a *Accordion) SetExpanded(i int, v bool) {
 // Layout lays out every section header, and the content of whichever
 // sections are expanded.
 func (a *Accordion) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	st := styles.Merge(styles.Styles{
 		Color:       defaultText,
 		BorderColor: defaultBorder,

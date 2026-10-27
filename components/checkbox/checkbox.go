@@ -19,6 +19,7 @@ import (
 type Checkbox struct {
 	label    string
 	bool     widget.Bool
+	pass     func(gtx layout.Context) bool
 	onChange func(checked bool)
 	st       styles.Styles
 	icon     icon.Source
@@ -68,12 +69,21 @@ func (c *Checkbox) OnChange(fn func(checked bool)) *Checkbox {
 	return c
 }
 
+// update handles toggles, reporting whether the value changed.
+func (c *Checkbox) update(gtx layout.Context) bool {
+	if !c.bool.Update(gtx) {
+		return false
+	}
+	if c.onChange != nil {
+		c.onChange(c.bool.Value)
+	}
+	kit.RequestFrame(gtx)
+	return true
+}
+
 // Layout lays out and updates the checkbox.
 func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
-	if c.bool.Update(gtx) && c.onChange != nil {
-		c.onChange(c.bool.Value)
-		kit.RequestFrame(gtx)
-	}
+	c.update(gtx)
 	st := styles.Merge(styles.Styles{Color: defaultText}, c.st)
 	// On touch screens the hit area grows to 48dp around the visual.
 	dims := c.bool.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -92,7 +102,14 @@ func (c *Checkbox) Layout(gtx layout.Context) layout.Dimensions {
 	// Keep the checkbox clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.
 	kit.BlockDrag(gtx, dims.Size)
-	if gtx.Source.Focused(&c.bool) {
+	if c.pass == nil {
+		c.pass = func(gtx layout.Context) bool {
+			h, p := c.bool.Hovered(), c.bool.Pressed()
+			changed := c.update(gtx)
+			return changed || h != c.bool.Hovered() || p != c.bool.Pressed()
+		}
+	}
+	if !kit.HandleInput(c.pass) && gtx.Source.Focused(&c.bool) {
 		kit.MarkLive()
 	}
 	value := "false"

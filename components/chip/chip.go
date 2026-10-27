@@ -24,8 +24,9 @@ type Chip struct {
 	onRemove func()
 	st       styles.Styles
 
-	press  *elements.Pressable
-	remove widget.Clickable
+	press      *elements.Pressable
+	remove     widget.Clickable
+	removePass func(gtx layout.Context) bool
 }
 
 // New returns a chip. The styles argument is optional: Background
@@ -98,14 +99,25 @@ func (c *Chip) content(p elements.PressState) elements.Element {
 	kids = append(kids, elements.Text(c.label, styles.Styles{Color: st.Color, FontSize: st.FontSize}))
 	if c.onRemove != nil {
 		kids = append(kids, elements.Raw(func(gtx layout.Context) layout.Dimensions {
-			if c.remove.Clicked(gtx) {
-				c.onRemove()
-				kit.RequestFrame(gtx)
+			c.updateRemove(gtx)
+			if c.removePass == nil {
+				c.removePass = kit.ClickablePass(&c.remove, c.updateRemove)
 			}
+			kit.HandleInput(c.removePass)
 			return c.remove.Layout(gtx, elements.Glyph(kit.GlyphClose, styles.Styles{Color: st.Color, Width: 14}).Layout)
 		}))
 	}
 	return elements.Row(st, kids...)
+}
+
+// updateRemove handles the remove button's clicks.
+func (c *Chip) updateRemove(gtx layout.Context) bool {
+	if c.remove.Clicked(gtx) {
+		c.onRemove()
+		kit.RequestFrame(gtx)
+		return true
+	}
+	return false
 }
 
 // Layout lays out the chip.

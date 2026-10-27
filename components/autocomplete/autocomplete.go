@@ -79,6 +79,8 @@ func (a *AutoComplete) OnSelect(fn func(value string)) *AutoComplete {
 // Layout lays out the field and, while it has matching suggestions,
 // queues the suggestion panel as a portal anchored just below it.
 func (a *AutoComplete) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	dims := a.field.Layout(gtx)
 	// Keep the field clickable even inside a frameless window's
 	// whole-window drag area - see button.Layout's identical comment.

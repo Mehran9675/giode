@@ -5,10 +5,10 @@ import (
 	"image/color"
 
 	"gioui.org/font"
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
-	"gioui.org/io/semantic"
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"

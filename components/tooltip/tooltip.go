@@ -36,6 +36,7 @@ const (
 // stays for a moment once the finger lifts. Create it once with New
 // and lay it out every frame in trigger's place.
 type Tooltip struct {
+	pass    func(gtx layout.Context) bool
 	trigger elements.Element
 	content string
 	st      styles.Styles
@@ -160,7 +161,14 @@ func (t *Tooltip) Layout(gtx layout.Context) layout.Dimensions {
 			return elements.Raw(t.panel)
 		})
 	}
-	if t.hovered || !t.touchAt.IsZero() {
+	if t.pass == nil {
+		t.pass = func(gtx layout.Context) bool {
+			was := t.Visible()
+			t.update(gtx)
+			return t.Visible() != was
+		}
+	}
+	if !kit.HandleInput(t.pass) && (t.hovered || !t.touchAt.IsZero()) {
 		kit.MarkLive()
 	}
 	return dims

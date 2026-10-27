@@ -49,6 +49,14 @@ func (b *BoxElement) resolveStyles(gtx layout.Context) styles.Styles {
 	if b.hovered != wasHovered {
 		kit.MarkLive()
 	}
+	if b.hoverPass == nil {
+		b.hoverPass = func(gtx layout.Context) bool {
+			was := b.hovered
+			b.hovered = b.hover.Update(gtx.Source)
+			return was != b.hovered
+		}
+	}
+	kit.HandleInput(b.hoverPass)
 	tr := b.st.Transition
 	if tr.Duration <= 0 {
 		if !b.hovered {

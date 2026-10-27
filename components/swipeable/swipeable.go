@@ -63,6 +63,7 @@ type Swipeable struct {
 	dragFrom       float32
 	dragStart      float32
 	dragging       bool
+	pass           func(gtx layout.Context) bool
 }
 
 // New returns a row showing content, with leading and trailing actions
@@ -104,17 +105,8 @@ func (s *Swipeable) Opened() bool {
 }
 
 // Layout lays out the row and its revealed actions.
-func (s *Swipeable) Layout(gtx layout.Context) layout.Dimensions {
-	aw := gtx.Dp(unit.Dp(actionWidth))
-	leadW, trailW := float32(aw*len(s.leading)), float32(aw*len(s.trailing))
-	// SetActions may have changed the widths under an open row.
-	switch {
-	case s.target > 0:
-		s.target = leadW
-	case s.target < 0:
-		s.target = -trailW
-	}
-
+// update handles drags and taps.
+func (s *Swipeable) update(gtx layout.Context, leadW, trailW float32) {
 	// Drags move the row; releasing settles it open or closed.
 	for {
 		e, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Horizontal)
@@ -163,6 +155,30 @@ func (s *Swipeable) Layout(gtx layout.Context) layout.Dimensions {
 	if s.closeClick.Clicked(gtx) {
 		s.target = 0
 	}
+
+}
+
+func (s *Swipeable) Layout(gtx layout.Context) layout.Dimensions {
+	aw := gtx.Dp(unit.Dp(actionWidth))
+	leadW, trailW := float32(aw*len(s.leading)), float32(aw*len(s.trailing))
+	// SetActions may have changed the widths under an open row.
+	switch {
+	case s.target > 0:
+		s.target = leadW
+	case s.target < 0:
+		s.target = -trailW
+	}
+
+	s.update(gtx, leadW, trailW)
+	if s.pass == nil {
+		s.pass = func(gtx layout.Context) bool {
+			aw := gtx.Dp(unit.Dp(actionWidth))
+			off, target := s.offset, s.target
+			s.update(gtx, float32(aw*len(s.leading)), float32(aw*len(s.trailing)))
+			return s.offset != off || s.target != target
+		}
+	}
+	kit.HandleInput(s.pass)
 
 	// Animate toward the target.
 	dt := gtx.Now.Sub(s.last)

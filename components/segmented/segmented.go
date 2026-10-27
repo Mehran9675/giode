@@ -31,6 +31,7 @@ type Control struct {
 	onChange func(i int)
 	st       styles.Styles
 	clicks   []widget.Clickable
+	pass     func(gtx layout.Context) bool
 
 	// pos animates the highlight, in segments.
 	pos  float32
@@ -90,18 +91,44 @@ func (c *Control) Choose(i int) {
 	}
 }
 
+// update handles clicks, reporting whether one chose an option.
+func (c *Control) update(gtx layout.Context) bool {
+	chose := false
+	for i := range c.clicks {
+		if c.clicks[i].Clicked(gtx) {
+			c.Choose(i)
+			kit.RequestFrame(gtx)
+			chose = true
+		}
+	}
+	return chose
+}
+
 // Layout lays out and updates the control.
 func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 	n := len(c.options)
 	if n == 0 {
 		return layout.Dimensions{}
 	}
-	for i := range c.clicks {
-		if c.clicks[i].Clicked(gtx) {
-			c.Choose(i)
-			kit.RequestFrame(gtx)
+	c.update(gtx)
+	if c.pass == nil {
+		c.pass = func(gtx layout.Context) bool {
+			var hov [16]bool
+			for i := range c.clicks {
+				if i < len(hov) {
+					hov[i] = c.clicks[i].Hovered()
+				}
+			}
+			changed := c.update(gtx)
+			for i := range c.clicks {
+				if i < len(hov) && hov[i] != c.clicks[i].Hovered() {
+					changed = true
+				}
+			}
+			return changed
 		}
 	}
+	kit.HandleInput(c.pass)
 	dt := gtx.Now.Sub(c.last)
 	if c.last.IsZero() || dt < 0 || dt > animDuration {
 		dt = animDuration

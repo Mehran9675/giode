@@ -37,6 +37,7 @@ type Button struct {
 	variant   Variant
 	onClick   func()
 	clickable widget.Clickable
+	pass      func(gtx layout.Context) bool
 	label     string
 }
 
@@ -91,8 +92,8 @@ func (b *Button) Click() {
 	b.clickable.Click()
 }
 
-// Layout lays out and updates the button.
-func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
+// update handles clicks, reporting whether one called the handler.
+func (b *Button) update(gtx layout.Context) bool {
 	if b.clickable.Clicked(gtx) && b.onClick != nil {
 		b.onClick()
 		// The handler may have changed state that this frame's view
@@ -100,7 +101,14 @@ func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 		// another frame so the change shows up right away instead of
 		// waiting for an unrelated event to trigger a repaint.
 		kit.RequestFrame(gtx)
+		return true
 	}
+	return false
+}
+
+// Layout lays out and updates the button.
+func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
+	b.update(gtx)
 	// On touch screens the hit area grows to 48dp around the visual.
 	dims := b.clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return elements.MinTouchTarget(gtx, b.layoutVisual)
@@ -110,7 +118,10 @@ func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 	// layoutDrag): without this, pressing the button would be
 	// hijacked into a native window-move instead of a click.
 	kit.BlockDrag(gtx, dims.Size)
-	if gtx.Source.Focused(&b.clickable) || b.clickable.Pressed() {
+	if b.pass == nil {
+		b.pass = kit.ClickablePass(&b.clickable, b.update)
+	}
+	if !kit.HandleInput(b.pass) && (gtx.Source.Focused(&b.clickable) || b.clickable.Pressed()) {
 		kit.MarkLive()
 	}
 	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticButton, Label: b.label, Target: b}, dims.Size)

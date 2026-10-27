@@ -23,6 +23,13 @@ type Slider struct {
 	hover    gesture.Hover
 	onChange func(v float32)
 	st       styles.Styles
+
+	// hovered, and the geometry of the last layout, for handling input
+	// in the input pass (see kit.HandleInput).
+	hovered     bool
+	lastWidth   float32
+	lastPadding int
+	pass        func(gtx layout.Context) bool
 }
 
 // New returns a Slider. The styles argument is optional: Color is
@@ -68,6 +75,36 @@ func (s *Slider) OnChange(fn func(v float32)) *Slider {
 	return s
 }
 
+// update handles hover and drags, with the geometry of the last
+// layout.
+func (s *Slider) update(gtx layout.Context) {
+	s.hovered = s.hover.Update(gtx.Source)
+	changed := false
+	for {
+		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Horizontal)
+		if !ok {
+			break
+		}
+		switch ev.Kind {
+		case pointer.Press, pointer.Drag:
+			// No Priority check: a plain click never grabs the pointer
+			// (the drag only grabs once it moves past the touch slop),
+			// so requiring a grab made clicking the track do nothing.
+			// Press only arrives when the click lands on the slider, and
+			// a drag another handler grabs arrives as Cancel instead.
+			v := s.valueFromX(float32(ev.Position.X), s.lastWidth, s.lastPadding)
+			if v != s.value {
+				s.value = v
+				changed = true
+			}
+		}
+	}
+	if changed && s.onChange != nil {
+		s.onChange(s.value)
+		kit.RequestFrame(gtx)
+	}
+}
+
 // Layout lays out and updates the slider. It expands to the available
 // width.
 func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
@@ -86,31 +123,17 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 	kit.BlockDragHere(gtx)
 	s.drag.Add(gtx.Ops)
 	s.hover.Add(gtx.Ops)
-	hovered := s.hover.Update(gtx.Source)
-	changed := false
-	for {
-		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Horizontal)
-		if !ok {
-			break
-		}
-		switch ev.Kind {
-		case pointer.Press, pointer.Drag:
-			// No Priority check: a plain click never grabs the pointer
-			// (the drag only grabs once it moves past the touch slop),
-			// so requiring a grab made clicking the track do nothing.
-			// Press only arrives when the click lands on the slider, and
-			// a drag another handler grabs arrives as Cancel instead.
-			v := s.valueFromX(float32(ev.Position.X), float32(size.X), m.padding)
-			if v != s.value {
-				s.value = v
-				changed = true
-			}
+	s.lastWidth, s.lastPadding = float32(size.X), m.padding
+	s.update(gtx)
+	hovered := s.hovered
+	if s.pass == nil {
+		s.pass = func(gtx layout.Context) bool {
+			h, d, v := s.hovered, s.drag.Dragging(), s.value
+			s.update(gtx)
+			return h != s.hovered || d != s.drag.Dragging() || v != s.value
 		}
 	}
-	if changed && s.onChange != nil {
-		s.onChange(s.value)
-		kit.RequestFrame(gtx)
-	}
+	kit.HandleInput(s.pass)
 
 	thumb := s.st.BorderColor
 	switch {

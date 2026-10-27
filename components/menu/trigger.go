@@ -35,6 +35,8 @@ type menuTrigger struct {
 }
 
 func (t *menuTrigger) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	if t.click.Clicked(gtx) {
 		if t.menu.open {
 			t.menu.Close()

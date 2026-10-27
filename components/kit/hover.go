@@ -20,6 +20,7 @@ import (
 type HoverTracker struct {
 	hover   *gesture.Hover
 	hovered bool
+	pass    func(gtx layout.Context) bool
 }
 
 // Enable turns on hover tracking. Call from the element's own
@@ -61,6 +62,13 @@ func (h *HoverTracker) RegisterArea(gtx layout.Context, off, size image.Point, c
 	if h.hover == nil {
 		return
 	}
+	if h.pass == nil {
+		h.pass = func(gtx layout.Context) bool {
+			was := h.hovered
+			return h.Update(gtx) != was
+		}
+	}
+	HandleInput(h.pass)
 	o := op.Offset(off).Push(gtx.Ops)
 	ps := pointer.PassOp{}.Push(gtx.Ops)
 	cl := clip.Rect{Max: size}.Push(gtx.Ops)

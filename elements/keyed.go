@@ -60,15 +60,43 @@ func Keyed[T any](scope, key any, init func() T) T {
 		if v, ok := e.value.(T); ok {
 			e.frame = frameNumber
 			keyedMu.Unlock()
+			retainKeyed(e.touch)
 			return v
 		}
 	}
 	keyedMu.Unlock()
 	v := init()
+	e = &keyedEntry{value: v, frame: frameNumber}
 	keyedMu.Lock()
-	keyedStore[k] = &keyedEntry{value: v, frame: frameNumber}
+	keyedStore[k] = e
 	keyedMu.Unlock()
+	retainKeyed(e.touch)
 	return v
+}
+
+// touch keeps the entry alive this frame.
+func (e *keyedEntry) touch() {
+	keyedMu.Lock()
+	e.frame = frameNumber
+	keyedMu.Unlock()
+}
+
+// retainStack collects, for caches recording their subtree, the keyed
+// lookups to repeat on frames they replay instead.
+var retainStack []*[]func()
+
+func pushRetainScope(s *[]func()) (pop func()) {
+	retainStack = append(retainStack, s)
+	n := len(retainStack)
+	return func() { retainStack = retainStack[:n-1] }
+}
+
+// retainKeyed registers touch with the innermost recording cache.
+func retainKeyed(touch func()) {
+	if n := len(retainStack); n > 0 {
+		s := retainStack[n-1]
+		*s = append(*s, touch)
+	}
 }
 
 // ForgetKeyed drops the state stored under (scope, key) right away.
@@ -173,14 +201,23 @@ func (c *KeyedCache[K, V]) Get(key K, init func() V) V {
 	if e, ok := c.entries[key]; ok {
 		e.frame = frameNumber
 		c.mu.Unlock()
+		retainKeyed(func() { c.touch(e) })
 		return e.value
 	}
 	c.mu.Unlock()
 	v := init()
+	e := &keyedCacheEntry[V]{value: v, frame: frameNumber}
 	c.mu.Lock()
-	c.entries[key] = &keyedCacheEntry[V]{value: v, frame: frameNumber}
+	c.entries[key] = e
 	c.mu.Unlock()
+	retainKeyed(func() { c.touch(e) })
 	return v
+}
+
+func (c *KeyedCache[K, V]) touch(e *keyedCacheEntry[V]) {
+	c.mu.Lock()
+	e.frame = frameNumber
+	c.mu.Unlock()
 }
 
 // Peek returns the entry for key without creating it or keeping it

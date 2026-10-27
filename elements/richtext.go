@@ -16,6 +16,7 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 
+	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/internal/textrender"
 	"github.com/mehran9675/giode/styles"
@@ -188,20 +189,19 @@ func (r *RichTextElement) Layout(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	// Taps on links.
+	// Taps on links, here and in the input pass of enclosing caches.
+	var links []resolvedSpan
 	for _, s := range spans {
-		if s.click == nil {
-			continue
+		if s.click != nil {
+			links = append(links, s)
 		}
-		for {
-			e, ok := s.click.Update(gtx.Source)
-			if !ok {
-				break
-			}
-			if e.Kind == gesture.KindClick {
-				r.openLink(s.url)
-			}
-		}
+	}
+	if len(links) > 0 {
+		r.handleLinks(gtx, links)
+		kit.HandleInput(func(gtx layout.Context) bool {
+			r.handleLinks(gtx, links)
+			return false
+		})
 	}
 
 	// Laid out from cache and drawn as cached line images; see
@@ -280,6 +280,21 @@ func (r *RichTextElement) Layout(gtx layout.Context) layout.Dimensions {
 	return dims
 }
 
+// handleLinks opens the links tapped since the last frame.
+func (r *RichTextElement) handleLinks(gtx layout.Context, links []resolvedSpan) {
+	for _, s := range links {
+		for {
+			e, ok := s.click.Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				r.openLink(s.url)
+			}
+		}
+	}
+}
+
 func (r *RichTextElement) openLink(url string) {
 	if r.onLink != nil {
 		r.onLink(url)
@@ -296,6 +311,7 @@ func (r *RichTextElement) selection(gtx layout.Context) *selectState {
 	}
 	s := Keyed("giode.selectable", r.selKey, newSelectState)
 	s.update(gtx)
+	kit.HandleInput(s.passFunc())
 	return s
 }
 

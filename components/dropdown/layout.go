@@ -18,6 +18,8 @@ import (
 // it paints above everything else regardless of where Layout is
 // called from.
 func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
+	// Handles its input without an input pass; see kit.OpaqueInput.
+	kit.OpaqueInput()
 	st := styles.Merge(styles.Styles{
 		Background:   properties.CalcColorReverse(defaultBackground),
 		Color:        properties.CalcColorReverse(defaultText),
