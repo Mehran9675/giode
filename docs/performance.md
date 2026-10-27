@@ -25,9 +25,16 @@ A memo rebuilds when:
 - its **constraints** (available size) or the display density changed;
 - the **theme** changed (`SetMode`, `SetPalette`);
 - a widget inside is **live**: animating (a spinner, a hover transition), focused (a text
-  field), being dragged, or just handled an event;
-- the **pointer** is over it, so hover, presses and scrolling are always handled live;
+  field), being dragged;
+- a widget inside **changed its look in response to input**: the pointer entered a button,
+  a press started, a checkbox toggled;
 - `InvalidateCaches()` was called.
+
+Input alone doesn't rebuild a memo. Every interactive component registers an *input pass*
+while it's laid out; on a frame the memo replays, it runs the passes of the widgets inside,
+which handle their events, and rebuilds only if one reports a visible change. Moving the
+mouse over a cached list, or scrolling past it, replays it; entering a button rebuilds it
+once, for the hover color.
 
 The key identifies the cache across frames and must be unique among the memos laid out in
 a frame. A memo not laid out in a frame is released. Inside a stateful component, keep a
@@ -38,8 +45,11 @@ that row.
 
 ### Rules for widgets inside a memo
 
-Built-in components handle this themselves. A custom component inside a memo that changes
-without input — an animation, a timer — must say so:
+Built-in components handle this themselves. A custom component that handles input inside a
+memo registers an input pass (see [extending.md](extending.md#input-inside-a-memo)), or
+calls `kit.OpaqueInput()`, which makes enclosing memos lay it out live while the pointer is
+over them. A custom component that changes without input — an animation, a timer — must
+say so:
 
 ```go
 kit.RequestFrame(gtx)       // animate: next frame ASAP, and keep enclosing memos live
@@ -78,6 +88,45 @@ interaction on its own.
 
 Recording the semantic tree for the MCP server adds to the build time, so measure without
 the MCP server for the final numbers.
+
+## Long lists: LazyList
+
+[LazyList](components/lazylist.md) builds and lays out only the rows near the viewport,
+whatever their heights. Give it `Version` and each visible row is a memo: scrolling replays
+rows instead of rebuilding them, and offscreen rows keep their measured heights until their
+version changes. Rows are identified by key, so the list keeps its place when rows above
+are added or resize, and `AnchorBottom` keeps a chat pinned to its newest message.
+
+## Text
+
+Text is drawn from images, not paths. Each line is rasterized once on the CPU (glyphs at
+four subpixel positions, composed into one image per line and color) and drawn as a
+textured quad afterwards, so a screen of text costs the GPU about as much as a few images.
+Lines are cached by content, so the same line anywhere reuses its image. Glyphs the
+rasterizer can't handle (color emoji, bitmap fonts) fall back to Gio's vector path.
+
+Layouts are cached too: the same text, style and width isn't shaped again. Long text is
+laid out a paragraph at a time, so a streaming reply that appends to its last paragraph
+reshapes only that paragraph, and only the lines inside the clip are drawn. (Paragraphs are
+split for start-aligned, left-to-right text; other text is laid out whole, still cached.)
+
+Icons (SVG, path data, IconVG and the built-in glyphs) are rasterized the same way, once
+per size and color.
+
+## Shadows
+
+A blurred shadow is computed once per size, radius, blur and color: a Gaussian-blurred
+rounded rectangle, drawn as nine slices of one small image. The edges and the middle
+stretch, so a large card's shadow costs no more than a small one's, and the GPU never
+blurs anything.
+
+## Android refresh rate
+
+Gio as released renders Android apps at most at 60fps on 120Hz displays: it asks for the
+next frame only after presenting the current one, which misses the next vsync. Apps built
+with the [giode CLI](https://github.com/mehran9675/giode-cli) (`giode build android`)
+are built against a copy of Gio with that fixed and run at the display's full rate. The
+CLI's README describes how, and how to turn it off.
 
 ## Built-in savings
 
