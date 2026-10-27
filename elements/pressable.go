@@ -435,7 +435,7 @@ func (p *Pressable) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	macro := op.Record(gtx.Ops)
-	dims := content.Layout(gtx)
+	dims := kit.Unselectable(content.Layout)(gtx)
 	call := macro.Stop()
 
 	// Hit area first, content on top: interactive children win.

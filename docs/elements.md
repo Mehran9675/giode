@@ -102,6 +102,31 @@ Copy button. On a touch screen: long-press to select it all and get a Copy butto
 over the text still scrolls whatever it's in. `key` identifies the text across frames (a
 message ID), since `Text` is rebuilt every frame and the selection has to live somewhere.
 
+### SelectionArea
+
+```go
+giode.SelectionArea("chat", giode.Box(giode.Styles{FlexDirection: giode.FlexDirectionColumn},
+	giode.Text(title, titleStyles),
+	giode.Markdown(reply, opts),
+	giode.Text(footer, footerStyles),
+))
+```
+
+`SelectionArea(key, child)` makes all the `Text`, `RichText` and `Markdown` inside `child`
+selectable as one, the way text on a web page is: a selection can start in one paragraph and
+end in another, and copies as their text joined by newlines. With a mouse: drag to select,
+double-click for a word, triple-click for a whole paragraph, Shift+click to extend,
+Ctrl+C (Cmd+C) to copy, Ctrl+A (Cmd+A) for everything, Escape to clear, right-click for a
+Copy button. On a touch screen: long-press selects a word and dragging the held finger
+extends it; letting go shows a Copy button. A finger that moves before the long-press
+scrolls as usual.
+
+Each element draws its part of the selection in its own text color at 30% opacity. The text
+of buttons, menus, tabs, inputs and other interactive components is left out (custom
+components can do the same with `kit.Unselectable`), as are elements that are
+`Selectable` themselves. Text inside a `Memo` or a `LazyList` row takes part too: the cached
+output is replayed until the selection changes.
+
 ## RichText
 
 One wrapping paragraph of differently styled runs:
@@ -123,7 +148,8 @@ paragraph. A span can also set `TextDecoration` (underline, line-through) and
 handler is set.
 
 `Selectable(key)` works as for `Text`, except that the whole paragraph is selected and
-copied at once: selecting part of a rich paragraph isn't supported.
+copied at once. To select part of a paragraph, or across paragraphs, put it in a
+`SelectionArea` instead.
 
 ## Markdown
 

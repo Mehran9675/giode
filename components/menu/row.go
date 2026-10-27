@@ -81,7 +81,7 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 		r.menu.Close()
 		kit.RequestFrame(gtx)
 	}
-	dims := item.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	dims := item.click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		st := styles.Styles{
 			Padding:      r.menu.rowPadding(),
 			BorderRadius: 6,
@@ -139,7 +139,7 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			rowSt.Width = -1
 		}
 		return elements.Box(st, elements.Row(rowSt, children...)).Layout(gtx)
-	})
+	}))
 	// Keep the item clickable even when a frameless window's
 	// whole-window drag area happens to reach this portal - see
 	// button.Layout's identical comment.

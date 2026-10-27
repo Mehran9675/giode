@@ -134,12 +134,12 @@ func (s *Switch) Layout(gtx layout.Context) layout.Dimensions {
 			elements.Box(styles.Styles{FlexGrow: 1}, elements.Text(s.label, styles.Styles{Color: st.Color, FontSize: st.FontSize})),
 			track)
 	}
-	dims := s.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	dims := s.click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		if s.click.Hovered() && !s.disabled {
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		return elements.MinTouchTarget(gtx, content.Layout)
-	})
+	}))
 	kit.BlockDrag(gtx, dims.Size)
 	if s.pos != target {
 		kit.MarkLive()

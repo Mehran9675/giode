@@ -27,9 +27,9 @@ func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
 			m.Close()
 			return layout.Dimensions{}
 		}
-		m.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		m.scrim.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
-		})
+		}))
 
 		// Back and Escape close the menu.
 		elements.HandleDismiss(m.Close)

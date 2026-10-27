@@ -110,9 +110,9 @@ func (b *Button) update(gtx layout.Context) bool {
 func (b *Button) Layout(gtx layout.Context) layout.Dimensions {
 	b.update(gtx)
 	// On touch screens the hit area grows to 48dp around the visual.
-	dims := b.clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	dims := b.clickable.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		return elements.MinTouchTarget(gtx, b.layoutVisual)
-	})
+	}))
 	// Keep the button clickable even when an ancestor is a frameless
 	// window's whole-window drag area (see the root package's
 	// layoutDrag): without this, pressing the button would be

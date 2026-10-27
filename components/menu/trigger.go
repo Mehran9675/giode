@@ -44,9 +44,9 @@ func (t *menuTrigger) Layout(gtx layout.Context) layout.Dimensions {
 			t.menu.open = true
 		}
 	}
-	dims := t.click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	dims := t.click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		return t.trigger.Layout(gtx)
-	})
+	}))
 	if t.menu.open {
 		// Placed from the trigger's position in the last frame, which
 		// is exact even inside a row of several children (this frame's

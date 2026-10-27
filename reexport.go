@@ -196,6 +196,10 @@ var (
 	// its deps, the States it reads, its constraints or the theme
 	// change - see elements.MemoCache for the full rules.
 	Memo = elements.Memo
+	// SelectionArea makes the Text, RichText and Markdown inside its
+	// child selectable as one, across elements, like a web page.
+	SelectionArea = elements.SelectionArea
+
 	// NewMemoCache returns a cache to hold in a stateful component.
 	NewMemoCache = elements.NewMemoCache
 	// InvalidateCaches forces every Memo to rebuild on the next frame.

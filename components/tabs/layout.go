@@ -75,7 +75,7 @@ func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.El
 	return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 		update(gtx)
 		kit.HandleInput(kit.ClickablePass(click, update))
-		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			sel := i == t.selected
 			textColor := defaultText
 			if sel {
@@ -104,7 +104,7 @@ func (t *Tabs) tabButton(i int, active, activeText properties.Color) elements.El
 			paint.FillShape(gtx.Ops, properties.CalcColor(active), clip.Rect{Max: image.Pt(dims.Size.X, line)}.Op())
 			off.Pop()
 			return dims
-		})
+		}))
 		// Keep the tab clickable even inside a frameless window's
 		// whole-window drag area - see button.Layout's identical
 		// comment.

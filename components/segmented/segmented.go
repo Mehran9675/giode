@@ -194,12 +194,12 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 			defer pop()
 			sgtx := gtx
 			sgtx.Constraints = layout.Exact(image.Pt(segW, segH))
-			d := c.clicks[i].Layout(sgtx, func(gtx layout.Context) layout.Dimensions {
+			d := c.clicks[i].Layout(sgtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 				if c.clicks[i].Hovered() {
 					pointer.CursorPointer.Add(gtx.Ops)
 				}
 				return elements.Box(styles.Styles{Width: -1, Height: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter}, segment(i)).Layout(gtx)
-			})
+			}))
 			elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticTab, Label: c.options[i], Value: boolString(i == c.selected), Target: &c.clicks[i]}, d.Size)
 		}()
 	}

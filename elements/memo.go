@@ -64,6 +64,9 @@ type MemoCache struct {
 	breakpoint  string
 	deps        []any
 	reads       *state.Tracker
+	// selection is the version of the enclosing SelectionArea's
+	// selection, which the subtree's text draws.
+	selection uint64
 
 	// live is set (through kit.MarkLive) by widgets that changed
 	// while the subtree was laid out.
@@ -220,6 +223,7 @@ func (c *MemoCache) fresh(gtx layout.Context, deps []any) bool {
 		c.epoch == cacheEpoch.Load() &&
 		c.color == CurrentColor() &&
 		c.breakpoint == ActiveBreakpoint() &&
+		c.selection == selectionVersion() &&
 		depsEqual(c.deps, deps) &&
 		!c.reads.Changed()
 }
@@ -298,6 +302,7 @@ func (c *MemoCache) record(gtx layout.Context, build func() Element, deps []any)
 	c.epoch = cacheEpoch.Load()
 	c.color = CurrentColor()
 	c.breakpoint = ActiveBreakpoint()
+	c.selection = selectionVersion()
 	c.deps = append(c.deps[:0], deps...)
 	c.valid = true
 

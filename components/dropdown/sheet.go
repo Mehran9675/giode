@@ -75,11 +75,11 @@ func (s *Select) layoutSheet(gtx layout.Context, st styles.Styles) layout.Dimens
 		kit.RequestFrame(gtx)
 		return layout.Dimensions{}
 	}
-	s.sheet.scrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	s.sheet.scrim.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 		defer clip.Rect{Max: win}.Push(gtx.Ops).Pop()
 		paint.Fill(gtx.Ops, color.NRGBA{A: 0x66})
 		return layout.Dimensions{Size: win}
-	})
+	}))
 
 	options := func() elements.Element {
 		rows := make([]elements.Element, 0, len(s.options))
@@ -132,7 +132,7 @@ func (s *Select) sheetRow(i int, st styles.Styles) elements.Element {
 			s.Choose(i)
 			kit.RequestFrame(gtx)
 		}
-		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
 			rowSt := styles.Styles{Padding: properties.SymmetricInset(20, 14), Width: -1}
 			switch {
 			case click.Pressed() || click.Hovered():
@@ -144,7 +144,7 @@ func (s *Select) sheetRow(i int, st styles.Styles) elements.Element {
 				rowSt.Background = kit.Alpha(st.Color, 0.12)
 			}
 			return elements.Box(rowSt, elements.Text(s.options[i], styles.Styles{Color: st.Color, FontSize: 16})).Layout(gtx)
-		})
+		}))
 		kit.BlockDrag(gtx, dims.Size)
 		return dims
 	})

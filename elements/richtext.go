@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"strings"
 	"sync/atomic"
+	"unicode/utf8"
 
 	"gioui.org/font"
 	"gioui.org/gesture"
@@ -256,6 +257,18 @@ func (r *RichTextElement) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 
+	if sel == nil && len(selAreaStack) > 0 && kit.TextSelectable() {
+		var text strings.Builder
+		starts := make([]int, len(spans))
+		n := 0
+		for i, s := range spans {
+			starts[i] = n
+			n += utf8.RuneCountInString(s.text)
+			text.WriteString(s.text)
+		}
+		stops := func() []textrender.StopLine { return laid.StopLines(starts) }
+		registerSelectable(gtx, text.String(), laid.Dims.Size, stops, base.Color)
+	}
 	semantic.LabelOp(r.PlainText()).Add(gtx.Ops)
 	laid.Draw(gtx.Ops, shaper, func(i int) color.NRGBA { return colors[i] })
 	for _, seg := range laid.Segments {

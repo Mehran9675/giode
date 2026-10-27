@@ -150,6 +150,7 @@ func (t *TextElement) Layout(gtx layout.Context) layout.Dimensions {
 			LineHeightScale: label.LineHeightScale,
 		}, gtx.Constraints, str)
 		if st.Visibility != properties.VisibilityHidden {
+			registerSelectable(gtx, str, l.Dims.Size, l.StopLines, st.Color)
 			semantic.LabelOp(str).Add(gtx.Ops)
 			l.Draw(gtx.Ops, shaper, col)
 		}

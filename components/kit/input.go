@@ -95,3 +95,23 @@ func ClickablePass(c *widget.Clickable, update func(gtx layout.Context) bool) fu
 		return fired || h != c.Hovered() || p != c.Pressed()
 	}
 }
+
+// noSelect counts the Unselectable widgets being laid out.
+var noSelect int
+
+// Unselectable wraps w so text laid out in it isn't part of an
+// enclosing SelectionArea's selection: a button's label, a menu row.
+// Interactive components wrap their content with it.
+func Unselectable(w layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		noSelect++
+		defer func() { noSelect-- }()
+		return w(gtx)
+	}
+}
+
+// TextSelectable reports whether text being laid out may join a
+// SelectionArea's selection: it's not inside an Unselectable widget.
+func TextSelectable() bool {
+	return noSelect == 0
+}

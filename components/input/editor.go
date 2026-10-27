@@ -6,6 +6,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"github.com/mehran9675/giode/components/kit"
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
@@ -75,7 +76,7 @@ func (e *editorEl) Layout(gtx layout.Context) layout.Dimensions {
 			hint.MaxLines, hint.TextOverflow = properties.MaxLines(e.input.maxLines), properties.TextOverflowEllipsis
 		}
 		cl := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
-		elements.Text(e.input.placeholder, hint).Layout(gtx)
+		kit.Unselectable(elements.Text(e.input.placeholder, hint).Layout)(gtx)
 		cl.Pop()
 	}
 
