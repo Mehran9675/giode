@@ -29,8 +29,10 @@ func PaintBackgroundCorners(ops *op.Ops, size image.Point, bg Background, c Corn
 	if col.A == 0 || size.X <= 0 || size.Y <= 0 {
 		return
 	}
-	defer RRect(image.Rectangle{Max: size}, c).Push(ops).Pop()
-	paint.Fill(ops, col)
+	FillRRect(ops, image.Rectangle{Max: size}, c, false, func() {
+		paint.ColorOp{Color: col}.Add(ops)
+		paint.PaintOp{}.Add(ops)
+	})
 }
 
 // PaintGradientCorners fills size with g, rounding each corner by its
@@ -39,8 +41,7 @@ func PaintGradientCorners(ops *op.Ops, size image.Point, g *LinearGradient, c Co
 	if g == nil || size.X <= 0 || size.Y <= 0 {
 		return
 	}
-	defer RRect(image.Rectangle{Max: size}, c).Push(ops).Pop()
-	PaintGradient(ops, size, g)
+	FillRRect(ops, image.Rectangle{Max: size}, c, false, func() { PaintGradient(ops, size, g) })
 }
 
 // RRect returns the rounded rectangle clip for r with per-corner

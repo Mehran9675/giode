@@ -38,6 +38,16 @@ func PaintBoxShadow(ops *op.Ops, rect image.Rectangle, radius BorderRadius, s Bo
 // stacked translucent rounded rectangles whose alphas compose to the
 // shadow color at the core and fade out linearly over Blur.
 func PaintBoxShadowCorners(ops *op.Ops, rect image.Rectangle, corners Corners, s BoxShadow) {
+	paintBoxShadow(ops, rect, corners, s, false)
+}
+
+// PaintBoxShadowExact is PaintBoxShadowCorners for a box drawn under a
+// scale or rotation: each layer is one path (see FillRRect).
+func PaintBoxShadowExact(ops *op.Ops, rect image.Rectangle, corners Corners, s BoxShadow) {
+	paintBoxShadow(ops, rect, corners, s, true)
+}
+
+func paintBoxShadow(ops *op.Ops, rect image.Rectangle, corners Corners, s BoxShadow, exact bool) {
 	col := CalcColor(s.Color)
 	if col.A == 0 || rect.Dx() <= 0 || rect.Dy() <= 0 {
 		return
@@ -56,7 +66,7 @@ func PaintBoxShadowCorners(ops *op.Ops, rect image.Rectangle, corners Corners, s
 		return Corners{g(c.TopLeft), g(c.TopRight), g(c.BottomRight), g(c.BottomLeft)}
 	}
 	if s.Blur <= 0 {
-		fill(ops, r, grow(corners, s.Spread), col)
+		fill(ops, r, grow(corners, s.Spread), col, exact)
 		return
 	}
 	layers := min(s.Blur, maxShadowLayers)
@@ -78,13 +88,13 @@ func PaintBoxShadowCorners(ops *op.Ops, rect image.Rectangle, corners Corners, s
 		if lr.Dx() <= 0 || lr.Dy() <= 0 {
 			continue
 		}
-		fill(ops, lr, grow(corners, s.Spread+d), lc)
+		fill(ops, lr, grow(corners, s.Spread+d), lc, exact)
 	}
 }
 
-func fill(ops *op.Ops, r image.Rectangle, c Corners, col color.NRGBA) {
-	st := RRect(r, c).Push(ops)
-	paint.ColorOp{Color: col}.Add(ops)
-	paint.PaintOp{}.Add(ops)
-	st.Pop()
+func fill(ops *op.Ops, r image.Rectangle, c Corners, col color.NRGBA, exact bool) {
+	FillRRect(ops, r, c, exact, func() {
+		paint.ColorOp{Color: col}.Add(ops)
+		paint.PaintOp{}.Add(ops)
+	})
 }
