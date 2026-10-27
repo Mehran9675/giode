@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	"io"
 	"io/fs"
 	"math"
@@ -15,13 +16,13 @@ import (
 
 	"gioui.org/f32"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
+
+	"github.com/mehran9675/giode/internal/raster"
 )
 
 // maxSVGSize bounds the size of an SVG document LoadSVG accepts, so a
@@ -424,65 +425,45 @@ func (e *docEl) Layout(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 	d := e.doc
-	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
-	defer op.Affine(viewBoxTransform(d.viewX, d.viewY, d.viewW, d.viewH, size)).Push(gtx.Ops).Pop()
-
 	current := elements.ResolveColor(e.st.Color)
-	paintFor := func(v string) (paint.ColorOp, bool) {
-		switch {
-		case v == "none":
-			return paint.ColorOp{}, false
-		case !e.colored || v == "currentColor":
-			return paint.ColorOp{Color: current}, true
+	// Rasterized once per document, size and color, and drawn as an
+	// image; see internal/raster.
+	img := raster.Image(docKey{d, size, current, e.colored}, func() *image.RGBA {
+		colorFor := func(v string) color.NRGBA {
+			switch {
+			case v == "none":
+				return color.NRGBA{}
+			case !e.colored || v == "currentColor":
+				return current
+			}
+			c := properties.CalcColor(v)
+			c.A = uint8(uint16(c.A) * uint16(current.A) / 255)
+			return c
 		}
-		c := properties.CalcColor(v)
-		c.A = uint8(uint16(c.A) * uint16(current.A) / 255)
-		return paint.ColorOp{Color: c}, true
-	}
-	for _, s := range d.shapes {
-		if col, ok := paintFor(s.fill); ok {
-			var p clip.Path
-			p.Begin(gtx.Ops)
-			s.path.add(&p)
-			st := clip.Outline{Path: p.End()}.Op().Push(gtx.Ops)
-			col.Add(gtx.Ops)
-			paint.PaintOp{}.Add(gtx.Ops)
-			st.Pop()
+		shapes := make([]raster.Shape, 0, len(d.shapes))
+		for _, s := range d.shapes {
+			shapes = append(shapes, raster.Shape{
+				Path:        s.path.segments(),
+				Fill:        colorFor(s.fill),
+				Stroke:      colorFor(s.stroke),
+				StrokeWidth: s.strokeWidth,
+				Round:       s.roundCaps,
+			})
 		}
-		if col, ok := paintFor(s.stroke); ok && s.strokeWidth > 0 {
-			strokePath(gtx.Ops, s.path, s.strokeWidth, s.roundCaps, col)
-		}
-	}
+		return raster.Render(size, viewBoxTransform(d.viewX, d.viewY, d.viewW, d.viewH, size), shapes)
+	})
+	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
+	raster.Draw(gtx.Ops, img)
 	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticImage, Label: "icon"}, size)
 	return layout.Dimensions{Size: size}
 }
 
-// strokePath strokes c. Gio strokes with butt caps and miter-like
-// joins; for round caps and joins every vertex gets a dot of the
-// stroke's diameter, which reads the same at icon sizes.
-func strokePath(ops *op.Ops, c compiled, width float32, round bool, col paint.ColorOp) {
-	var p clip.Path
-	p.Begin(ops)
-	c.add(&p)
-	st := clip.Stroke{Path: p.End(), Width: width}.Op().Push(ops)
-	col.Add(ops)
-	paint.PaintOp{}.Add(ops)
-	st.Pop()
-	if !round {
-		return
-	}
-	r := width / 2
-	for _, v := range c.vertices() {
-		var dot clip.Path
-		dot.Begin(ops)
-		dot.MoveTo(f32.Pt(v.X+r, v.Y))
-		dot.ArcTo(v, v, 2*math.Pi)
-		dot.Close()
-		ds := clip.Outline{Path: dot.End()}.Op().Push(ops)
-		col.Add(ops)
-		paint.PaintOp{}.Add(ops)
-		ds.Pop()
-	}
+// docKey identifies a document's rasterized image.
+type docKey struct {
+	doc     *Document
+	size    image.Point
+	col     color.NRGBA
+	colored bool
 }
 
 // viewBoxTransform maps a viewBox onto size, scaled uniformly to fit

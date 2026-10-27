@@ -3,14 +3,12 @@ package kit
 import (
 	"image"
 	"image/color"
-	"math"
 
 	"gioui.org/f32"
 	"gioui.org/layout"
-	"gioui.org/op"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
+
+	"github.com/mehran9675/giode/internal/raster"
 )
 
 // Glyph is one of the few small indicator shapes components draw
@@ -57,6 +55,12 @@ var glyphLines = map[Glyph][][]f32.Point{
 	},
 }
 
+type glyphKey struct {
+	g    Glyph
+	size image.Point
+	col  color.NRGBA
+}
+
 // DrawGlyph paints g in col at size dp, with round caps and joins, and
 // returns its dimensions.
 func DrawGlyph(gtx layout.Context, g Glyph, size unit.Dp, col color.NRGBA) layout.Dimensions {
@@ -65,31 +69,20 @@ func DrawGlyph(gtx layout.Context, g Glyph, size unit.Dp, col color.NRGBA) layou
 	if sz.X <= 0 || sz.Y <= 0 {
 		return layout.Dimensions{Size: sz}
 	}
-	scale := float32(min(sz.X, sz.Y)) / 24
-	defer op.Affine(f32.AffineId().Scale(f32.Point{}, f32.Pt(scale, scale))).Push(gtx.Ops).Pop()
-	const width = 2.2
-	for _, line := range glyphLines[g] {
-		var p clip.Path
-		p.Begin(gtx.Ops)
-		p.MoveTo(line[0])
-		for _, pt := range line[1:] {
-			p.LineTo(pt)
+	// Rasterized once per glyph, size and color, and drawn as an
+	// image; see internal/raster.
+	img := raster.Image(glyphKey{g, sz, col}, func() *image.RGBA {
+		scale := float32(min(sz.X, sz.Y)) / 24
+		var shapes []raster.Shape
+		for _, line := range glyphLines[g] {
+			path := []raster.Segment{{Op: 'M', Pts: [3]f32.Point{line[0]}}}
+			for _, pt := range line[1:] {
+				path = append(path, raster.Segment{Op: 'L', Pts: [3]f32.Point{pt}})
+			}
+			shapes = append(shapes, raster.Shape{Path: path, Stroke: col, StrokeWidth: 2.2, Round: true})
 		}
-		st := clip.Stroke{Path: p.End(), Width: width}.Op().Push(gtx.Ops)
-		paint.ColorOp{Color: col}.Add(gtx.Ops)
-		paint.PaintOp{}.Add(gtx.Ops)
-		st.Pop()
-		for _, pt := range line {
-			var d clip.Path
-			d.Begin(gtx.Ops)
-			d.MoveTo(f32.Pt(pt.X+width/2, pt.Y))
-			d.ArcTo(pt, pt, 2*math.Pi)
-			d.Close()
-			ds := clip.Outline{Path: d.End()}.Op().Push(gtx.Ops)
-			paint.ColorOp{Color: col}.Add(gtx.Ops)
-			paint.PaintOp{}.Add(gtx.Ops)
-			ds.Pop()
-		}
-	}
+		return raster.Render(sz, f32.AffineId().Scale(f32.Point{}, f32.Pt(scale, scale)), shapes)
+	})
+	raster.Draw(gtx.Ops, img)
 	return layout.Dimensions{Size: sz}
 }
