@@ -16,16 +16,16 @@ func (a *App) KeepScreenOn(on bool) error {
 //   - Desktops: the computer doesn't go to sleep while idle.
 //   - iOS: the app gets the short grace period iOS allows after it
 //     leaves the screen (about 30 seconds), via beginBackgroundTask.
-//   - Android: not supported. Keeping work running once the app is in
-//     the background takes a foreground service, which must be declared
-//     in the app manifest, and gogio has no way to add one; Android
-//     freezes the app soon after it leaves the screen. KeepAlive
-//     returns ErrNotSupported there, so the app can tell the user to
-//     keep it open (with KeepScreenOn) or save its progress in
-//     OnBackground.
+//   - Android: a foreground service keeps the app running after it
+//     leaves the screen, with an ongoing notification showing reason.
+//     Call it while the app is shown. The app's manifest must declare
+//     the service (see docs/platform.md), which gogio can't do yet;
+//     without it KeepAlive returns an error wrapping ErrNotSupported,
+//     so the app can tell the user to keep it open (with
+//     KeepScreenOn) or save its progress in OnBackground.
 //
-// reason is shown where the platform shows one (Linux's inhibitor
-// list, macOS's power assertions).
+// reason is shown where the platform shows one (Android's
+// notification, Linux's inhibitor list, macOS's power assertions).
 func (a *App) KeepAlive(reason string) (release func(), err error) {
 	return a.keepAlive(reason)
 }

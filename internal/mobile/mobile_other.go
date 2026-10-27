@@ -44,3 +44,12 @@ func Dictate(vm, ctx, view uintptr, lang string) (int, <-chan Speech, error) {
 
 // StopDictation reports ErrUnsupported outside Android.
 func StopDictation(vm, ctx uintptr, id int) error { return ErrUnsupported }
+
+// KeepAliveDeclared reports ErrUnsupported outside Android.
+func KeepAliveDeclared(vm, ctx uintptr) (bool, error) { return false, ErrUnsupported }
+
+// StartKeepAlive reports ErrUnsupported outside Android.
+func StartKeepAlive(vm, ctx uintptr, reason string) error { return ErrUnsupported }
+
+// StopKeepAlive reports ErrUnsupported outside Android.
+func StopKeepAlive(vm, ctx uintptr) error { return ErrUnsupported }

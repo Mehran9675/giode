@@ -13,13 +13,14 @@ import (
 	"git.wow.st/gmp/jni"
 )
 
-//go:generate javac --release 8 -classpath $ANDROID_HOME/platforms/android-34/android.jar -d $TEMP/giode_mobile/classes mobile_android.java services_android.java picker_android.java
+//go:generate javac --release 8 -classpath $ANDROID_HOME/platforms/android-34/android.jar -d $TEMP/giode_mobile/classes mobile_android.java services_android.java picker_android.java KeepAliveService.java
 //go:generate jar cf mobile_android.jar -C $TEMP/giode_mobile/classes .
 
 const (
-	helperClass   = "org/giode/mobile/mobile_android"
-	servicesClass = "org/giode/mobile/services_android"
-	pickerClass   = "org/giode/mobile/picker_android"
+	helperClass    = "org/giode/mobile/mobile_android"
+	servicesClass  = "org/giode/mobile/services_android"
+	pickerClass    = "org/giode/mobile/picker_android"
+	keepAliveClass = "org/giode/mobile/KeepAliveService"
 )
 
 // call loads the helper class through the app's class loader and runs
@@ -138,6 +139,37 @@ func KeepScreenOn(vm, ctx, view uintptr, on bool) error {
 			v = 1
 		}
 		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(view), jni.Value(v))
+	})
+}
+
+// KeepAliveDeclared reports whether the app's manifest declares
+// giode's foreground service, which StartKeepAlive needs.
+func KeepAliveDeclared(vm, ctx uintptr) (bool, error) {
+	var ok bool
+	err := callClass(vm, ctx, keepAliveClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "declared", "(Landroid/content/Context;)Z")
+		var err error
+		ok, err = jni.CallStaticBooleanMethod(env, cls, m, jni.Value(ctx))
+		return err
+	})
+	return ok, err
+}
+
+// StartKeepAlive starts giode's foreground service with reason in its
+// notification, or updates the notification when it's running. Call
+// it while the app is in the foreground.
+func StartKeepAlive(vm, ctx uintptr, reason string) error {
+	return callClass(vm, ctx, keepAliveClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "start", "(Landroid/content/Context;Ljava/lang/String;)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(ctx), jni.Value(jni.JavaString(env, reason)))
+	})
+}
+
+// StopKeepAlive stops the foreground service.
+func StopKeepAlive(vm, ctx uintptr) error {
+	return callClass(vm, ctx, keepAliveClass, func(env jni.Env, cls jni.Class) error {
+		m := jni.GetStaticMethodID(env, cls, "stop", "(Landroid/content/Context;)V")
+		return jni.CallStaticVoidMethod(env, cls, m, jni.Value(ctx))
 	})
 }
 
