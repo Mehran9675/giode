@@ -389,6 +389,7 @@ func (l *List) Layout(gtx layout.Context) layout.Dimensions {
 		focusColor = defaultFocus
 	}
 	rowSize := image.Pt(viewport.X, l.itemPx)
+	popSem := elements.PushSemanticScroll(l)
 	for i := from; i <= to; i++ {
 		y := i*l.itemPx - int(l.offset)
 		off := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
@@ -406,6 +407,7 @@ func (l *List) Layout(gtx layout.Context) layout.Dimensions {
 		pop()
 		off.Pop()
 	}
+	popSem()
 	if l.focused {
 		kit.MarkLive()
 	}
@@ -417,5 +419,18 @@ func (l *List) Layout(gtx layout.Context) layout.Dimensions {
 	l.wasAtEnd = atEnd
 
 	l.bar.Layout(gtx, viewport, l.n*l.itemPx, &l.offset, l.st.ScrollBar)
+	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticScroll, Target: l}, viewport)
 	return layout.Dimensions{Size: viewport}
+}
+
+// ScrollBy moves the rows by dy pixels, as a wheel or drag would:
+// positive dy scrolls down. dx is ignored. It's how automation (the
+// MCP server's ui_scroll) scrolls.
+func (l *List) ScrollBy(dx, dy float32) {
+	l.offset = l.clamp(l.offset + dy)
+}
+
+// ScrollOffset returns the vertical offset in pixels (x is always 0).
+func (l *List) ScrollOffset() (x, y float32) {
+	return 0, l.offset
 }

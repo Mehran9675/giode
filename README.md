@@ -73,7 +73,8 @@ builds use Gio's `gogio` tool; see [docs/mobile.md](docs/mobile.md).
 - **Performance**: `Memo` replays unchanged parts of the UI from cache, so large views stay
   cheap to redraw.
 - **Automation**: a built-in [MCP](https://modelcontextprotocol.io) server lets AI agents
-  inspect, click, type into, resize and screenshot the running app.
+  inspect, click, type into, scroll, resize and screenshot the running app, and read its
+  frame times.
 - **Extensible**: write your own components with the same kit the built-ins use, or drop to
   raw Gio with `Raw`, `RunRaw` and `App.Window()`.
 

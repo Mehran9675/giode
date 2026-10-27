@@ -52,6 +52,33 @@ can't see. Values read from plain variables must be passed as deps. Driving a co
 programmatically from outside a frame (`Button.Click()`) inside a cached subtree needs
 `InvalidateCaches()`; `App.RunOnUI` does that for you.
 
+## Measuring frame times
+
+To find what makes scrolling or a streaming reply stutter, measure on the device:
+
+```go
+app := giode.New(giode.Config{ShowFrameTimes: true})
+```
+
+draws a counter in the top right corner with the average build time, render time and
+frame rate over the last frames. The same numbers, with 95th percentiles and maximums,
+come from `app.FrameStats()` and the MCP server's `frame_stats` tool; `app.ResetFrameStats()`
+(or `frame_stats` with `reset`) starts a fresh measurement, so you can time one
+interaction on its own.
+
+- **Build** is the view function and layout, on the UI goroutine. When it's high, memo
+  the parts that didn't change (above).
+- **Render** is handing the frame to the GPU and presenting it. Presenting waits when the
+  GPU is behind, so a GPU-bound UI shows up here: many large rounded or clipped shapes,
+  big blurred shadows, large images. It can also include waiting for the display's refresh,
+  so on a vsynced display it can approach the refresh interval while the app is otherwise
+  idle; compare it against `1000 / fps`.
+- **Frame rate** counts only frames that follow each other closely, so an idle app
+  doesn't drag it down.
+
+Recording the semantic tree for the MCP server adds to the build time, so measure without
+the MCP server for the final numbers.
+
 ## Built-in savings
 
 Without any memo, Giode still avoids repeated work every frame:
@@ -60,4 +87,8 @@ Without any memo, Giode still avoids repeated work every frame:
 - SVG documents and path data are parsed once; IconVG is decoded once;
 - images keep their GPU upload instead of being uploaded every frame;
 - boxes without absolutely positioned or z-indexed children don't allocate to sort them;
+- rounded backgrounds, borders and shadows are drawn as plain rectangles with small
+  paths only at the corners, so their GPU cost doesn't grow with the box's size, and a
+  hidden-overflow box clips with a plain rectangle when its content stays clear of the
+  rounded corners;
 - `State.SetIfChanged` skips redraws when a value didn't actually change.

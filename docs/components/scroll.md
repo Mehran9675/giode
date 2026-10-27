@@ -28,6 +28,7 @@ giode.Box(giode.Styles{Height: 300}, scroller)
 | `OnReachBottom(fn func()) *Scroll` | Handler fired once when the scroll reaches its maximum offset (edge-triggered - fires again only after scrolling away and back). |
 | `Anchor(a ScrollAnchor) *Scroll` | `AnchorBottom` keeps a scroll that's at the bottom there as content grows (a chat following a streaming reply), stops once the user scrolls up, and resumes when they scroll back down. It starts at the bottom. |
 | `ScrollToBottom()` | Scrolls to the end, and resumes following with `AnchorBottom`. |
+| `ScrollBy(dx, dy float32)` / `ScrollOffset() (x, y float32)` | Scroll by pixels as a wheel would (positive `dy` scrolls down), and read both offsets. The MCP server's `ui_scroll` uses them. |
 | `FitContent(on bool) *Scroll` | The viewport hugs the content up to the available space instead of filling it - a sheet with three rows stays three rows tall. |
 | `Axis(a ScrollAxis) *Scroll` | `Vertical` (default), `Horizontal`, or `Vertical\|Horizontal`. A horizontal-only scroll is as tall as its content, like a row - for wide code and tables. |
 | `OffsetX() float32` / `ScrollToX(v float32)` | The horizontal offset. |

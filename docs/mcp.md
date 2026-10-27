@@ -25,11 +25,13 @@ change; `GIODE_MCP_ADDR` overrides the address.
 
 | Tool | What it does |
 | --- | --- |
-| `ui_snapshot` | The visible UI as nodes: id, kind, label, value, bounds, accepted actions. Filter by `kind` or `query`. |
+| `ui_snapshot` | The visible UI as nodes: id, kind, label, value, bounds, accepted actions, and the scroll area a node is in. Filter by `kind` or `query`. Nodes in a scroll area can lie outside its bounds, scrolled out of view. |
 | `ui_click` | Clicks a button, tab or menu item, or toggles a checkbox. |
 | `ui_type` | Replaces an input's text, optionally submitting it. |
 | `ui_set_value` | Sets a checkbox (`true`/`false`), slider (0–1) or select (option or index). |
-| `screenshot` | The window as a PNG. |
+| `ui_scroll` | Scrolls a scroll area (`id`, or any node inside it; without one the main scroll area) by `dx`/`dy` pixels, or with `until` (a node id or text) until that node is fully visible, paging through virtual lists whose rows aren't laid out yet. Nested scroll areas are scrolled innermost first. |
+| `screenshot` | The window as a PNG, or with `id` just that node's area (plus `padding` pixels). |
+| `frame_stats` | How long recent frames took to build and render, and the frame rate (see [performance.md](performance.md#measuring-frame-times)). `reset` starts a fresh measurement. |
 | `state_list` / `state_set` | Reads and sets named states (see below). |
 | `set_theme` | Switches light/dark mode. |
 | `window` | Minimize, maximize, fullscreen, center, raise, or `resize` to a `width` x `height` in dp - `{"action": "resize", "width": 400, "height": 840}` tests a phone layout on a desktop. |
@@ -81,7 +83,7 @@ MCPOptions: giode.MCPOptions{
 	Addr:     "127.0.0.1:7600", // listen address
 	Token:    "secret",         // require "Authorization: Bearer secret"
 	Stdio:    false,            // serve stdin/stdout instead, for clients that launch the app
-	ReadOnly: false,            // only snapshot/screenshot/state_list
+	ReadOnly: false,            // only snapshot/screenshot/state_list/frame_stats
 	DisableBuiltinTools: false, // only your own tools
 },
 ```

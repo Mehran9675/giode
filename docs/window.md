@@ -26,6 +26,7 @@ settings of desktop applications; unsupported platform features are ignored.
 | `AlwaysOnTop` | `bool` | `false` | Keep above other windows. |
 | `Logger` | `Logger` | `nil` | Receives diagnostics; any `*log.Logger` satisfies it. |
 | `LogLevel` | `LogLevel` | `LogLevelDebug` | `LogLevelDebug`, `LogLevelInfo`, `LogLevelWarning`, `LogLevelError`. |
+| `ShowFrameTimes` | `bool` | `false` | Draw a counter with frame build and render times and the frame rate, for finding stutter on a device; see [performance.md](performance.md#measuring-frame-times). |
 | `OnStartup` | `func()` | `nil` | Runs before the event loop starts. |
 | `OnReady` | `func()` | `nil` | Runs after the first frame is presented. |
 | `OnShutdown` | `func()` | `nil` | Runs after the window closes. Mobile systems may end a backgrounded app without it running: save in `OnBackground`. |
