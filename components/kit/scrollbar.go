@@ -3,6 +3,7 @@ package kit
 import (
 	"image"
 	"image/color"
+	"strings"
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
@@ -81,10 +82,11 @@ func (s *Scrollbar) Dragging() bool {
 // contentH pixels of content scrolled by *offset pixels, and applies
 // thumb drags to *offset (clamped to the content). sb customizes it in
 // dp; zero fields use the defaults (8dp wide, 20dp minimum thumb). It
-// draws nothing when the content fits.
+// draws nothing when the content fits, or when sb hides it on this
+// screen (Hidden, HiddenMaxWidth, HiddenOn).
 func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH int, offset *float32, sb properties.ScrollBar) {
 	viewH := viewport.Y
-	if contentH <= viewH || viewH <= 0 {
+	if contentH <= viewH || viewH <= 0 || scrollbarHidden(gtx, sb) {
 		s.shown = false
 		return
 	}
@@ -145,4 +147,31 @@ func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH in
 	paint.Fill(gtx.Ops, properties.CalcColor(thumb))
 	tc.Pop()
 	barOff.Pop()
+}
+
+// Screen reports the window's width in pixels and the name of the
+// breakpoint the innermost Responsive matched, for scrollbars hidden on
+// some screens. The elements package sets it.
+var Screen func() (width int, breakpoint string)
+
+// scrollbarHidden reports whether sb hides the bar on this screen.
+func scrollbarHidden(gtx layout.Context, sb properties.ScrollBar) bool {
+	if sb.Hidden {
+		return true
+	}
+	if (sb.HiddenMaxWidth <= 0 && sb.HiddenOn == "") || Screen == nil {
+		return false
+	}
+	width, bp := Screen()
+	if sb.HiddenMaxWidth > 0 && width > 0 && width <= gtx.Dp(unit.Dp(sb.HiddenMaxWidth)) {
+		return true
+	}
+	if sb.HiddenOn != "" && bp != "" {
+		for _, name := range strings.Split(sb.HiddenOn, ",") {
+			if strings.TrimSpace(name) == bp {
+				return true
+			}
+		}
+	}
+	return false
 }

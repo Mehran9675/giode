@@ -75,7 +75,30 @@ view, and "reached bottom" is a one-off trigger, not a per-frame read.
 | Property | Role |
 | --- | --- |
 | `Background` | Container fill. |
-| `ScrollBar` | Scrollbar customization: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`. |
+| `ScrollBar` | Scrollbar customization: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`, and `Hidden`, `HiddenMaxWidth`, `HiddenOn` (below). |
 
-Interactive children inside the content keep receiving events. For very long lists prefer
-virtualized scrolling (a future addition).
+Interactive children inside the content keep receiving events. For very long lists use
+[VirtualList](virtuallist.md) or [LazyList](lazylist.md).
+
+## Hiding the scrollbar
+
+A hidden scrollbar isn't drawn; the content still scrolls with the wheel, touch, the
+keyboard and `ScrollBy`. The same fields work on `Scroll`, `VirtualList`, `LazyList` and
+`TreeView`.
+
+```go
+// Never show it.
+giode.Styles{ScrollBar: giode.ScrollBar{Hidden: true}}
+
+// Hide it while the window is 600dp wide or less (phones), show it on wider windows.
+giode.Styles{ScrollBar: giode.ScrollBar{HiddenMaxWidth: 600}}
+
+// Hide it while the enclosing Responsive matched the "compact" breakpoint
+// (several names can be given, separated by commas: "compact,medium").
+giode.Styles{ScrollBar: giode.ScrollBar{HiddenOn: "compact"}}
+```
+
+`HiddenMaxWidth` is compared with the window's width, so a list shared between the desktop
+and mobile layouts behaves the same wherever it sits in the layout. `HiddenOn` follows your
+own `Responsive` breakpoints, so the scrollbar switches exactly when the layout does. Since
+the view is rebuilt every frame, any condition also works: `Hidden: giode.Compact()`.

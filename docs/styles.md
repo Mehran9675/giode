@@ -70,7 +70,7 @@ Styles compose with `Merge(base, overrides...)` or the method form
 | `Top` / `Right` / `Bottom` / `Left` | int | dp | Offsets of absolute children. |
 | `ZIndex` | int | any | Stacking order of siblings. |
 | `Overflow` | string | `OverflowVisible` (default), `OverflowHidden` | Hidden clips content to the padding box, following rounded corners. |
-| `ScrollBar` | struct | — | Customizes the scrollbar a `Scroll` draws: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`. |
+| `ScrollBar` | struct | — | Customizes the scrollbar a `Scroll` draws: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`; `Hidden`, `HiddenMaxWidth` (dp, window width) and `HiddenOn` (breakpoint names) hide it, see [scroll.md](components/scroll.md#hiding-the-scrollbar). |
 
 ## Paint
 

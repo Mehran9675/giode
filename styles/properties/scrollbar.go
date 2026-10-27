@@ -17,4 +17,15 @@ type ScrollBar struct {
 	// MinThumbLength is the smallest the thumb may shrink to on very
 	// long content, so it stays visible and draggable (default 20).
 	MinThumbLength int
+
+	// Hidden hides the bar. The content still scrolls with the wheel,
+	// touch, the keyboard and ScrollBy.
+	Hidden bool
+	// HiddenMaxWidth hides the bar while the window is at most this
+	// many dp wide - a phone layout - and shows it in wider windows.
+	HiddenMaxWidth int
+	// HiddenOn hides the bar while the innermost Responsive matched a
+	// breakpoint with one of these names, separated by commas (for
+	// example "compact" or "compact,medium").
+	HiddenOn string
 }
