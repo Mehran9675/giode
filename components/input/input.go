@@ -86,6 +86,8 @@ type Input struct {
 	// tap is the event tag for presses anywhere on the field, padding
 	// and border included, which focus the editor.
 	tap int
+	// menu is the long-press (and right-click) editing menu.
+	menu editMenu
 }
 
 // New returns an Input with the given placeholder. The styles
@@ -297,6 +299,9 @@ func (i *Input) update(gtx layout.Context) (changed bool) {
 				gtx.Execute(key.SoftKeyboardCmd{Show: true})
 			}
 		}
+	}
+	if i.menu.update(gtx, i) {
+		changed = true
 	}
 	i.applySubmit()
 	for {
