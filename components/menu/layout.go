@@ -1,10 +1,14 @@
 package menu
 
 import (
-	"github.com/mehran9675/giode/components/kit"
 	"image"
 
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+
+	"github.com/mehran9675/giode/components/kit"
 
 	"github.com/mehran9675/giode/elements"
 )
@@ -22,14 +26,27 @@ func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	if !m.isSubmenu {
-		// Any primary click outside the panel closes it.
-		if m.scrim.Clicked(gtx) {
+		// A press of any button outside the panel closes it, and goes
+		// no further: a right-click elsewhere only closes the menu
+		// rather than opening another under it.
+		closed := false
+		for {
+			ev, ok := gtx.Source.Event(pointer.Filter{Target: &m.scrim, Kinds: pointer.Press})
+			if !ok {
+				break
+			}
+			if _, ok := ev.(pointer.Event); ok {
+				closed = true
+			}
+		}
+		if closed {
 			m.Close()
+			kit.RequestFrame(gtx)
 			return layout.Dimensions{}
 		}
-		m.scrim.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		}))
+		area := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+		event.Op(gtx.Ops, &m.scrim)
+		area.Pop()
 
 		// Back and Escape close the menu.
 		elements.HandleDismiss(m.Close)

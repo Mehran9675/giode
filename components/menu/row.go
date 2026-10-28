@@ -83,7 +83,9 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 		if item.action != nil {
 			item.action()
 		}
-		r.menu.Close()
+		// The whole menu: a submenu's item closes the menu it came
+		// from too.
+		r.menu.root().Close()
 		kit.RequestFrame(gtx)
 	}
 	dims := item.click.Layout(gtx, kit.Unselectable(func(gtx layout.Context) layout.Dimensions {
@@ -216,7 +218,7 @@ func (a menuItemActor) Click() {
 	if a.item.action != nil {
 		a.item.action()
 	}
-	a.menu.Close()
+	a.menu.root().Close()
 }
 
 // disabledText is the text color of disabled rows.
