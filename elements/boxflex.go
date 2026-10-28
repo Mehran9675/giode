@@ -92,7 +92,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	track.place(gtx.Constraints, flex)
 	if zs != nil {
 		for i, sp := range track.spans {
-			*zs = append(*zs, zPaint{call: sp.call, off: sp.off, z: zIndexOf(children[i])})
+			*zs = append(*zs, zPaint{call: sp.call, off: sp.off, size: sp.dims.Size, z: zIndexOf(children[i]), track: sp.track})
 		}
 	}
 	return dims
@@ -358,7 +358,7 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 			pos := axisPoint(axis, mainOffset, crossOffset+crossPos)
 			it.track.Place(pos)
 			if zs != nil {
-				*zs = append(*zs, zPaint{call: it.ops, off: pos, z: it.z})
+				*zs = append(*zs, zPaint{call: it.ops, off: pos, size: axisPoint(axis, it.main, it.cross), z: it.z, track: it.track})
 			} else {
 				off := op.Offset(pos).Push(gtx.Ops)
 				it.ops.Add(gtx.Ops)

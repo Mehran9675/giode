@@ -5,9 +5,11 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/io/key"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/styles/properties"
 )
 
@@ -47,8 +49,12 @@ func (a *App) frameContext(ops *op.Ops, e app.FrameEvent) layout.Context {
 		Bottom: int(e.Insets.Bottom), Left: int(e.Insets.Left),
 	}
 	safeArea.Store(&in)
+	// The app's locale: language and reading direction (see i18n).
+	loc := system.Locale{Language: i18n.Locale(), Direction: i18n.Direction()}
 	if !a.cfg.EdgeToEdge {
-		return app.NewContext(ops, e)
+		gtx := app.NewContext(ops, e)
+		gtx.Locale = loc
+		return gtx
 	}
 	ops.Reset()
 	return layout.Context{
@@ -56,6 +62,7 @@ func (a *App) frameContext(ops *op.Ops, e app.FrameEvent) layout.Context {
 		Now:         e.Now,
 		Source:      e.Source,
 		Metric:      e.Metric,
+		Locale:      loc,
 		Constraints: layout.Exact(e.Size),
 	}
 }

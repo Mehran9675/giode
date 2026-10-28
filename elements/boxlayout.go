@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"gioui.org/io/pointer"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -80,9 +81,11 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	popAbs := PushOffset(contentOff)
 	popColor := PushColor(st.Color)
 	var zs *[]zPaint
-	if ordered {
-		// A child sets a z-index: record every child and paint them in
-		// z order once all are placed.
+	rtl := gtx.Locale.Direction == system.RTL
+	if ordered || rtl {
+		// A child sets a z-index, or the locale reads right to left:
+		// record every child and paint them once all are placed, in z
+		// order, mirrored for right to left.
 		zs = new([]zPaint)
 	}
 	dims := b.layoutFlex(cgtx, st, flow, zs)
@@ -90,6 +93,9 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 		b.layoutAbsolute(cgtx, absolute, dims.Size, zs)
 	}
 	if zs != nil {
+		if rtl {
+			mirror(*zs, dims.Size.X)
+		}
 		paintZ(gtx.Ops, *zs)
 	}
 	popColor()

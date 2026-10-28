@@ -13,11 +13,12 @@ import (
 	"gioui.org/io/system"
 	"gioui.org/unit"
 	"gioui.org/x/explorer"
-	"github.com/mehran9675/giode/styles/properties"
 
 	"github.com/mehran9675/giode/components/menu"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/state"
+	"github.com/mehran9675/giode/styles/properties"
 )
 
 // Config configures the application window. The options cover the
@@ -129,6 +130,10 @@ type Config struct {
 	// maximized, made fullscreen or restored - by the app or by the
 	// user.
 	OnWindowStateChange func(WindowState)
+	// Locale is the app's locale ("fa", "pt-BR") for the i18n package
+	// and the layout's reading direction; the system's by default. Change
+	// it later with i18n.SetLocale.
+	Locale string
 	// OnOpenURL runs on the UI goroutine with a link that opened the
 	// app or reached it while running: a URL scheme it registered
 	// (giode.toml's app.schemes) or one of its universal links / Android
@@ -345,6 +350,16 @@ func New(cfg Config) *App {
 	a := &App{cfg: cfg, themeCheck: make(chan struct{}, 1)}
 	currentApp.Store(a)
 	a.platformInit()
+	if cfg.Locale != "" {
+		i18n.SetLocale(cfg.Locale)
+	} else {
+		i18n.SetLocale(i18n.SystemLocale())
+	}
+	i18n.OnChange(func() {
+		// New text and maybe a new reading direction.
+		elements.InvalidateCaches()
+		a.window.Invalidate()
+	})
 	if cfg.SingleInstanceLock == nil {
 		// Restarted by an update: let the old process finish first.
 		waitForUpdatedInstance()

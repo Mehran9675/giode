@@ -1,0 +1,5 @@
+{
+  "greeting": "Hello, {name}!",
+  "unread": {"one": "{n} message", "other": "{n} messages"},
+  "only_en": "English only"
+}

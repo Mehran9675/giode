@@ -261,3 +261,31 @@ the app dies (`runtime/debug.SetCrashOutput`). A `Report` has the message, the f
 the app and Go versions and the platform; `Send` posts it as JSON, and the newest ten are
 kept. Crashes in Java (Android) or Objective-C (Apple) threads aren't Go's and aren't
 recorded.
+
+## Languages and right-to-left layout
+
+The `i18n` package translates the app's text:
+
+```go
+import "github.com/mehran9675/giode/i18n"
+
+//go:embed locales
+var locales embed.FS
+
+i18n.Load(locales, "locales") // locales/en.json, locales/fa.json, ...
+
+giode.Text(i18n.T("greeting", "name", user.Name)) // "greeting": "Hello, {name}!"
+giode.Text(i18n.N("unread", count))               // "unread": {"one": "{n} message", "other": "{n} messages"}
+```
+
+A message file maps keys to text or to plural forms (`zero`, `one`, `two`, `few`, `many`,
+`other`), chosen by the language's plural rules (English, French, Russian, Polish, Arabic,
+Hebrew and others are built in). Lookups fall back from `fa-IR` to `fa` to the fallback
+locale (English) to the key itself.
+
+The locale is the system's unless `Config.Locale` says otherwise; `i18n.SetLocale` switches
+it at runtime and the UI redraws. In a right-to-left locale (Arabic, Persian, Hebrew, Urdu,
+...) giode mirrors the layout as CSS does for `direction: rtl`: rows run from the right,
+columns align to the right, and text aligns from the right. Absolutely positioned boxes
+keep their physical `Left` and `Right`. Load a font with the script's glyphs (see
+[styles.md](styles.md)): the bundled fonts cover Latin, Greek and Cyrillic.
