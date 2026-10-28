@@ -159,12 +159,15 @@ func rasterize(fs []*gotext.Face, id text.GlyphID, sub uint8) *glyphBitmap {
 		return &glyphBitmap{}
 	}
 	scale := float32(ppem) / 64 / float32(face.Upem())
+	// Heights are scaled to put the x-height on whole pixels at small
+	// sizes; see gridFit.
+	scaleY := scale * gridFit(face, faceIdx, ppem, scale)
 	dx := float32(sub) / subpixels
 	minX, minY := float32(math.Inf(1)), float32(math.Inf(1))
 	maxX, maxY := float32(math.Inf(-1)), float32(math.Inf(-1))
 	for _, s := range outline.Segments {
 		for i := 0; i < segArgs(s.Op); i++ {
-			x, y := s.Args[i].X*scale+dx, -s.Args[i].Y*scale
+			x, y := s.Args[i].X*scale+dx, -s.Args[i].Y*scaleY
 			minX, maxX = min(minX, x), max(maxX, x)
 			minY, maxY = min(minY, y), max(maxY, y)
 		}
@@ -177,7 +180,7 @@ func rasterize(fs []*gotext.Face, id text.GlyphID, sub uint8) *glyphBitmap {
 	z := vector.NewRasterizer(r.Dx(), r.Dy())
 	ox, oy := float32(r.Min.X), float32(r.Min.Y)
 	pt := func(p opentype.SegmentPoint) (float32, float32) {
-		return p.X*scale + dx - ox, -p.Y*scale - oy
+		return p.X*scale + dx - ox, -p.Y*scaleY - oy
 	}
 	open := false
 	for _, s := range outline.Segments {
@@ -207,6 +210,64 @@ func rasterize(fs []*gotext.Face, id text.GlyphID, sub uint8) *glyphBitmap {
 	img := image.NewAlpha(image.Rect(0, 0, r.Dx(), r.Dy()))
 	z.Draw(img, img.Bounds(), image.Opaque, image.Point{})
 	return &glyphBitmap{img: img, off: r.Min}
+}
+
+// gridFitMaxPPEM is the largest size, in pixels per em, whose glyphs
+// are fitted to the pixel grid: past it, stems are wide enough to look
+// sharp without.
+const gridFitMaxPPEM = 28
+
+var xHeights struct {
+	sync.Mutex
+	m map[[2]int]float32
+}
+
+// gridFit returns the vertical scale that puts the face's x-height,
+// at ppem, on a whole number of pixels - as FreeType's light hinting
+// does. With the baseline on a pixel boundary too, the tops and
+// bottoms of lowercase letters and the horizontal strokes resting on
+// them land on pixel edges instead of blurring across two rows. Widths
+// and advances are left alone, so text keeps its length.
+func gridFit(face *gotext.Face, faceIdx int, ppem fixed.Int26_6, scale float32) float32 {
+	if ppem > fixed.I(gridFitMaxPPEM) {
+		return 1
+	}
+	key := [2]int{faceIdx, int(ppem)}
+	xHeights.Lock()
+	xh, ok := xHeights.m[key]
+	xHeights.Unlock()
+	if !ok {
+		xh = xHeight(face) * scale
+		xHeights.Lock()
+		if xHeights.m == nil {
+			xHeights.m = make(map[[2]int]float32)
+		}
+		xHeights.m[key] = xh
+		xHeights.Unlock()
+	}
+	if xh < 2 {
+		return 1
+	}
+	return float32(math.Round(float64(xh))) / xh
+}
+
+// xHeight is the top of the face's "x", in font units, or 0.
+func xHeight(face *gotext.Face) float32 {
+	gid, ok := face.NominalGlyph('x')
+	if !ok {
+		return 0
+	}
+	outline, ok := face.GlyphData(gid).(gotext.GlyphOutline)
+	if !ok {
+		return 0
+	}
+	top := float32(0)
+	for _, s := range outline.Segments {
+		for i := 0; i < segArgs(s.Op); i++ {
+			top = max(top, s.Args[i].Y)
+		}
+	}
+	return top
 }
 
 func segArgs(op opentype.SegmentOp) int {

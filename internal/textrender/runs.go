@@ -222,6 +222,7 @@ func composeRun(sh *text.Shaper, glyphs []text.Glyph, col color.NRGBA, ox, oy in
 	}
 	out := image.NewNRGBA(image.Rect(0, 0, w, bounds.Dy()))
 	ca := uint32(col.A)
+	lut := coverageLUT(col)
 	for i, c := range cov {
 		if c == 0 {
 			continue
@@ -231,7 +232,7 @@ func composeRun(sh *text.Shaper, glyphs []text.Glyph, col color.NRGBA, ox, oy in
 		}
 		px := out.Pix[i*4 : i*4+4 : i*4+4]
 		px[0], px[1], px[2] = col.R, col.G, col.B
-		px[3] = uint8((uint32(c)*ca + 127) / 255)
+		px[3] = uint8((uint32(lut[c])*ca + 127) / 255)
 	}
 	imgOp := paint.NewImageOp(out)
 	imgOp.Filter = paint.FilterNearest
