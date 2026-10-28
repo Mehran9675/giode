@@ -6,6 +6,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"gioui.org/f32"
 	"golang.org/x/sys/windows"
 )
 
@@ -21,6 +22,7 @@ var (
 	procDragAcceptFiles             = shell32.NewProc("DragAcceptFiles")
 	procDragQueryFileW              = shell32.NewProc("DragQueryFileW")
 	procDragFinish                  = shell32.NewProc("DragFinish")
+	procDragQueryPoint              = shell32.NewProc("DragQueryPoint")
 	procSetWindowLongPtrW           = user32.NewProc("SetWindowLongPtrW")
 	procGetWindowLongPtrW           = user32.NewProc("GetWindowLongPtrW")
 	procDefWindowProcW              = user32.NewProc("DefWindowProcW")
@@ -33,7 +35,8 @@ const (
 	wmCopyData    = 0x004A
 	wmCopyGlobal  = 0x0049
 	wmNCDestroy   = 0x0082
-	gwlpWndProc   = ^uintptr(3) // -4
+	wmRegisterOLE = 0x8000 + 0x4744 // WM_APP + "GD": register the IDropTarget on the window's thread
+	gwlpWndProc   = ^uintptr(3)     // -4
 	msgfltAllow   = 1
 	maxDropFiles  = 10000
 	maxPathLength = 32768
@@ -61,7 +64,7 @@ type dropTarget struct {
 // DragAcceptFiles sends (not posts) a style-change message to that
 // thread, which would deadlock if sent from the event goroutine.
 func (a *App) enableFileDrop(hwnd uintptr) {
-	if (a.cfg.OnFileDrop == nil && !a.cfg.CloseToTray && !a.cfg.MinimizeToTray) || hwnd == 0 {
+	if (!a.fileDragWanted() && !a.cfg.CloseToTray && !a.cfg.MinimizeToTray) || hwnd == 0 {
 		return
 	}
 	dropMu.Lock()
@@ -94,9 +97,16 @@ func (a *App) enableFileDrop(hwnd uintptr) {
 			a.logf(LogLevelWarning, "giode: file drop unavailable: couldn't subclass the window")
 			return
 		}
-		if a.cfg.OnFileDrop != nil {
+		if a.fileDragWanted() {
 			procDragAcceptFiles.Call(hwnd, 1)
 			a.logf(LogLevelDebug, "giode: file drop enabled")
+		}
+		if a.cfg.OnFileDrag != nil {
+			// Drag enter, over and leave come through OLE, which takes
+			// over drops from apps at the same integrity level; from an
+			// unelevated Explorer to an elevated app WM_DROPFILES still
+			// delivers the drop.
+			procPostMessageW.Call(hwnd, wmRegisterOLE, 0, 0)
 		}
 	}()
 }
@@ -110,6 +120,7 @@ func dropWndProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 		delete(dropWindows, hwnd)
 		if t != nil {
 			procSetWindowLongPtrW.Call(hwnd, gwlpWndProc, t.oldProc)
+			revokeOLEDrop(hwnd)
 		}
 	}
 	dropMu.Unlock()
@@ -120,25 +131,24 @@ func dropWndProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 	if trayWndProc(t.app, hwnd, msg, wparam) {
 		return 0
 	}
-	if msg == wmDropFiles {
-		paths := queryDrop(wparam)
-		if len(paths) > 0 {
-			app := t.app
-			app.Post(func() {
-				if app.cfg.OnFileDrop != nil {
-					app.cfg.OnFileDrop(paths)
-				}
-			})
-		}
+	switch msg {
+	case wmDropFiles:
+		var pt [2]int32
+		procDragQueryPoint.Call(wparam, uintptr(unsafe.Pointer(&pt)))
+		paths := readDrop(wparam)
+		procDragFinish.Call(wparam)
+		t.app.deliverFileDrop(paths, f32.Pt(float32(pt[0]), float32(pt[1])))
+		return 0
+	case wmRegisterOLE:
+		registerOLEDrop(t.app, hwnd)
 		return 0
 	}
 	r, _, _ := procCallWindowProcW.Call(t.oldProc, hwnd, msg, wparam, lparam)
 	return r
 }
 
-// queryDrop reads the dropped paths and releases the drop handle.
-func queryDrop(hdrop uintptr) []string {
-	defer procDragFinish.Call(hdrop)
+// readDrop reads the paths of a drop handle (an HDROP).
+func readDrop(hdrop uintptr) []string {
 	n, _, _ := procDragQueryFileW.Call(hdrop, 0xFFFFFFFF, 0, 0)
 	n = min(n, maxDropFiles)
 	paths := make([]string, 0, n)
@@ -153,3 +163,7 @@ func queryDrop(hdrop uintptr) []string {
 	}
 	return paths
 }
+
+// installFileDrag has nothing to do before the window exists on
+// Windows: enableFileDrop sets drops up with the window handle.
+func installFileDrag(a *App) {}

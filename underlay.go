@@ -3,6 +3,7 @@ package giode
 import (
 	"errors"
 	"image"
+	"unsafe"
 )
 
 // GPUAPI is the graphics API of a window's GPU context.
@@ -27,6 +28,22 @@ type GPUTarget struct {
 	Texture uintptr
 	// Size is the target's size in pixels.
 	Size image.Point
+	// GetProcAddress looks up an OpenGL (ES) function of the window's
+	// context by name - what engines ask for to load GL themselves
+	// (libmpv's get_proc_address): through ANGLE's libEGL.dll on
+	// Windows, EGL on Linux and Android, the OpenGL framework on macOS
+	// and OpenGLES on iOS. It returns nil for a name it doesn't know.
+	// It's nil for other APIs.
+	GetProcAddress func(name string) unsafe.Pointer
+}
+
+// gpuTarget makes the GPUTarget of a frame.
+func gpuTarget(api int, fb uint32, handle uintptr, w, h int) GPUTarget {
+	t := GPUTarget{API: GPUAPI(api), Framebuffer: fb, Texture: handle, Size: image.Pt(w, h)}
+	if t.API == GPUOpenGL {
+		t.GetProcAddress = glGetProcAddress
+	}
+	return t
 }
 
 // Renderer selects the GPU API of the app's window.
@@ -57,11 +74,16 @@ func setupRenderer(cfg Config) error {
 	if cfg.Renderer == RendererOpenGL && metalOnly {
 		return errors.New("giode: Config.Renderer OpenGL on macOS and iOS needs the nometal build tag: set renderer = \"opengl\" in giode.toml")
 	}
-	var f func(GPUTarget)
-	if cfg.Underlay != nil {
-		f = cfg.Underlay
+	return installUnderlay(cfg.Underlay, cfg.UnderlayRelease, cfg.Renderer == RendererOpenGL)
+}
+
+// underlayFrameDone runs on the render thread after the UI is drawn
+// over the underlay: the MCP screenshot reads the frame back here,
+// since an offscreen render of the UI alone lacks the underlay.
+func underlayFrameDone(t GPUTarget) {
+	if a := currentApp.Load(); a != nil && a.mcp != nil {
+		a.mcp.captureUnderlay(t)
 	}
-	return installUnderlay(f, cfg.Renderer == RendererOpenGL)
 }
 
 // Invalidate asks for a new frame. It's safe to call from any

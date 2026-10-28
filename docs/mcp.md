@@ -30,14 +30,17 @@ change; `GIODE_MCP_ADDR` overrides the address.
 | `ui_type` | Replaces an input's text, optionally submitting it. |
 | `ui_set_value` | Sets a checkbox (`true`/`false`), slider (0–1) or select (option or index). |
 | `ui_scroll` | Scrolls a scroll area (`id`, or any node inside it; without one the main scroll area) by `dx`/`dy` pixels, or with `until` (a node id or text) until that node is fully visible, paging through virtual lists whose rows aren't laid out yet. Nested scroll areas are scrolled innermost first. |
-| `screenshot` | The window as a PNG, or with `id` just that node's area (plus `padding` pixels). |
+| `ui_pointer` | Real mouse events, delivered as the platform would: `move`, `press`, `release`, `click`, `double_click` or `scroll` (`dx`/`dy`), at a node's center (`id`) or window pixels (`x`, `y`), with a `button` (`primary`, `secondary`, `tertiary`) and held `modifiers`. Press, move and release drag. For custom widgets, video surfaces and anything `ui_click` can't reach. |
+| `ui_key` | Presses and releases a key in the focused element: `enter`, `tab`, `escape`, arrows, `page_down`, `f5`, a letter, or a combination such as `ctrl+shift+z` (`shortcut` is Cmd on macOS, Ctrl elsewhere); `state` sends just the press or release. Type text with `ui_type`. |
+| `screenshot` | The window as a PNG, or with `id` just that node's area (plus `padding` pixels). With an OpenGL `Config.Underlay`, the frame is read back from the GPU so video and 3D show. |
 | `frame_stats` | How long recent frames took to build and render, and the frame rate (see [performance.md](performance.md#measuring-frame-times)). `reset` starts a fresh measurement. |
 | `state_list` / `state_set` | Reads and sets named states (see below). |
 | `set_theme` | Switches light/dark mode. |
 | `window` | Minimize, maximize, fullscreen, center, raise, or `resize` to a `width` x `height` in dp - `{"action": "resize", "width": 400, "height": 840}` tests a phone layout on a desktop. |
 
 Actions run on the UI thread, exactly as if the user did them: handlers fire and the UI
-updates.
+updates. `ui_pointer` and `ui_key` need the giode CLI's Gio patches (an up to date CLI), which
+`giode run` builds with; in a plain `go build` they return an error saying so.
 
 ## Your own tools
 

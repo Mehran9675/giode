@@ -7,7 +7,7 @@ The project file. Only `app.name` and `app.id` are required.
 name = "Pocket Agent"         # display name
 id = "com.example.agent"      # Android package name and Apple bundle ID
 version = "1.4.0"
-build = 12                    # Android versionCode, CFBundleVersion: raise per upload
+build = 12                    # Android versionCode, CFBundleVersion: raise per upload; giode.AppVersion and giode.AppBuild at run time
 icon = "assets/icon.png"      # square PNG, 1024x1024 for the stores
 package = "."                 # main package
 publisher = "Example Ltd"     # shown by installers and Windows' app list
@@ -18,7 +18,7 @@ links = ["https://example.com/app/*"]   # universal links / App Links; see giode
 tags = ""                     # Go build tags
 renderer = "opengl"           # Gio's OpenGL renderer on macOS and iOS (Config.Renderer)
 gio_patches = true            # build against Gio with giode's patches (default true)
-ldflags = ""                  # extra linker flags
+ldflags = ""                  # extra linker flags; {version}, {build} and {id} are replaced
 output = "dist"
 
 [android]

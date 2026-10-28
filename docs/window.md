@@ -14,7 +14,8 @@ settings of desktop applications; unsupported platform features are ignored.
 | `Resizable` | `bool` | `false` | Allow user resizing. When false the size is locked to `Size`. |
 | `Frameless` | `bool` | `false` | Remove the OS title bar and borders. |
 | `Draggable` | `bool` | `false` | Drag the window from empty (non-widget) space anywhere. Frameless only. For a custom title bar, use [TitleBar](components/titlebar.md) instead. |
-| `OnFileDrop` | `func(paths []string)` | `nil` | Files dropped onto the window from the file manager, on the UI goroutine. Windows only for now. |
+| `OnFileDrop` | `func(paths []string)` | `nil` | Files dropped onto the window from the file manager, on the UI goroutine; see [File drop](#file-drop). |
+| `OnFileDrag` | `func(FileDrag)` | `nil` | Files dragged over the window: enter, over, leave, drop, with the position. |
 | `OnWindowStateChange` | `func(WindowState)` | `nil` | Runs when the window is minimized, maximized, made fullscreen or restored. |
 | `Background` | `string` | `"#000000"` | Window background color (any CSS hex, or a theme token such as `"theme.background"`, which follows `SetMode`/`SetPalette`). |
 | `StatusBar` / `NavigationBar` | `string` | `Background` | Colors of Android's status and navigation bars. They follow theme changes, so the bars match a light or dark app. Ignored elsewhere. |
@@ -23,7 +24,7 @@ settings of desktop applications; unsupported platform features are ignored.
 | `WindowStartState` | `WindowStartState` | `WindowStartNormal` | Initial state: `WindowStartMinimized`, `WindowStartMaximized`, `WindowStartFullscreen`. Takes precedence over the flags below. |
 | `Fullscreen` / `Maximized` / `Minimized` | `bool` | `false` | Start in the given state (used when `WindowStartState` is `WindowStartNormal`). |
 | `Center` | `bool` | `false` | Start centered on the screen. |
-| `AlwaysOnTop` | `bool` | `false` | Keep above other windows. |
+| `AlwaysOnTop` | `bool` | `false` | Keep above other windows; `SetAlwaysOnTop` changes it later. |
 | `Logger` | `Logger` | `nil` | Receives diagnostics; any `*log.Logger` satisfies it. |
 | `LogLevel` | `LogLevel` | `LogLevelDebug` | `LogLevelDebug`, `LogLevelInfo`, `LogLevelWarning`, `LogLevelError`. |
 | `ShowFrameTimes` | `bool` | `false` | Draw a counter with frame build and render times and the frame rate, for finding stutter on a device; see [performance.md](performance.md#measuring-frame-times). |
@@ -63,9 +64,37 @@ app.Center()
 app.Raise()
 app.Close()
 app.SetSize(400, 840) // in dp; widens Min/Max bounds when needed
+app.SetAlwaysOnTop(true) // app.AlwaysOnTop() reports it
 ```
 
 `app.Window()` returns the underlying `*app.Window` for anything not covered here.
+
+## Position and screen
+
+```go
+s, err := app.Screen()             // the monitor showing the window, in dp
+// s.Bounds, s.WorkArea (without the taskbar, Dock, menu bar or panels), s.Scale
+f, err := app.Frame()              // the window's area, title bar and borders included
+app.SetPosition(40, 40)            // top left corner, in dp from the primary screen's top left
+app.MoveTo(giode.CornerBottomRight, 16) // a mini player in a corner of the work area
+```
+
+| Platform | Position and screen |
+| --- | --- |
+| Windows | Yes, per monitor; the visible frame, without Windows 10's invisible borders. |
+| macOS | Yes; in points, which are dp. |
+| Linux, X11 | Yes; the monitor from XRandR (loaded at run time), the work area from `_NET_WORKAREA`. |
+| Linux, Wayland | `ErrNotSupported`: compositors place windows and don't tell apps where. |
+| Android, iOS, web | `Screen` and `Frame` are the window, the work area without the system bars; `SetPosition` returns `ErrNotSupported`. |
+
+`SetAlwaysOnTop` works on Windows, macOS and X11; Wayland leaves it to the user. All of
+these are safe from any goroutine.
+
+## Version
+
+`giode.AppVersion` and `giode.AppBuild` hold `version` and `build` from `giode.toml`: the
+giode CLI sets them when it builds or runs a desktop app. A plain `go build` leaves them
+empty.
 
 ## Draggable windows
 
@@ -145,7 +174,8 @@ call `Share` from a goroutine too.
   home, locked the phone, or opened a system picker. Android may freeze the app soon after
   and end it later without warning, so **`OnBackground` is the last reliable moment to
   save** (a draft, unsent input). Don't rely on `OnShutdown` or `OnBeforeClose` there.
-- **Desktop**: when the window is minimized and restored.
+- **Desktop**: when the window is minimized and restored (on Windows with the giode CLI's
+  Gio patches, which make Gio report minimized windows).
 - **iOS**: when the app enters the background and returns (`UIApplication`
   notifications). iOS suspends a backgrounded app within seconds, so save here too;
   `KeepAlive` buys about 30 seconds (see [platform.md](platform.md#staying-awake)).
@@ -243,7 +273,7 @@ say), and the window comes to the front.
 ## Not supported
 
 A few common window features are deliberately absent because Gio does not expose them:
-closable/minimizable/maximizable flags, window transparency, positioning by coordinates,
+closable/minimizable/maximizable flags, window transparency,
 native application menus and power-state callbacks (suspend/resume).
 
 ## Clipboard
@@ -293,15 +323,30 @@ giode.Config{
 }
 ```
 
-On Windows the app subclasses its own window and accepts `WM_DROPFILES`, including when it
-runs as administrator (it lets the drop messages through Windows' privilege filter, which
-would otherwise silently block drops from a normal Explorer).
+To highlight where files can go while they're dragged, use `OnFileDrag`, or read
+`app.FileDrag()` in the view:
 
-Other platforms don't support it yet, and a warning is logged once if `OnFileDrop` is set
-there. Gio's own event loop consumes the X11 and Wayland drag-and-drop protocol messages, so
-Linux support needs changes in Gio itself. macOS support needs AppKit drag registration,
-which is not implemented yet. Drag enter/leave events (for highlighting a drop zone) aren't
-available yet either; they need Windows' COM `IDropTarget` instead of `WM_DROPFILES`.
+```go
+giode.Config{
+	OnFileDrag: func(d giode.FileDrag) {
+		// d.Kind: FileDragEnter, FileDragOver, FileDragLeave, FileDragDrop
+		// d.Position: window pixels, as layout uses them
+	},
+}
+
+// In the view: the window redraws as the drag comes and goes.
+if _, dragging := app.FileDrag(); dragging {
+	zone = giode.Box(giode.Styles{BorderColor: "theme.primary", BorderWidth: 2}, zone)
+}
+```
+
+| Platform | How |
+| --- | --- |
+| Windows | `WM_DROPFILES` for the drop, including when the app runs as administrator (giode lets the messages through Windows' privilege filter, which would otherwise silently block drops from a normal Explorer). With `OnFileDrag`, an OLE `IDropTarget` reports enter, over and leave too, except to an app running as administrator. |
+| macOS | The view registers for file URLs (`registerForDraggedTypes`) and gets them from `performDragOperation:`. |
+| Linux | XDND on X11 and `wl_data_device` on Wayland, through the giode CLI's Gio patches: Gio's own event loop reads those protocols' messages. A plain `go build` logs a warning once instead. |
+
+Android, iOS and the web don't support it; a warning is logged once if it's set there.
 
 ## Files opened with the app
 
@@ -336,6 +381,31 @@ app.Invalidate()
 pixels. Engines with Metal or Direct3D renderers can keep Gio's defaults and draw into the
 texture; commit their work before returning, since Gio draws with its own command queue.
 
+`GetProcAddress` looks up the context's OpenGL functions by name, for engines that load GL
+themselves - libmpv's `mpv_opengl_init_params.get_proc_address`, say - through ANGLE's
+`libEGL.dll` on Windows, EGL on Linux and Android, and the OpenGL framework on macOS (it's
+nil for other APIs). `Config.UnderlayRelease` runs on the render thread with the context
+still current just before Gio releases its GPU resources: when the window closes, its view
+goes away (an Android app leaving the screen), or the context is lost and made again, after
+which `Underlay` runs in the new one. Free the engine's GPU objects there
+(`mpv_render_context_free`).
+
+```go
+giode.Config{
+	Renderer: giode.RendererOpenGL,
+	Underlay: func(t giode.GPUTarget) {
+		if mpv == nil {
+			mpv = newMPVRenderContext(t.GetProcAddress)
+		}
+		mpv.render(t.Framebuffer, t.Size)
+	},
+	UnderlayRelease: func() { mpv.free(); mpv = nil },
+}
+```
+
+With an OpenGL underlay, the MCP `screenshot` tool reads the finished frame back from the
+GPU, so the video or 3D shows in it; with Metal or Direct3D it renders the UI alone.
+
 `Renderer: giode.RendererOpenGL` asks for OpenGL everywhere:
 
 | Platform | OpenGL |
@@ -349,7 +419,9 @@ switches off scissor, depth and stencil tests and face culling an engine leaves 
 engines don't need to clean up after themselves.
 
 Both need giode's patched Gio, which `giode build` and `giode run` build against (adding
-the `giode_gio` tag); a plain `go build` gets an error from `Run` saying so.
+the `giode_gio` and `giode_gio2` tags); a plain `go build` gets an error from `Run` saying
+so. `UnderlayRelease`, the screenshot read-back and `GetProcAddress`'s use with the release
+need an up to date CLI (`giode upgrade`); with older ones `Run` returns an error naming the fix.
 
 ## Native window handle
 
