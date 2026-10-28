@@ -52,6 +52,10 @@ import (
 type Element = elements.Element
 type Styles = styles.Styles
 type Inset = properties.Inset
+
+// Color is a CSS-like color: "#3b82f6", "rgb(59 130 246)", a name, or a
+// "theme.*" token that follows the palette.
+type Color = properties.Color
 type BoxShadow = properties.BoxShadow
 type ScrollBar = properties.ScrollBar
 

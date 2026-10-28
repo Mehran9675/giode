@@ -34,6 +34,10 @@ type Styles = ui.Styles
 
 type Inset = ui.Inset
 
+// Color is a CSS-like color: "#3b82f6", "rgb(59 130 246)", a name, or a
+// "theme.*" token that follows the palette.
+type Color = ui.Color
+
 type BoxShadow = ui.BoxShadow
 
 type ScrollBar = ui.ScrollBar

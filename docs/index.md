@@ -5,6 +5,12 @@ immediate-mode UI. Interfaces are described with composable functions, styled wi
 properties and wired up with plain Go callbacks — no webview, full performance, and raw Gio
 stays reachable everywhere.
 
+> Giode is in **beta**: it's used in real apps, but the API may still change before 1.0.
+
+New here? [Getting started](getting-started.md) takes you from installing the CLI to a
+running app in five minutes. [Recipes](recipes.md) shows the ways to write components,
+and the [FAQ](faq.md) answers the common questions.
+
 ## Features
 
 - **Window config** — size, min/max, resizable, frameless, draggable, fullscreen, centered,

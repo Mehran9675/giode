@@ -3,30 +3,63 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Giode — a UI library built on Gio. Documentation.">
-<title>Giode</title>
+<title>Giode - native UI for Go</title>
+<meta name="description" content="Giode is a UI library for Go built on Gio: composable elements, CSS-like styles, ready components and one codebase for Windows, macOS, Linux, Android, iOS and the web. Now in beta.">
+<meta name="theme-color" content="#070b14">
+<meta property="og:title" content="Giode - native UI for Go">
+<meta property="og:description" content="Beautiful native apps in pure Go, on every platform. Built on Gio. Now in beta.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+	// The theme before the first paint, so pages don't flash.
+	try {
+		const t = localStorage.getItem("theme");
+		if (t) document.documentElement.dataset.theme = t;
+	} catch (e) {}
+</script>
 </head>
 <body>
-<div id="app">
-  <aside id="sidebar">
-    <div class="brand">
-      <a href="#/">Giode</a>
-      <span class="tagline">UI on Gio</span>
-    </div>
-    <div class="search">
-      <input id="search" type="search" placeholder="Search the docs… (/)"
-             autocomplete="off" spellcheck="false">
-      <div id="results"></div>
-    </div>
-    <nav id="nav"></nav>
-    <div class="footer">
-      <a href="https://github.com/Mehran9675/giode" target="_blank" rel="noopener">GitHub</a>
-    </div>
-  </aside>
-  <div id="overlay"></div>
-  <main id="content"></main>
-</div>
-<button id="menu-btn" aria-label="Toggle navigation">☰</button>
-<script type="module" src="/src/app.js"></script>
+<a class="skip" href="#view">Skip to content</a>
+<header class="topbar">
+	<div class="topbar-inner">
+		<div class="logo" aria-label="Giode">
+			<a class="logo-gio" href="https://gioui.org" target="_blank" rel="noopener" title="Gio, the toolkit Giode is built on">Gio</a><a class="logo-de" href="#/" title="Giode home">de</a>
+			<span class="beta-tag">beta</span>
+		</div>
+		<nav class="topnav" aria-label="Main">
+			<a href="#/docs/getting-started" data-nav="docs">Docs</a>
+			<a href="#/docs/recipes" data-nav="recipes">Recipes</a>
+			<a href="#/docs/cli/index" data-nav="cli">CLI</a>
+			<a href="#/examples" data-nav="examples">Examples</a>
+		</nav>
+		<div class="topbar-actions">
+			<button id="theme-btn" class="icon-btn" aria-label="Switch light and dark theme" title="Theme"></button>
+			<a class="icon-btn" href="https://github.com/Mehran9675/giode" target="_blank" rel="noopener" aria-label="Giode on GitHub" title="GitHub">
+				<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+			</a>
+			<button id="nav-btn" class="icon-btn nav-btn" aria-label="Menu" aria-expanded="false">
+				<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+			</button>
+		</div>
+	</div>
+</header>
+<main id="view" tabindex="-1"></main>
+<footer class="footer">
+	<div class="footer-inner">
+		<div class="footer-brand">
+			<div class="logo small"><a class="logo-gio" href="https://gioui.org" target="_blank" rel="noopener">Gio</a><a class="logo-de" href="#/">de</a></div>
+			<p>Native UI for Go, built on <a href="https://gioui.org" target="_blank" rel="noopener">Gio</a>.<br>Apache 2.0 licensed. Currently in beta.</p>
+		</div>
+		<div class="footer-cols">
+			<div><h4>Learn</h4><a href="#/docs/getting-started">Getting started</a><a href="#/docs/recipes">Recipes</a><a href="#/docs/components">Components</a><a href="#/docs/faq">FAQ</a></div>
+			<div><h4>Tools</h4><a href="#/docs/cli/index">The CLI</a><a href="#/docs/cli/distribution">Distribution</a><a href="#/docs/mcp">MCP server</a></div>
+			<div><h4>Community</h4><a href="#/examples">Examples</a><a href="https://github.com/Mehran9675/giode" target="_blank" rel="noopener">GitHub</a><a href="https://github.com/Mehran9675/giode/issues" target="_blank" rel="noopener">Issues</a><a href="#/docs/contributing">Contributing</a></div>
+		</div>
+	</div>
+</footer>
+<script type="module" src="/src/main.js"></script>
 </body>
 </html>
