@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
@@ -50,7 +51,9 @@ func (a *App) Run(view func() Element) error {
 	a.logf(LogLevelInfo, "giode: app started")
 	a.warnTrayLimits()
 	a.instanceLock.serveLaunches(a.handleLaunch)
-	a.runContextAction(os.Args[1:])
+	if !a.runContextAction(os.Args[1:]) {
+		a.startupURL(os.Args[1:])
+	}
 	a.watchLifecycle()
 	ctx, cancel := context.WithCancel(context.Background())
 	a.watchSystemTheme(ctx.Done())
@@ -73,9 +76,18 @@ func (a *App) Run(view func() Element) error {
 		}
 		os.Exit(0)
 	}()
-	// app.Main blocks forever on most platforms; the process exits
-	// from the window goroutine above once the window closes.
-	app.Main()
+	// app.Events blocks forever on most platforms, delivering the
+	// events that aren't the window's - links opening the app; the
+	// process exits from the window goroutine above once the window
+	// closes.
+	// It's called, not ranged over: on iOS it returns at once and links
+	// arrive later, when a range loop's body may no longer run.
+	app.Events(func(ev event.Event) bool {
+		if u, ok := ev.(app.URLEvent); ok && u.URL != nil {
+			a.openedURL(u.URL)
+		}
+		return true
+	})
 	return nil
 }
 

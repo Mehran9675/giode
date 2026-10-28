@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -165,6 +166,17 @@ func (l *instanceLock) serveLaunches(handle func(args []string)) {
 func (a *App) handleLaunch(args []string) {
 	if a.runContextAction(args) {
 		return
+	}
+	// A link the system opened with the app (its URL scheme).
+	if len(args) == 1 && strings.Contains(args[0], "://") && a.cfg.OnOpenURL != nil {
+		if u, err := url.Parse(args[0]); err == nil && u.Scheme != "" {
+			a.openedURL(u)
+			a.Post(func() {
+				a.ShowWindow()
+				a.Raise()
+			})
+			return
+		}
 	}
 	a.Post(func() {
 		if l := a.cfg.SingleInstanceLock; l != nil && l.OnLaunchArgs != nil {

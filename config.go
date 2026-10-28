@@ -3,6 +3,7 @@ package giode
 import (
 	"image"
 	"image/color"
+	"net/url"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -128,6 +129,12 @@ type Config struct {
 	// maximized, made fullscreen or restored - by the app or by the
 	// user.
 	OnWindowStateChange func(WindowState)
+	// OnOpenURL runs on the UI goroutine with a link that opened the
+	// app or reached it while running: a URL scheme it registered
+	// (giode.toml's app.schemes) or one of its universal links / Android
+	// App Links (app.links). With a SingleInstanceLock, a link that
+	// starts a second desktop instance reaches the running one here.
+	OnOpenURL func(u *url.URL)
 	// ContextActions add entries to the file manager's right-click menu
 	// that open the app with the chosen paths; see ContextAction. The
 	// giode CLI adds the ones in giode.toml too.

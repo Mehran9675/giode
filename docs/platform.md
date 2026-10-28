@@ -175,3 +175,26 @@ codesign -f -s - App.app   # re-sign after editing; use your identity for a devi
 
 For a device `.ipa`, unzip it, edit `Payload/App.app/Info.plist` the same way, and
 re-sign the app with your identity and its entitlements before zipping it again.
+
+## Links that open the app
+
+`Config.OnOpenURL` receives the links that open the app, or reach it while it runs, on the
+UI goroutine:
+
+```go
+giode.Config{
+	OnOpenURL: func(u *url.URL) {
+		// myapp://chat/42 or https://example.com/app/chat/42
+		router.Go(u.Path)
+	},
+}
+```
+
+- **URL schemes** (`myapp://...`): list them in `giode.toml` as `app.schemes`. They work on
+  Android, iOS, macOS, Windows and Linux (from the `.desktop` file the CLI writes).
+- **Universal links and Android App Links** (`https://example.com/app/...`): list them as
+  `app.links`; `giode links` writes the two files your site must serve (see the CLI's
+  README). iOS and macOS need the Associated Domains capability in the provisioning profile.
+
+With a `SingleInstanceLock`, a link that starts a second desktop instance is handed to the
+running one.
