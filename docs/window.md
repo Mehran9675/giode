@@ -154,12 +154,55 @@ On Android they run synchronously on the platform's main thread, on desktops on 
 goroutine. Keep them short, make any state they touch safe to use from another goroutine
 (a `State`, or a lock), and don't wait on the UI (`RunOnUI`) from them.
 
+## System tray and the macOS menu bar
+
+`app.Tray()` puts an icon in the system tray: the notification area on Windows, the menu
+bar on macOS, the status notifier area on Linux (KDE and most desktops; GNOME needs the
+AppIndicator extension).
+
+```go
+a := giode.New(giode.Config{
+	Title:          "Pocket Agent",
+	Icon:           iconPNG,
+	MinimizeToTray: true, // minimizing hides the window to the tray
+	CloseToTray:    true, // so does closing it; Quit ends the app
+})
+a.Tray().
+	SetTemplateIcon(trayPNG). // tinted to match the macOS menu bar
+	SetTooltip("Pocket Agent").
+	SetMenu(
+		giode.TrayAction("Open", a.ShowWindow),
+		giode.TrayCheckbox("Do not disturb", dnd, toggleDND),
+		giode.TraySubmenu("Recent", recentItems...),
+		giode.TraySeparator(),
+		giode.TrayAction("Quit", a.Quit),
+	)
+```
+
+| Method | Effect |
+| --- | --- |
+| `SetIcon(png)` / `SetTemplateIcon(png)` | The icon; without one, `Config.Icon`. A template icon is black on transparency and macOS tints it for light and dark menu bars. |
+| `SetTitle(text)` | Text next to the icon in the **macOS menu bar** (and Linux panels that show it): an unread count, a timer, a status. Update it whenever you like. |
+| `SetTooltip(text)` | Hover text. |
+| `SetMenu(items...)` | Replaces the menu. Call it again to change items or check marks. Item callbacks run on the UI goroutine. |
+| `OnClick(fn)` | What a click on the icon does. By default it shows or hides the window on Windows and Linux; on macOS a click opens the menu. |
+| `Remove()` | Takes the icon away. |
+
+The window can hide without closing: `HideWindow()`, `ShowWindow()` and `WindowVisible()`.
+A hidden window leaves the screen and the taskbar or Dock, and comes back as it was;
+clicking the Dock icon brings it back on macOS. `Config.MenuBarApp` makes a macOS app a
+menu bar utility, with no Dock icon or app menu. `Quit()` ends the app even with
+`CloseToTray`, as does `Close()`.
+
+Platform notes: on Linux, hiding works under X11; Wayland can't hide windows, so there the
+window minimizes, and `CloseToTray` isn't available (closing quits). Android, iOS and the
+web have no tray: `TraySupported()` reports false and the calls do nothing.
+
 ## Not supported
 
 A few common window features are deliberately absent because Gio does not expose them:
-hidden windows, closable/minimizable/maximizable flags, window transparency, positioning
-by coordinates, file-drop events, native application menus and power-state callbacks
-(suspend/resume).
+closable/minimizable/maximizable flags, window transparency, positioning by coordinates,
+native application menus and power-state callbacks (suspend/resume).
 
 ## Clipboard
 

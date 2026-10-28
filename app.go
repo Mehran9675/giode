@@ -43,6 +43,7 @@ func (a *App) Run(view func() Element) error {
 		a.cfg.OnStartup()
 	}
 	a.logf(LogLevelInfo, "giode: app started")
+	a.warnTrayLimits()
 	a.watchLifecycle()
 	ctx, cancel := context.WithCancel(context.Background())
 	a.watchSystemTheme(ctx.Done())

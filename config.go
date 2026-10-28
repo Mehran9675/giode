@@ -128,6 +128,20 @@ type Config struct {
 	// maximized, made fullscreen or restored - by the app or by the
 	// user.
 	OnWindowStateChange func(WindowState)
+	// MinimizeToTray hides the window when it's minimized, so it leaves
+	// the taskbar or Dock and lives in the tray until ShowWindow (by
+	// default a click on the tray icon) brings it back. It needs a tray
+	// icon: set one up with App.Tray. Desktop only.
+	MinimizeToTray bool
+	// CloseToTray hides the window when the user closes it, instead of
+	// ending the app; Quit (a tray menu item, say) ends it. Windows and
+	// macOS; on Linux, where Gio can't keep a closed window, closing
+	// still quits.
+	CloseToTray bool
+	// MenuBarApp makes a macOS app live in the menu bar: no Dock icon
+	// and no app menu, as menu bar utilities do. Pair it with App.Tray.
+	// Other platforms ignore it.
+	MenuBarApp bool
 	// SingleInstanceLock, when set, ensures only one instance of the
 	// application runs.
 	SingleInstanceLock *SingleInstanceLock
@@ -233,6 +247,12 @@ type App struct {
 	mcp     *mcpBridge
 	uiMu    sync.Mutex
 	uiCalls []func()
+
+	// The tray icon (see Tray), and whether the window is hidden to it.
+	tray         *Tray
+	trayOnce     sync.Once
+	windowHidden atomic.Bool
+	quitting     atomic.Bool
 }
 
 // New creates an App from cfg. The window is created and shown the
@@ -301,6 +321,7 @@ func New(cfg Config) *App {
 	}
 	a := &App{cfg: cfg, themeCheck: make(chan struct{}, 1)}
 	currentApp.Store(a)
+	a.platformInit()
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
 		a.secondInstance, a.instanceLockPath, a.instanceLockOwner = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
@@ -386,8 +407,10 @@ func (a *App) Raise() {
 	a.window.Perform(system.ActionRaise)
 }
 
-// Close requests the window to close.
+// Close requests the window to close, ending the app - also with
+// CloseToTray, which only applies to the user closing it.
 func (a *App) Close() {
+	a.quitting.Store(true)
 	a.window.Perform(system.ActionClose)
 }
 
