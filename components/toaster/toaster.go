@@ -87,6 +87,9 @@ type Toaster struct {
 	placement Placement
 	duration  time.Duration
 	max       int
+	// inset keeps toasts clear of bars along the window's edges, in dp,
+	// added to the margin.
+	inset properties.Inset
 
 	mu      sync.Mutex
 	nextID  int
@@ -131,6 +134,14 @@ func New(st ...styles.Styles) *Toaster {
 // t for chaining.
 func (t *Toaster) Placement(p Placement) *Toaster {
 	t.placement = p
+	return t
+}
+
+// Inset keeps toasts this many dp further from each window edge, clear
+// of a custom title bar at the top or a control bar at the bottom. It
+// returns t for chaining.
+func (t *Toaster) Inset(in properties.Inset) *Toaster {
+	t.inset = in
 	return t
 }
 
@@ -383,7 +394,8 @@ func (t *Toaster) layoutStack(gtx layout.Context) layout.Dimensions {
 		w = gtx.Dp(unit.Dp(t.st.Width))
 	}
 	m := gtx.Dp(margin)
-	w = min(w, win.X-2*m)
+	in := image.Rect(gtx.Dp(unit.Dp(t.inset.Left)), gtx.Dp(unit.Dp(t.inset.Top)), gtx.Dp(unit.Dp(t.inset.Right)), gtx.Dp(unit.Dp(t.inset.Bottom)))
+	w = min(w, win.X-2*m-in.Min.X-in.Max.X)
 	if w <= 0 {
 		return layout.Dimensions{}
 	}
@@ -410,21 +422,21 @@ func (t *Toaster) layoutStack(gtx layout.Context) layout.Dimensions {
 
 	// Measure, then place in the corner.
 	cgtx := gtx
-	cgtx.Constraints = layout.Constraints{Max: image.Pt(w, win.Y-2*m)}
+	cgtx.Constraints = layout.Constraints{Max: image.Pt(w, max(0, win.Y-2*m-in.Min.Y-in.Max.Y))}
 	dims := elements.Measure(cgtx, stack)
 	var x, y int
 	switch t.placement {
 	case BottomLeft, TopLeft:
-		x = m
+		x = m + in.Min.X
 	case BottomCenter, TopCenter:
-		x = (win.X - w) / 2
+		x = in.Min.X + (win.X-in.Min.X-in.Max.X-w)/2
 	default:
-		x = win.X - w - m
+		x = win.X - w - m - in.Max.X
 	}
 	if t.placement.top() {
-		y = m
+		y = m + in.Min.Y
 	} else {
-		y = win.Y - m - dims.Size.Y
+		y = win.Y - m - in.Max.Y - dims.Size.Y
 	}
 	return elements.OffsetPx(image.Pt(x, y), elements.RawFunc(func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = cgtx.Constraints

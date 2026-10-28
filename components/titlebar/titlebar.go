@@ -106,6 +106,13 @@ func New(win Window, title string, st ...styles.Styles) *TitleBar {
 	return t
 }
 
+// Styles replaces the bar's styles (see New) - solid in a window, a
+// transparent fade over fullscreen video. It returns t for chaining.
+func (t *TitleBar) Styles(st styles.Styles) *TitleBar {
+	t.st = st
+	return t
+}
+
 // Title replaces the title. It returns t for chaining.
 func (t *TitleBar) Title(title string) *TitleBar {
 	t.title = title

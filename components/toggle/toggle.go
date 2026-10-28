@@ -30,6 +30,8 @@ type Switch struct {
 	on       bool
 	onChange func(on bool)
 	disabled bool
+	// knobOff and knobOn color the knob; white when unset.
+	knobOff, knobOn properties.Color
 
 	// pos animates the knob, 0 off to 1 on.
 	pos  float32
@@ -46,6 +48,14 @@ func New(label string, st ...styles.Styles) *Switch {
 	if len(st) > 0 {
 		s.st = st[0]
 	}
+	return s
+}
+
+// KnobColor sets the knob's color when off and when on (white by
+// default), so it stays visible on a light track: a white "on" track
+// in a monochrome theme hides a white knob. It returns s for chaining.
+func (s *Switch) KnobColor(off, on properties.Color) *Switch {
+	s.knobOff, s.knobOn = off, on
 	return s
 }
 
@@ -169,7 +179,14 @@ func (s *Switch) track(st styles.Styles) layout.Widget {
 		x := inset + int(float32(size.X-2*inset-knob)*s.pos)
 		r := image.Rect(x, inset, x+knob, inset+knob)
 		defer clip.Ellipse(r).Push(gtx.Ops).Pop()
-		paint.Fill(gtx.Ops, properties.CalcColor("#ffffff"))
+		off, on := s.knobOff, s.knobOn
+		if off == "" {
+			off = "#ffffff"
+		}
+		if on == "" {
+			on = "#ffffff"
+		}
+		paint.Fill(gtx.Ops, properties.CalcColor(properties.LerpColor(off, on, s.pos)))
 		return layout.Dimensions{Size: size}
 	}
 }

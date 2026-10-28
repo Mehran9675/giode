@@ -23,6 +23,7 @@ everything else, and only the toasts themselves take input.
 | `Placement(p)` | `ToastBottomRight` | Also `ToastBottomLeft`, `ToastBottomCenter`, `ToastTopRight`, `ToastTopLeft`, `ToastTopCenter`. |
 | `Duration(d)` | 5s | Zero or less keeps toasts until dismissed. |
 | `Max(n)` | 3 | How many show at once; the rest wait their turn. |
+| `Inset(properties.Inset)` | none | Extra dp from each window edge, to keep toasts clear of a custom title bar or a control bar. |
 
 Kinds — `ToastInfo`, `ToastSuccess`, `ToastWarning`, `ToastError` — color the accent stripe
 and action from the theme tokens (`theme.info`, `theme.success`, `theme.warning`,

@@ -538,6 +538,17 @@ const (
 	ToastTopCenter    = toaster.TopCenter
 )
 
+// Placement is the side of its trigger a tooltip (or any portal placed
+// with elements.RegisterPortalAround) goes.
+type Placement = elements.Placement
+
+const (
+	// PlaceAuto puts it below the trigger, or above when it doesn't fit.
+	PlaceAuto  = elements.PlaceAuto
+	PlaceBelow = elements.PlaceBelow
+	PlaceAbove = elements.PlaceAbove
+)
+
 // --- Virtual list ---------------------------------------------------------------
 
 // VirtualList is a vertical list of equal-height rows (height in dp)

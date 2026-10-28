@@ -6,6 +6,8 @@ import (
 	"gioui.org/f32"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
@@ -40,7 +42,10 @@ func (m *Menu) row(item *Item, index, width int, st styles.Styles) elements.Elem
 		// The color goes on the text itself: a Box's Color doesn't
 		// carry over to the Text inside it, which would otherwise draw
 		// in the default (dark) color.
-		label := elements.Text(item.label, styles.Styles{Color: m.disabledText()})
+		var label elements.Element = elements.Text(item.label, styles.Styles{Color: m.disabledText()})
+		if m.hasLeading() {
+			label = elements.Row(styles.Styles{Wrap: properties.WrapNoWrap}, elements.Box(styles.Styles{Width: 24}), label)
+		}
 		if width > 0 {
 			st.Width = -1
 			return elements.SizedPx(width, 0, elements.Box(st, label))
@@ -111,11 +116,18 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			}
 		}
 		var children []elements.Element
-		if item.icon != nil {
-			children = append(children,
-				item.icon.Icon(styles.Styles{Color: r.st.Color, Width: 16, Height: 16}),
-				elements.Box(styles.Styles{Width: 8}),
-			)
+		switch {
+		case item.icon != nil:
+			children = append(children, item.icon.Icon(styles.Styles{Color: r.st.Color, Width: 16, Height: 16}))
+		case item.check == checkBox && item.checked != nil && item.checked():
+			children = append(children, elements.Glyph(kit.GlyphCheck, styles.Styles{Color: r.st.Color, Width: 16}))
+		case item.check == checkRadio && item.checked != nil && item.checked():
+			children = append(children, radioDot(r.st.Color))
+		case r.menu.hasLeading():
+			children = append(children, elements.Box(styles.Styles{Width: 16, Height: 16}))
+		}
+		if len(children) > 0 {
+			children = append(children, elements.Box(styles.Styles{Width: 8}))
 		}
 		// Once the shared width is known the label fills the leftover
 		// space, pushing a submenu chevron to the right edge; while
@@ -128,6 +140,12 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 			labelSt.FlexGrow = 1
 		}
 		children = append(children, elements.Box(labelSt, elements.Text(item.label, styles.Styles{Color: r.st.Color})))
+		if item.shortcut != "" {
+			children = append(children,
+				elements.Box(styles.Styles{Width: 24}),
+				elements.Text(item.shortcut, styles.Styles{Color: r.menu.disabledText()}),
+			)
+		}
 		if item.submenu != nil {
 			children = append(children,
 				elements.Box(styles.Styles{Width: 8}),
@@ -147,7 +165,14 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 	// whole-window drag area happens to reach this portal - see
 	// button.Layout's identical comment.
 	kit.BlockDrag(gtx, dims.Size)
-	elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticMenuItem, Label: item.label, Target: menuItemActor{r.menu, item}}, dims.Size)
+	node := elements.SemanticNode{Kind: elements.SemanticMenuItem, Label: item.label, Target: menuItemActor{r.menu, item}}
+	if item.check != checkNone {
+		node.Value = "false"
+		if item.checked != nil && item.checked() {
+			node.Value = "true"
+		}
+	}
+	elements.RecordSemantic(gtx, node, dims.Size)
 
 	// Only the real pass opens the submenu. The menu also lays its rows
 	// out on scratch passes with input disabled (measureWidth, and
@@ -162,6 +187,19 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 		item.submenu.Layout(gtx)
 	}
 	return dims
+}
+
+// radioDot is a selected radio item's indicator: a dot in the 16dp
+// leading column.
+func radioDot(c properties.Color) elements.Element {
+	return elements.RawFunc(func(gtx layout.Context) layout.Dimensions {
+		sz := gtx.Dp(16)
+		d := gtx.Dp(6)
+		o := (sz - d) / 2
+		defer clip.Ellipse(image.Rect(o, o, o+d, o+d)).Push(gtx.Ops).Pop()
+		paint.Fill(gtx.Ops, elements.ResolveColor(c))
+		return layout.Dimensions{Size: image.Pt(sz, sz)}
+	})
 }
 
 // menuItemActor lets automation activate a menu item as a click
