@@ -198,3 +198,37 @@ giode.Config{
 
 With a `SingleInstanceLock`, a link that starts a second desktop instance is handed to the
 running one.
+
+## Updating desktop apps
+
+The `update` package updates a desktop app from a feed you host: it checks for a newer
+version, downloads it, verifies it, replaces the app and restarts it.
+
+```go
+import "github.com/mehran9675/giode/update"
+
+u := update.New() // feed URL, public key and version from giode.toml, via the giode CLI
+if rel, err := u.Check(ctx); err == nil && rel != nil {
+	// Offer rel.Version and rel.Notes; then:
+	dl, err := u.Download(ctx, rel, func(done, total int64) { progress.Set(done, total) })
+	if err == nil {
+		err = dl.Install() // replaces the app and restarts it; doesn't return on success
+	}
+}
+```
+
+Set it up with the CLI: `giode update-key` makes an Ed25519 key pair (keep the private key
+out of the repository; it signs releases), and `giode release -base-url https://...` writes
+`dist/update/` - the signed `feed.json`, `feed.json.sig` and a download per platform - to
+upload to that URL. The app accepts only a feed signed with its key and downloads whose
+SHA-256 the feed lists.
+
+| Platform | What the feed offers | Installing |
+| --- | --- | --- |
+| Windows | the program (`exe`) or the setup program (`installer`) | renames the running program aside and puts the new one in place; or runs the setup program silently once the app exits |
+| macOS | the zipped universal app (`app.zip`) | swaps the `.app` bundle |
+| Linux | the program (`binary`) or AppImage (`appimage`) | replaces the file |
+
+The app restarts with the same arguments; the old version is deleted on the next start.
+Apps installed by a package manager or store (`.deb`, `.rpm`, Flatpak, Snap, MSIX, the Mac
+App Store) are updated by it: `Check` returns `update.ErrManaged`.

@@ -345,6 +345,10 @@ func New(cfg Config) *App {
 	a := &App{cfg: cfg, themeCheck: make(chan struct{}, 1)}
 	currentApp.Store(a)
 	a.platformInit()
+	if cfg.SingleInstanceLock == nil {
+		// Restarted by an update: let the old process finish first.
+		waitForUpdatedInstance()
+	}
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
 		a.secondInstance, a.instanceLockPath, a.instanceLock = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)

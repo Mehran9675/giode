@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mehran9675/giode/update"
 )
 
 // The single-instance lock is a file in the temporary directory holding
@@ -33,6 +35,7 @@ type instanceLock struct {
 // application id. It reports whether another live instance already
 // holds the lock.
 func acquireInstanceLock(id string) (second bool, path string, owner *instanceLock) {
+	waitForUpdatedInstance()
 	if id == "" {
 		id = "giode"
 	}
@@ -74,6 +77,20 @@ func acquireInstanceLock(id string) (second bool, path string, owner *instanceLo
 	}
 	fmt.Fprintf(f, "%d\n%d\n%s\n", os.Getpid(), port, owner.token)
 	return false, path, owner
+}
+
+// waitForUpdatedInstance waits, in an app restarted by an update, for
+// the old process to exit, so the new one takes over its lock.
+func waitForUpdatedInstance() {
+	pid, err := strconv.Atoi(os.Getenv(update.WaitEnv))
+	if err != nil {
+		return
+	}
+	os.Unsetenv(update.WaitEnv)
+	for deadline := time.Now().Add(15 * time.Second); processAlive(pid) && time.Now().Before(deadline); {
+		time.Sleep(50 * time.Millisecond)
+	}
+	update.Cleanup()
 }
 
 // parseLock reads a lock file: pid, then port and token.
