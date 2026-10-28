@@ -34,6 +34,11 @@ func (a *App) SetContextMenu(m *menu.Menu) {
 func (a *App) Run(view func() Element) error {
 	if a.secondInstance {
 		a.logf(LogLevelInfo, "giode: second instance exiting")
+		// The running instance takes this launch's arguments (a context
+		// action, a file) and comes to the front.
+		if err := forwardLaunch(a.instanceLockPath, os.Args[1:]); err != nil {
+			a.logf(LogLevelWarning, "giode: couldn't reach the running instance: %v", err)
+		}
 		if a.cfg.SingleInstanceLock.OnSecondInstanceLaunch != nil {
 			a.cfg.SingleInstanceLock.OnSecondInstanceLaunch()
 		}
@@ -44,6 +49,8 @@ func (a *App) Run(view func() Element) error {
 	}
 	a.logf(LogLevelInfo, "giode: app started")
 	a.warnTrayLimits()
+	a.instanceLock.serveLaunches(a.handleLaunch)
+	a.runContextAction(os.Args[1:])
 	a.watchLifecycle()
 	ctx, cancel := context.WithCancel(context.Background())
 	a.watchSystemTheme(ctx.Done())
@@ -53,8 +60,8 @@ func (a *App) Run(view func() Element) error {
 	go func() {
 		err := a.runLoop(view)
 		cancel()
-		if a.instanceLockOwner {
-			releaseInstanceLock(a.instanceLockPath)
+		if a.instanceLock != nil {
+			releaseInstanceLock(a.instanceLockPath, a.instanceLock)
 		}
 		if a.cfg.OnShutdown != nil {
 			a.cfg.OnShutdown()

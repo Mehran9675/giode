@@ -82,6 +82,7 @@ func (a *App) platformInit() {
 	if a.cfg.MenuBarApp {
 		C.giodeMenuBarApp()
 	}
+	a.registerServices()
 }
 
 // trayView sets up close-to-tray and Dock re-opening once the window

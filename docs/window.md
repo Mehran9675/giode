@@ -198,6 +198,48 @@ Platform notes: on Linux, hiding works under X11; Wayland can't hide windows, so
 window minimizes, and `CloseToTray` isn't available (closing quits). Android, iOS and the
 web have no tray: `TraySupported()` reports false and the calls do nothing.
 
+## File manager context menu
+
+Context actions add entries to the file manager's right-click menu that open the app with
+the chosen files or folders - "Ask Pocket Agent about this file", "Open Pocket Agent here".
+Declare them in `giode.toml` (see the CLI's README) or in `Config.ContextActions`, and
+handle them in `Config.OnContextAction`:
+
+```go
+a := giode.New(giode.Config{
+	SingleInstanceLock: &giode.SingleInstanceLock{UniqueID: "com.example.agent"},
+	ContextActions: []giode.ContextAction{
+		{ID: "ask", Label: "Ask Pocket Agent", Extensions: []string{".md", ".txt"}},
+		{ID: "here", Label: "Open Pocket Agent here", Folders: true, FolderBackground: true},
+	},
+	OnContextAction: func(id string, paths []string) {
+		switch id {
+		case "ask":
+			chat.Attach(paths...)
+		case "here":
+			chat.SetWorkingDir(paths[0])
+		}
+		a.ShowWindow()
+	},
+	OnStartup: func() { a.InstallContextActions() },
+})
+```
+
+| Platform | Where they appear | How they're registered |
+| --- | --- | --- |
+| Windows | Explorer's context menu (on Windows 11, under "Show more options") | The setup program from `giode build windows-installer`, or `App.InstallContextActions()` for the current user (no admin rights) |
+| macOS | Finder's Quick Actions / Services submenu | The `NSServices` entries `giode build macos` writes; macOS picks them up once the app is in `/Applications` and has run once |
+| Linux | GNOME Files and Caja (under Scripts), Dolphin, Nemo | `App.InstallContextActions()`, into the user's home |
+
+Choosing an action starts the app with `--giode-action=<id> <paths>`; giode parses that and
+runs `OnContextAction` on the UI goroutine. With a `SingleInstanceLock`, an action chosen
+while the app runs goes to the running instance instead of starting a second one.
+`UninstallContextActions()` removes what `InstallContextActions` added.
+
+The single-instance lock now also passes any second launch's arguments to the running
+instance: `SingleInstanceLock.OnLaunchArgs` receives them (a file opened with the app,
+say), and the window comes to the front.
+
 ## Not supported
 
 A few common window features are deliberately absent because Gio does not expose them:

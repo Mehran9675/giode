@@ -128,6 +128,16 @@ type Config struct {
 	// maximized, made fullscreen or restored - by the app or by the
 	// user.
 	OnWindowStateChange func(WindowState)
+	// ContextActions add entries to the file manager's right-click menu
+	// that open the app with the chosen paths; see ContextAction. The
+	// giode CLI adds the ones in giode.toml too.
+	ContextActions []ContextAction
+	// OnContextAction runs on the UI goroutine when the app was started
+	// from one of its context actions, with the action's ID and the
+	// paths it was chosen on. With a SingleInstanceLock, a context
+	// action chosen while the app runs reaches the running instance
+	// here.
+	OnContextAction func(id string, paths []string)
 	// MinimizeToTray hides the window when it's minimized, so it leaves
 	// the taskbar or Dock and lives in the tray until ShowWindow (by
 	// default a click on the tray icon) brings it back. It needs a tray
@@ -207,6 +217,12 @@ type SingleInstanceLock struct {
 	// OnSecondInstanceLaunch runs in the second instance in place of
 	// the UI.
 	OnSecondInstanceLaunch func()
+	// OnLaunchArgs runs in the running instance, on the UI goroutine,
+	// with the command-line arguments (without the program name) of a
+	// second instance that started and exited - a file opened with the
+	// app, a URL. The window comes to the front either way. Context
+	// actions go to Config.OnContextAction instead.
+	OnLaunchArgs func(args []string)
 }
 
 // App owns a window and its render loop.
@@ -219,9 +235,9 @@ type App struct {
 	icon        image.Image
 	iconApplied bool
 
-	instanceLockPath  string
-	instanceLockOwner bool
-	secondInstance    bool
+	instanceLockPath string
+	instanceLock     *instanceLock
+	secondInstance   bool
 
 	winState   atomic.Int32
 	winFocused atomic.Bool
@@ -324,7 +340,7 @@ func New(cfg Config) *App {
 	a.platformInit()
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
-		a.secondInstance, a.instanceLockPath, a.instanceLockOwner = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
+		a.secondInstance, a.instanceLockPath, a.instanceLock = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
 	}
 	a.window = new(app.Window)
 	a.window.Option(opts...)
