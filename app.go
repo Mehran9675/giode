@@ -35,6 +35,9 @@ func (a *App) SetContextMenu(m *menu.Menu) {
 // terminates the process. Any window close error is printed to
 // stderr.
 func (a *App) Run(view func() Element) error {
+	if a.rendererErr != nil {
+		return a.rendererErr
+	}
 	if a.secondInstance {
 		a.logf(LogLevelInfo, "giode: second instance exiting")
 		// The running instance takes this launch's arguments (a context
@@ -131,7 +134,9 @@ func (a *App) runLoop(view func() Element) error {
 			if a.mcp != nil {
 				elements.BeginSemantics()
 			}
-			paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
+			if a.cfg.Underlay == nil {
+				paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
+			}
 			// The same frame steps a custom host runs (ui.Frame), with the
 			// window's own layers around the view.
 			root := elements.Raw(func(gtx layout.Context) layout.Dimensions {

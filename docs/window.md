@@ -303,6 +303,46 @@ Linux support needs changes in Gio itself. macOS support needs AppKit drag regis
 which is not implemented yet. Drag enter/leave events (for highlighting a drop zone) aren't
 available yet either; they need Windows' COM `IDropTarget` instead of `WM_DROPFILES`.
 
+## Drawing video or 3D under the UI
+
+`Config.Underlay` draws caller-rendered GPU content into each frame before the UI, without
+copying it off the GPU: video frames from libmpv, a 3D or map engine. It runs on the
+window's render thread with the window's GPU context current; the UI is then drawn over
+its output without clearing, so only the UI's own backgrounds cover it (`Background`
+isn't painted).
+
+```go
+app := giode.New(giode.Config{
+	Renderer: giode.RendererOpenGL, // an OpenGL (ES) context on every platform
+	Underlay: func(t giode.GPUTarget) {
+		mpvRender(t.Framebuffer, t.Size.X, t.Size.Y) // flip Y: GL's origin is bottom left
+	},
+})
+// From any goroutine, when the engine has a new frame:
+app.Invalidate()
+```
+
+`GPUTarget` describes the frame's render target: `API` (`GPUOpenGL`, `GPUMetal`,
+`GPUDirect3D11`, `GPUVulkan`), the OpenGL `Framebuffer` (0 is the window's), or the
+`Texture` handle - the `MTLTexture` or `ID3D11RenderTargetView` - and the `Size` in
+pixels. Engines with Metal or Direct3D renderers can keep Gio's defaults and draw into the
+texture; commit their work before returning, since Gio draws with its own command queue.
+
+`Renderer: giode.RendererOpenGL` asks for OpenGL everywhere:
+
+| Platform | OpenGL |
+| --- | --- |
+| Linux, Android | OpenGL ES through EGL, Gio's default. |
+| Windows | OpenGL ES through ANGLE: `libEGL.dll` and `libGLESv2.dll` must be next to the executable (see `[native]` in the giode CLI). |
+| macOS, iOS | Gio's OpenGL renderer, built with the `nometal` tag: set `renderer = "opengl"` under `[app]` in `giode.toml`. |
+
+Gio's OpenGL renderer saves and restores the GL state it changes around its frames, and
+switches off scissor, depth and stencil tests and face culling an engine leaves on, so
+engines don't need to clean up after themselves.
+
+Both need giode's patched Gio, which `giode build` and `giode run` build against (adding
+the `giode_gio` tag); a plain `go build` gets an error from `Run` saying so.
+
 ## Native window handle
 
 `app.NativeHandle()` returns the native window handle: the `HWND` on Windows, the `NSView`
