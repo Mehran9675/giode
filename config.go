@@ -1,6 +1,8 @@
 package giode
 
 import (
+	"github.com/mehran9675/giode/host"
+
 	"image"
 	"image/color"
 	"net/url"
@@ -188,6 +190,19 @@ type Config struct {
 	// stutter on a device. App.FrameStats returns the same numbers, and
 	// the MCP server reports them as frame_stats.
 	ShowFrameTimes bool
+
+	// Underlay draws caller-rendered GPU content under the UI each
+	// frame - video frames from libmpv, a 3D or map engine - without
+	// copying it off the GPU. It's called on the window's render thread
+	// with the window's GPU context current, before the UI is drawn
+	// over its output; Background isn't painted, so the UI's own
+	// backgrounds cover only what they should. Call App.Invalidate from
+	// any goroutine when a new frame is ready. Engines drawing with
+	// OpenGL set Renderer to RendererOpenGL. It needs giode's patched
+	// Gio (giode build and giode run); without it Run returns an error.
+	Underlay func(target GPUTarget)
+	// Renderer selects the window's GPU API; see RendererOpenGL.
+	Renderer Renderer
 }
 
 // WindowStartState selects the initial state of the window.
@@ -247,9 +262,9 @@ type App struct {
 	icon        image.Image
 	iconApplied bool
 
-	instanceLockPath string
-	instanceLock     *instanceLock
-	secondInstance   bool
+	instance       *host.InstanceLock
+	rendererErr    error
+	secondInstance bool
 
 	winState   atomic.Int32
 	winFocused atomic.Bool
@@ -362,12 +377,14 @@ func New(cfg Config) *App {
 	})
 	if cfg.SingleInstanceLock == nil {
 		// Restarted by an update: let the old process finish first.
-		waitForUpdatedInstance()
+		host.WaitForUpdate()
 	}
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
-		a.secondInstance, a.instanceLockPath, a.instanceLock = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
+		a.instance = host.LockInstance(cfg.SingleInstanceLock.UniqueID)
+		a.secondInstance = a.instance.Running()
 	}
+	a.rendererErr = setupRenderer(cfg)
 	a.window = new(app.Window)
 	a.window.Option(opts...)
 	a.explorer = explorer.NewExplorer(a.window)

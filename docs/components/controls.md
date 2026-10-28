@@ -12,7 +12,8 @@ With a label it fills the row, label on the left and switch on the right, as in 
 list; the whole row is tappable. `Checked()`, `SetChecked(v)` (without calling OnChange),
 `Toggle()`, `Disabled(v)`. Styles: `Background` is the track when on (default
 `theme.primary`), `BorderColor` the track when off (default `theme.border`), `Color` and
-`FontSize` the label.
+`FontSize` the label. `KnobColor(off, on)` colors the knob (white by default), for a light
+"on" track.
 
 ## Segmented
 

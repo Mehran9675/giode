@@ -112,3 +112,58 @@ func TestMenu_SubMenu_HoverOpensAndPersists(t *testing.T) {
 		t.Errorf("after closing the parent menu: submenu Opened() = true, want false (Close is recursive)")
 	}
 }
+
+// TestMenu_PanelHugsWideWindow checks the panel is as wide as its
+// widest row, not the window: a no-wrap row holding a growing label
+// takes all the width it's offered.
+func TestMenu_PanelHugsWideWindow(t *testing.T) {
+	elements.SetWindowSize(image.Pt(1600, 1000))
+	defer elements.SetWindowSize(image.Point{})
+	sub := New().Item("Deeper", func() {})
+	m := New().Item("Play", func() {}).Item("Pause", func() {}).Separator().SubMenu("Speed", sub)
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(1600, 1000))}
+	if w := m.measureWidth(gtx, styles.Styles{}); w <= 0 || w > 300 {
+		t.Errorf("measured width %d, want the rows' content width", w)
+	}
+	dims := m.panel(gtx)
+	if dims.Size.X > 400 {
+		t.Errorf("panel is %d px wide in a 1600 px window, want it to hug its rows", dims.Size.X)
+	}
+}
+
+// TestMenu_ShortcutsAndChecks checks shortcut and check rows: the
+// shortcut widens the panel, check state is read each frame and
+// reported to automation.
+func TestMenu_ShortcutsAndChecks(t *testing.T) {
+	elements.SetWindowSize(image.Pt(800, 600))
+	defer elements.SetWindowSize(image.Point{})
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Exact(image.Pt(800, 600))}
+
+	plain := New().Item("Open File…", func() {})
+	withKey := New().Item("Open File…", func() {}).Shortcut("Ctrl+Shift+O")
+	if a, b := plain.measureWidth(gtx, styles.Styles{}), withKey.measureWidth(gtx, styles.Styles{}); b <= a {
+		t.Errorf("shortcut row %d px, plain %d px: want the shortcut to add width", b, a)
+	}
+
+	speed := 1
+	m := New().
+		RadioItem("1x", func() bool { return speed == 1 }, func() { speed = 1 }).
+		RadioItem("2x", func() bool { return speed == 2 }, func() { speed = 2 }).
+		CheckItem("Loop", func() bool { return true }, func() {}).
+		Item("Plain", func() {})
+	if !m.hasLeading() {
+		t.Fatal("check items should reserve the leading column")
+	}
+	// Every row is as wide once the leading column is reserved: Plain
+	// is shortest and must still line up.
+	w := m.measureWidth(gtx, styles.Styles{})
+	if w <= 0 {
+		t.Fatal("no width")
+	}
+	m.items[1].action()
+	if speed != 2 || !m.items[1].checked() || m.items[0].checked() {
+		t.Error("radio state")
+	}
+}

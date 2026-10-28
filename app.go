@@ -1,6 +1,8 @@
 package giode
 
 import (
+	"github.com/mehran9675/giode/ui"
+
 	"context"
 	"fmt"
 	"os"
@@ -33,11 +35,14 @@ func (a *App) SetContextMenu(m *menu.Menu) {
 // terminates the process. Any window close error is printed to
 // stderr.
 func (a *App) Run(view func() Element) error {
+	if a.rendererErr != nil {
+		return a.rendererErr
+	}
 	if a.secondInstance {
 		a.logf(LogLevelInfo, "giode: second instance exiting")
 		// The running instance takes this launch's arguments (a context
 		// action, a file) and comes to the front.
-		if err := forwardLaunch(a.instanceLockPath, os.Args[1:]); err != nil {
+		if err := a.instance.Forward(os.Args[1:]); err != nil {
 			a.logf(LogLevelWarning, "giode: couldn't reach the running instance: %v", err)
 		}
 		if a.cfg.SingleInstanceLock.OnSecondInstanceLaunch != nil {
@@ -50,7 +55,9 @@ func (a *App) Run(view func() Element) error {
 	}
 	a.logf(LogLevelInfo, "giode: app started")
 	a.warnTrayLimits()
-	a.instanceLock.serveLaunches(a.handleLaunch)
+	if a.instance != nil {
+		a.instance.Serve(a.handleLaunch)
+	}
 	if !a.runContextAction(os.Args[1:]) {
 		a.startupURL(os.Args[1:])
 	}
@@ -63,8 +70,8 @@ func (a *App) Run(view func() Element) error {
 	go func() {
 		err := a.runLoop(view)
 		cancel()
-		if a.instanceLock != nil {
-			releaseInstanceLock(a.instanceLockPath, a.instanceLock)
+		if a.instance != nil {
+			a.instance.Release()
 		}
 		if a.cfg.OnShutdown != nil {
 			a.cfg.OnShutdown()
@@ -124,23 +131,25 @@ func (a *App) runLoop(view func() Element) error {
 			a.runUICalls()
 			gtx := a.frameContext(&ops, e)
 			a.applyHideKeyboard(gtx)
-			elements.BeginFrame()
 			if a.mcp != nil {
 				elements.BeginSemantics()
 			}
-			elements.SetWindowSize(gtx.Constraints.Max)
-			elements.SetMetric(gtx.Metric)
-			paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
-			layoutDrag(a, gtx)
-			view().Layout(gtx)
-			a.winPointer.layout(a, gtx)
-			a.layoutClipboard(gtx)
-			if a.ctxMenu != nil {
-				a.ctxMenu.Layout(gtx)
+			if a.cfg.Underlay == nil {
+				paint.Fill(gtx.Ops, properties.CalcColor(a.cfg.Background))
 			}
-			elements.DrainPortals(gtx)
-			elements.DispatchBack(gtx)
-			if elements.RunAfterLayout() {
+			// The same frame steps a custom host runs (ui.Frame), with the
+			// window's own layers around the view.
+			root := elements.Raw(func(gtx layout.Context) layout.Dimensions {
+				layoutDrag(a, gtx)
+				dims := view().Layout(gtx)
+				a.winPointer.layout(a, gtx)
+				a.layoutClipboard(gtx)
+				if a.ctxMenu != nil {
+					a.ctxMenu.Layout(gtx)
+				}
+				return dims
+			})
+			if ui.Frame(gtx, root) {
 				a.window.Invalidate()
 			}
 			var nodes []elements.SemanticNode
@@ -153,7 +162,6 @@ func (a *App) runLoop(view func() Element) error {
 			built := time.Now()
 			e.Frame(gtx.Ops)
 			a.frames.add(start, built, time.Now())
-			elements.EndFrame()
 			a.updateSystemBars()
 			if a.mcp != nil {
 				a.mcp.frameDone(nodes, &ops, e.Size)

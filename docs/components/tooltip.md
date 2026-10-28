@@ -21,6 +21,7 @@ laid out every frame like any other component, not rebuilt inside the view funct
 | --- | --- |
 | `Tooltip(trigger Element, content string, st ...Styles) *Tooltip` | Wraps trigger. |
 | `SetContent(content string)` | Replaces the tooltip text. |
+| `Placement(p Placement) *Tooltip` | `PlaceAuto` (default: below the trigger, above it when it doesn't fit, never over it), `PlaceBelow` or `PlaceAbove`. |
 | `Hovered() bool` | Whether a mouse was over the trigger on the last frame. |
 | `Visible() bool` | Whether the tooltip was showing on the last frame, from hover or a long-press. |
 

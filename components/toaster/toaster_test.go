@@ -14,6 +14,7 @@ import (
 
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
+	"github.com/mehran9675/giode/styles/properties"
 )
 
 func init() {
@@ -148,5 +149,28 @@ func TestShowFromGoroutines(t *testing.T) {
 	h.frame(0)
 	if h.t.Count() != 20 {
 		t.Errorf("toasts = %d, want 20", h.t.Count())
+	}
+}
+
+// TestInsetKeepsToastsClearOfBars checks Inset moves toasts away from
+// the edges: clear of a 60 dp control bar at the bottom.
+func TestInsetKeepsToastsClearOfBars(t *testing.T) {
+	bottom := func(tst *Toaster) int {
+		h := &harness{t: tst, now: time.Unix(0, 0)}
+		h.t.Show(Info, "saved")
+		h.frame(0)
+		nodes := h.frame(time.Second)
+		for _, n := range nodes {
+			if n.Kind == elements.SemanticText && n.Label == "saved" {
+				return n.Bounds.Max.Y
+			}
+		}
+		t.Fatal("toast not shown")
+		return 0
+	}
+	plain := bottom(New())
+	inset := bottom(New().Inset(properties.Inset{Bottom: 60}))
+	if plain-inset != 60 {
+		t.Errorf("toast bottom %d with Inset, %d without: want 60 px higher", inset, plain)
 	}
 }

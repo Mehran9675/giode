@@ -45,6 +45,7 @@ Create it once and lay it out every frame at the top of the window. Don't set
 | `Hide(buttons...)` | Removes `TitleBarMinimize`, `TitleBarMaximize` and/or `TitleBarClose`. |
 | `OnClose(fn func() bool)` | Runs on close; return `false` to keep the window open (unsaved changes). |
 | `Title(s)` | Replaces the title. |
+| `Styles(st)` | Replaces the styles: solid in a window, a transparent fade over fullscreen video. |
 | `Press(button)` | Performs a button's action programmatically. |
 
 Styles: `Background` (default `theme.surface`), `Color` (title and glyphs, default

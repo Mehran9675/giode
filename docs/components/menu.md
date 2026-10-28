@@ -75,12 +75,18 @@ Escape) closes every open submenu with it.
 | `Menu(st ...Styles) *Menu` | Creates an empty menu. |
 | `Item(label string, action func()) *Menu` | Clickable item. |
 | `IconItem(iconName, label string, action func()) *Menu` | Item with a material icon. |
+| `CheckItem(label string, checked func() bool, action func()) *Menu` | Item with a check mark while `checked` reports true (read every frame). |
+| `RadioItem(label string, selected func() bool, action func()) *Menu` | One of a group of choices, with a dot on the selected one. |
+| `Shortcut(text string) *Menu` | Shows a shortcut right-aligned on the last item added: `Item("Open File…", open).Shortcut("Ctrl+O")`. Display only; handle the key with the `shortcut` package. |
 | `DisabledItem(label string) *Menu` | Grayed-out item. |
 | `Separator() *Menu` | Horizontal line. |
 | `SubMenu(label string, submenu *Menu) *Menu` | Item that reveals submenu on hover. |
 | `Trigger(el Element) Element` | Wraps el; clicking it opens the menu anchored below. |
 
 Styles: `Background`, `BorderRadius`, `Padding`, `Color` (item text).
+
+When any item has an icon, a check or a radio dot, every row keeps that leading column, so
+the labels line up. Panels are as wide as their widest row.
 
 ## Behavior
 

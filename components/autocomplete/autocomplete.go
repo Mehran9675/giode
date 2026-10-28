@@ -107,9 +107,10 @@ func (a *AutoComplete) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	if len(a.filtered) > 0 {
-		anchor := elements.AbsolutePosition().Add(image.Pt(0, dims.Size.Y+4))
+		at := elements.AbsolutePosition()
+		trigger := image.Rectangle{Min: at, Max: at.Add(dims.Size)}
 		filtered, width := a.filtered, dims.Size.X
-		elements.RegisterPortal(gtx, anchor, func() elements.Element {
+		elements.RegisterPortalAround(gtx, trigger, 4, elements.PlaceAuto, func() elements.Element {
 			return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 				return a.panel(gtx, filtered, width)
 			})

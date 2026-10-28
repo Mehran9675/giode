@@ -21,7 +21,19 @@ type Item struct {
 	click     *widget.Clickable
 	action    func()
 	submenu   *Menu
+	// shortcut is shown right-aligned ("Ctrl+O").
+	shortcut string
+	// check is checkNone, checkBox or checkRadio; checked reports the
+	// item's state each frame.
+	check   int
+	checked func() bool
 }
+
+const (
+	checkNone = iota
+	checkBox
+	checkRadio
+)
 
 // Menu is a stateful context menu. Register it with App.SetContextMenu
 // to open it with a right-click anywhere in the window, call
@@ -94,6 +106,47 @@ func (m *Menu) IconItem(ic icon.Source, label string, action func()) *Menu {
 		action: action,
 	})
 	return m
+}
+
+// CheckItem appends an item showing a check mark while checked reports
+// true - the state lives in the app and is read every frame. action
+// runs on click; it's up to it to flip the state. It returns m for
+// chaining.
+func (m *Menu) CheckItem(label string, checked func() bool, action func()) *Menu {
+	m.Item(label, action)
+	m.items[len(m.items)-1].check, m.items[len(m.items)-1].checked = checkBox, checked
+	return m
+}
+
+// RadioItem appends an item showing a dot while selected reports true:
+// one of a group of choices (a playback speed, an audio track), where
+// each item's action selects it. It returns m for chaining.
+func (m *Menu) RadioItem(label string, selected func() bool, action func()) *Menu {
+	m.Item(label, action)
+	m.items[len(m.items)-1].check, m.items[len(m.items)-1].checked = checkRadio, selected
+	return m
+}
+
+// Shortcut sets the keyboard shortcut shown right-aligned on the last
+// item added ("Ctrl+O"): m.Item("Open File…", open).Shortcut("Ctrl+O").
+// It only shows the text; handle the key itself (see the shortcut
+// package). It returns m for chaining.
+func (m *Menu) Shortcut(text string) *Menu {
+	if n := len(m.items); n > 0 {
+		m.items[n-1].shortcut = text
+	}
+	return m
+}
+
+// hasLeading reports whether any item has an icon or a check, so every
+// row reserves the leading column and the labels line up.
+func (m *Menu) hasLeading() bool {
+	for i := range m.items {
+		if m.items[i].icon != nil || m.items[i].check != checkNone {
+			return true
+		}
+	}
+	return false
 }
 
 // DisabledItem appends a grayed-out, non-clickable item. It returns m

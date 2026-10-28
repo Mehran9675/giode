@@ -1,6 +1,6 @@
 //go:build !windows
 
-package giode
+package host
 
 import "syscall"
 
