@@ -175,3 +175,209 @@ codesign -f -s - App.app   # re-sign after editing; use your identity for a devi
 
 For a device `.ipa`, unzip it, edit `Payload/App.app/Info.plist` the same way, and
 re-sign the app with your identity and its entitlements before zipping it again.
+
+## Links that open the app
+
+`Config.OnOpenURL` receives the links that open the app, or reach it while it runs, on the
+UI goroutine:
+
+```go
+giode.Config{
+	OnOpenURL: func(u *url.URL) {
+		// myapp://chat/42 or https://example.com/app/chat/42
+		router.Go(u.Path)
+	},
+}
+```
+
+- **URL schemes** (`myapp://...`): list them in `giode.toml` as `app.schemes`. They work on
+  Android, iOS, macOS, Windows and Linux (from the `.desktop` file the CLI writes).
+- **Universal links and Android App Links** (`https://example.com/app/...`): list them as
+  `app.links`; `giode links` writes the two files your site must serve (see the CLI's
+  README). iOS and macOS need the Associated Domains capability in the provisioning profile.
+
+With a `SingleInstanceLock`, a link that starts a second desktop instance is handed to the
+running one.
+
+## Updating desktop apps
+
+The `update` package updates a desktop app from a feed you host: it checks for a newer
+version, downloads it, verifies it, replaces the app and restarts it.
+
+```go
+import "github.com/mehran9675/giode/update"
+
+u := update.New() // feed URL, public key and version from giode.toml, via the giode CLI
+if rel, err := u.Check(ctx); err == nil && rel != nil {
+	// Offer rel.Version and rel.Notes; then:
+	dl, err := u.Download(ctx, rel, func(done, total int64) { progress.Set(done, total) })
+	if err == nil {
+		err = dl.Install() // replaces the app and restarts it; doesn't return on success
+	}
+}
+```
+
+Set it up with the CLI: `giode update-key` makes an Ed25519 key pair (keep the private key
+out of the repository; it signs releases), and `giode release -base-url https://...` writes
+`dist/update/` - the signed `feed.json`, `feed.json.sig` and a download per platform - to
+upload to that URL. The app accepts only a feed signed with its key and downloads whose
+SHA-256 the feed lists.
+
+| Platform | What the feed offers | Installing |
+| --- | --- | --- |
+| Windows | the program (`exe`) or the setup program (`installer`) | renames the running program aside and puts the new one in place; or runs the setup program silently once the app exits |
+| macOS | the zipped universal app (`app.zip`) | swaps the `.app` bundle |
+| Linux | the program (`binary`) or AppImage (`appimage`) | replaces the file |
+
+The app restarts with the same arguments; the old version is deleted on the next start.
+Apps installed by a package manager or store (`.deb`, `.rpm`, Flatpak, Snap, MSIX, the Mac
+App Store) are updated by it: `Check` returns `update.ErrManaged`.
+
+## Crash reports
+
+The `crash` package records the app's crashes and hands them back on the next start, on
+every platform:
+
+```go
+import "github.com/mehran9675/giode/crash"
+
+func main() {
+	crash.Init(crash.Options{Version: "1.4.0"})
+	if reports := crash.Reports(); len(reports) > 0 {
+		// Offer to send them; then:
+		for _, r := range reports {
+			if r.Send(ctx, "https://example.com/api/crashes") == nil {
+				r.Delete()
+			}
+		}
+	}
+	...
+}
+```
+
+A crash is an unrecovered panic or a fatal error on any goroutine, including background
+ones: the Go runtime writes the message and every goroutine's stack to the crash file as
+the app dies (`runtime/debug.SetCrashOutput`). A `Report` has the message, the full trace,
+the app and Go versions and the platform; `Send` posts it as JSON, and the newest ten are
+kept. Crashes in Java (Android) or Objective-C (Apple) threads aren't Go's and aren't
+recorded.
+
+## Push notifications
+
+The `push` package receives remote notifications: Firebase Cloud Messaging on Android,
+APNs on iOS and macOS.
+
+```go
+import "github.com/mehran9675/giode/push"
+
+func main() {
+	app := giode.New(giode.Config{Title: "Chat"})
+	push.Listen(app, push.Handlers{
+		Token:   func(t string) { sendTokenToServer(t) },  // a new or rotated token
+		Message: func(m push.Message) { app.Post(func() { showBanner(m) }) },
+		Open:    func(m push.Message) { app.Post(func() { openChat(m.Data["chat"]) }) },
+	})
+	go func() {
+		push.RequestPermission(ctx, app) // iOS, macOS, Android 13+
+		if t, err := push.Token(ctx); err == nil {
+			sendTokenToServer(t)
+		}
+	}()
+	app.Run(view)
+}
+```
+
+Messages arriving in the background are shown by the system; tapping one opens the app
+and calls `Open`, also when it launched the app (events from before `Listen` are kept
+for it). Messages arriving while the app runs, and data-only messages, go to `Message`,
+and nothing is shown unless the app shows it. Handlers run on their own goroutine.
+
+Setup in `giode.toml`:
+
+- Android: `android.google_services = "google-services.json"`, the file from the Firebase
+  console for the app's id. The CLI adds Firebase Messaging and the package's service.
+- iOS: `ios.push = "production"` (or `"development"`), with push enabled for the app id
+  and in its provisioning profile. Silent pushes (`content-available`) wake the app.
+- macOS: `macos.push`, which needs `macos.profile`, a provisioning profile.
+
+On Android, a tap on a notification while the app is still running in the background
+brings it forward without calling `Open`; only launches carry the message.
+
+## In-app purchases
+
+The `store` package sells products and subscriptions through Google Play Billing and the
+App Store:
+
+```go
+import "github.com/mehran9675/giode/store"
+
+store.OnUpdate(func(p store.Purchase) { grant(p) }) // early: purchases finishing later
+products, err := store.Products(ctx, "pro", "coins_100")
+p, err := store.Buy(ctx, app, products[0])
+switch {
+case errors.Is(err, store.ErrCanceled):
+case err == nil && !p.Pending:
+	// Verify p.Receipt (and p.Signature, on Google Play) on the server, grant, then:
+	store.Finish(ctx, p, false) // true consumes it, so it can be bought again
+}
+```
+
+`Product` has the localized `Price`, `PriceMicros` and `Currency`, and for subscriptions
+the billing `Period` (ISO 8601, `P1M`). `Owned` lists what the user holds, for restoring
+purchases on a new device; on the App Store it may ask the user to sign in, so call it
+from a "Restore purchases" button. Google Play refunds purchases not finished within three
+days; the App Store redelivers them through `OnUpdate` on every launch. Pending purchases
+(paid in cash later, or waiting for a parent's approval) arrive through `OnUpdate` once
+paid. The Apple side uses StoreKit's original API, which Objective-C can call.
+
+## Rating prompt
+
+`review.Request(ctx, app)` shows the store's rating prompt: Play's in-app review on
+Android, the App Store's on iOS and macOS. The stores decide whether it appears (the App
+Store at most three times a year) and don't say what the user did, so ask after the user
+finished something worthwhile, not from a button.
+
+## Languages and right-to-left layout
+
+The `i18n` package translates the app's text:
+
+```go
+import "github.com/mehran9675/giode/i18n"
+
+//go:embed locales
+var locales embed.FS
+
+i18n.Load(locales, "locales") // locales/en.json, locales/fa.json, ...
+
+giode.Text(i18n.T("greeting", "name", user.Name)) // "greeting": "Hello, {name}!"
+giode.Text(i18n.N("unread", count))               // "unread": {"one": "{n} message", "other": "{n} messages"}
+```
+
+A message file maps keys to text or to plural forms (`zero`, `one`, `two`, `few`, `many`,
+`other`), chosen by the language's plural rules (English, French, Russian, Polish, Arabic,
+Hebrew and others are built in). Lookups fall back from `fa-IR` to `fa` to the fallback
+locale (English) to the key itself.
+
+The locale is the system's unless `Config.Locale` says otherwise; `i18n.SetLocale` switches
+it at runtime and the UI redraws. In a right-to-left locale (Arabic, Persian, Hebrew, Urdu,
+...) giode mirrors the layout as CSS does for `direction: rtl`: rows run from the right,
+columns align to the right, and text aligns from the right. Absolutely positioned boxes
+keep their physical `Left` and `Right`. Load a font with the script's glyphs (see
+[styles.md](styles.md)): the bundled fonts cover Latin, Greek and Cyrillic.
+
+## Open-source notices
+
+Apps must show the licenses of the code they include. `giode licenses` (in the CLI) writes
+the licenses of every Go module the app is built from, on any platform, plus Go's own, to
+`assets/licenses.json`; set `app.licenses` in `giode.toml` and every build refreshes it.
+Show it with `LicensesView`, a list of modules that expand to their license text:
+
+```go
+//go:embed assets/licenses.json
+var licensesJSON []byte
+
+var licenses = giode.LicensesView(licensesJSON)
+
+// In an "Open-source licenses" screen:
+licenses
+```

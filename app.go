@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
@@ -34,6 +35,11 @@ func (a *App) SetContextMenu(m *menu.Menu) {
 func (a *App) Run(view func() Element) error {
 	if a.secondInstance {
 		a.logf(LogLevelInfo, "giode: second instance exiting")
+		// The running instance takes this launch's arguments (a context
+		// action, a file) and comes to the front.
+		if err := forwardLaunch(a.instanceLockPath, os.Args[1:]); err != nil {
+			a.logf(LogLevelWarning, "giode: couldn't reach the running instance: %v", err)
+		}
 		if a.cfg.SingleInstanceLock.OnSecondInstanceLaunch != nil {
 			a.cfg.SingleInstanceLock.OnSecondInstanceLaunch()
 		}
@@ -43,6 +49,11 @@ func (a *App) Run(view func() Element) error {
 		a.cfg.OnStartup()
 	}
 	a.logf(LogLevelInfo, "giode: app started")
+	a.warnTrayLimits()
+	a.instanceLock.serveLaunches(a.handleLaunch)
+	if !a.runContextAction(os.Args[1:]) {
+		a.startupURL(os.Args[1:])
+	}
 	a.watchLifecycle()
 	ctx, cancel := context.WithCancel(context.Background())
 	a.watchSystemTheme(ctx.Done())
@@ -52,8 +63,8 @@ func (a *App) Run(view func() Element) error {
 	go func() {
 		err := a.runLoop(view)
 		cancel()
-		if a.instanceLockOwner {
-			releaseInstanceLock(a.instanceLockPath)
+		if a.instanceLock != nil {
+			releaseInstanceLock(a.instanceLockPath, a.instanceLock)
 		}
 		if a.cfg.OnShutdown != nil {
 			a.cfg.OnShutdown()
@@ -65,9 +76,18 @@ func (a *App) Run(view func() Element) error {
 		}
 		os.Exit(0)
 	}()
-	// app.Main blocks forever on most platforms; the process exits
-	// from the window goroutine above once the window closes.
-	app.Main()
+	// app.Events blocks forever on most platforms, delivering the
+	// events that aren't the window's - links opening the app; the
+	// process exits from the window goroutine above once the window
+	// closes.
+	// It's called, not ranged over: on iOS it returns at once and links
+	// arrive later, when a range loop's body may no longer run.
+	app.Events(func(ev event.Event) bool {
+		if u, ok := ev.(app.URLEvent); ok && u.URL != nil {
+			a.openedURL(u.URL)
+		}
+		return true
+	})
 	return nil
 }
 

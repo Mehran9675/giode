@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"gioui.org/io/pointer"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -37,6 +38,12 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 	st = st.Px(gtx.Metric)
+	if b.stretchX && st.Width == 0 && st.WidthPct == 0 {
+		st.Width = -1
+	}
+	if b.stretchY && st.Height == 0 && st.HeightPct == 0 {
+		st.Height = -1
+	}
 
 	// Margin carves space out of the constraints; the painted content
 	// is then offset inside it.
@@ -58,7 +65,7 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	applyPct(&gtx.Constraints, layout.Vertical, int(st.HeightPct))
 	applyAspect(&gtx.Constraints, st)
 
-	flow, absolute := b.split()
+	flow, absolute, ordered := b.split()
 
 	// Lay the content out into a macro so the background can be
 	// painted underneath it once its size is known. Children's own
@@ -73,9 +80,23 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	contentOff := image.Pt(margin.Left+padding.Left, margin.Top+padding.Top)
 	popAbs := PushOffset(contentOff)
 	popColor := PushColor(st.Color)
-	dims := b.layoutFlex(cgtx, st, flow)
+	var zs *[]zPaint
+	rtl := gtx.Locale.Direction == system.RTL
+	if ordered || rtl {
+		// A child sets a z-index, or the locale reads right to left:
+		// record every child and paint them once all are placed, in z
+		// order, mirrored for right to left.
+		zs = new([]zPaint)
+	}
+	dims := b.layoutFlex(cgtx, st, flow, zs)
 	if len(absolute) > 0 {
-		b.layoutAbsolute(cgtx, absolute, dims.Size)
+		b.layoutAbsolute(cgtx, absolute, dims.Size, zs)
+	}
+	if zs != nil {
+		if rtl {
+			mirror(*zs, dims.Size.X)
+		}
+		paintZ(gtx.Ops, *zs)
 	}
 	popColor()
 	popAbs()

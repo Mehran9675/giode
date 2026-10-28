@@ -12,8 +12,9 @@ import (
 // File drop on Windows. Gio has no drag-and-drop events, so the app
 // subclasses its own window: DragAcceptFiles makes Explorer send
 // WM_DROPFILES, which a replacement window procedure turns into paths
-// and hands to the UI goroutine. Every other message goes on to Gio's
-// original procedure.
+// and hands to the UI goroutine. The same procedure hides the window
+// to the tray on close or minimize (see trayWndProc). Every other
+// message goes on to Gio's original procedure.
 
 var (
 	shell32                         = windows.NewLazySystemDLL("shell32.dll")
@@ -52,14 +53,15 @@ type dropTarget struct {
 	oldProc uintptr
 }
 
-// enableFileDrop subclasses hwnd to receive dropped files, once.
+// enableFileDrop subclasses hwnd to receive dropped files, and for
+// MinimizeToTray and CloseToTray, once.
 //
 // It runs on its own goroutine: the view event that delivers hwnd is
 // handled while Gio's window thread waits for the event goroutine, and
 // DragAcceptFiles sends (not posts) a style-change message to that
 // thread, which would deadlock if sent from the event goroutine.
 func (a *App) enableFileDrop(hwnd uintptr) {
-	if a.cfg.OnFileDrop == nil || hwnd == 0 {
+	if (a.cfg.OnFileDrop == nil && !a.cfg.CloseToTray && !a.cfg.MinimizeToTray) || hwnd == 0 {
 		return
 	}
 	dropMu.Lock()
@@ -92,8 +94,10 @@ func (a *App) enableFileDrop(hwnd uintptr) {
 			a.logf(LogLevelWarning, "giode: file drop unavailable: couldn't subclass the window")
 			return
 		}
-		procDragAcceptFiles.Call(hwnd, 1)
-		a.logf(LogLevelDebug, "giode: file drop enabled")
+		if a.cfg.OnFileDrop != nil {
+			procDragAcceptFiles.Call(hwnd, 1)
+			a.logf(LogLevelDebug, "giode: file drop enabled")
+		}
 	}()
 }
 
@@ -112,6 +116,9 @@ func dropWndProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 	if t == nil {
 		r, _, _ := procDefWindowProcW.Call(hwnd, msg, wparam, lparam)
 		return r
+	}
+	if trayWndProc(t.app, hwnd, msg, wparam) {
+		return 0
 	}
 	if msg == wmDropFiles {
 		paths := queryDrop(wparam)

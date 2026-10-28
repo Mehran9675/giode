@@ -1,0 +1,4 @@
+{
+  "greeting": "سلام، {name}!",
+  "unread": {"other": "{n} پیام"}
+}

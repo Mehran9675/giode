@@ -44,6 +44,14 @@ A press anywhere on the field - padding, border and blank space included - focus
 and the editor fills the field's width (and its height, when `Height` is set), so a tap
 in an empty or multiline field lands where expected on a touch screen.
 
+**Editing menu.** On a touch screen, holding a finger on the field selects the word under
+it (or places the caret where there's no word) and shows a menu with **Cut**, **Copy**,
+**Paste** and **Select all**, offering only what applies: no Cut in a read-only field, no Cut
+or Copy in a password field, no Paste in a read-only one. Two handles below the selection
+drag its ends. Tapping anywhere else closes the menu. A finger that moves before the
+long-press scrolls as usual. With a mouse, a right-click opens the same menu. Keyboard
+shortcuts (Ctrl/Cmd+X, C, V, A) work as before.
+
 Styles: `Color` (text), `Background` (fill), `BorderWidth`/`BorderColor`/`BorderRadius`
 (frame, 1px border by default), `Padding` (12x8 by default). Expands to the available
 width; set `Width` to fix it.

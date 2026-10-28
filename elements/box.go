@@ -1,10 +1,12 @@
 package elements
 
 import (
+	"image"
 	"sort"
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
+	"gioui.org/op"
 
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -27,6 +29,11 @@ type BoxElement struct {
 
 	// press makes the box clickable; see OnClick.
 	press *Pressable
+
+	// stretchX and stretchY are set by a parent laying the box out
+	// absolutely between Left and Right (Top and Bottom): it fills the
+	// constraints on that axis.
+	stretchX, stretchY bool
 }
 
 // Box is a container element: children are laid along FlexDirection
@@ -99,25 +106,25 @@ func zIndexOf(el Element) int {
 }
 
 // split partitions children into flow and absolutely positioned
-// children, each sorted by z-index. Absolute positioning applies to
-// Box children.
-func (b *BoxElement) split() (flow, absolute []Element) {
+// children, in document order, and reports whether any child sets a
+// z-index - then the children are painted in z order (see zPaint)
+// rather than as laid out. Absolute positioning applies to Box
+// children.
+func (b *BoxElement) split() (flow, absolute []Element, ordered bool) {
 	// Fast path, the overwhelmingly common case: no absolute children
 	// and no z-index, so the children are used as they are without
 	// allocating.
 	simple := true
 	for _, child := range b.children {
 		if zIndexOf(child) != 0 {
-			simple = false
-			break
+			simple, ordered = false, true
 		}
 		if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {
 			simple = false
-			break
 		}
 	}
 	if simple {
-		return b.children, nil
+		return b.children, nil, false
 	}
 	flow = make([]Element, 0, len(b.children))
 	for _, child := range b.children {
@@ -127,15 +134,52 @@ func (b *BoxElement) split() (flow, absolute []Element) {
 			flow = append(flow, child)
 		}
 	}
-	sortZ(flow)
-	sortZ(absolute)
-	return flow, absolute
+	return flow, absolute, ordered
 }
 
-func sortZ(els []Element) {
-	sort.SliceStable(els, func(i, j int) bool {
-		return zIndexOf(els[i]) < zIndexOf(els[j])
+// zPaint is a child's recorded drawing and where it goes, painted once
+// every child is laid out: in z-index order, positioned children above
+// flow children of the same z-index. Later paint also gets input first.
+type zPaint struct {
+	call       op.CallOp
+	off        image.Point
+	size       image.Point
+	z          int
+	positioned bool
+	// track holds what the child registered, already placed at off.
+	track ChildTracker
+}
+
+// mirror places flow children from the right in a box width wide, for
+// right-to-left locales (CSS direction: rtl): a row runs from the right
+// and a column aligns its start to the right. Positioned children keep
+// their physical Left and Right.
+func mirror(items []zPaint, width int) {
+	for i := range items {
+		it := &items[i]
+		if it.positioned {
+			continue
+		}
+		x := width - it.off.X - it.size.X
+		it.track.Place(image.Pt(x-it.off.X, 0))
+		it.off.X = x
+	}
+}
+
+// paintZ paints the recorded children in z order.
+func paintZ(ops *op.Ops, items []zPaint) {
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		if a.z != b.z {
+			return a.z < b.z
+		}
+		return !a.positioned && b.positioned
 	})
+	for _, it := range items {
+		st := op.Offset(it.off).Push(ops)
+		it.call.Add(ops)
+		st.Pop()
+	}
 }
 
 // mainConstraint returns the main-axis maximum of c.

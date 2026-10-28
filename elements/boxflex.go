@@ -14,7 +14,10 @@ import (
 // distribution, wrapping onto new lines when Wrap is active and the
 // children overflow the main axis. st may differ from b.st when hover
 // styles are active.
-func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children []Element) layout.Dimensions {
+// layoutFlex lays children out along the flex axis. With zs set, it
+// records each child's drawing into *zs instead of painting it, for
+// painting in z order.
+func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children []Element, zs *[]zPaint) layout.Dimensions {
 	axis := st.FlexDirection.Axis()
 	mainMax := mainConstraint(gtx.Constraints, axis)
 
@@ -42,7 +45,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	}
 
 	if st.Wrap.Resolved(axis) && !isUnbounded(mainMax) {
-		return b.layoutFlexWrap(gtx, st, children, axis, mainMax)
+		return b.layoutFlexWrap(gtx, st, children, axis, mainMax, zs)
 	}
 
 	// Gio passes the container's cross-axis minimum on to every child,
@@ -53,7 +56,7 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	// Children are laid out before Gio's flex places them; the tracker
 	// moves what each one registered (portals, semantic nodes, tracked
 	// positions) to where it lands.
-	track := &flexTracker{spans: make([]flexSpan, len(children))}
+	track := &flexTracker{spans: make([]flexSpan, len(children)), record: zs != nil}
 	kids := make([]layout.FlexChild, 0, len(children))
 	for i, child := range children {
 		w := child.Layout
@@ -87,6 +90,11 @@ func (b *BoxElement) layoutFlex(gtx layout.Context, st styles.Styles, children [
 	}
 	dims := flex.Layout(gtx, kids...)
 	track.place(gtx.Constraints, flex)
+	if zs != nil {
+		for i, sp := range track.spans {
+			*zs = append(*zs, zPaint{call: sp.call, off: sp.off, size: sp.dims.Size, z: zIndexOf(children[i]), track: sp.track})
+		}
+	}
 	return dims
 }
 
@@ -106,6 +114,10 @@ func unstretchCross(w layout.Widget, axis layout.Axis) layout.Widget {
 type flexSpan struct {
 	track ChildTracker
 	dims  layout.Dimensions
+	// call and off are the recorded drawing and offset of a child
+	// painted in z order.
+	call op.CallOp
+	off  image.Point
 }
 
 // flexTracker shifts what flex children registered by their final
@@ -115,12 +127,21 @@ type flexSpan struct {
 // child's are shifted by the offset Gio's flex gave it.
 type flexTracker struct {
 	spans []flexSpan
+	// record keeps each child's drawing out of the flex, in its span.
+	record bool
 }
 
 func (t *flexTracker) wrap(i int, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		t.spans[i].track = TrackChild()
+		var macro op.MacroOp
+		if t.record {
+			macro = op.Record(gtx.Ops)
+		}
 		dims := w(gtx)
+		if t.record {
+			t.spans[i].call = macro.Stop()
+		}
 		t.spans[i].track.End()
 		t.spans[i].dims = dims
 		return dims
@@ -167,7 +188,8 @@ func (t *flexTracker) place(cs layout.Constraints, f layout.Flex) {
 				cross = maxBaseline - (s.dims.Size.Y - s.dims.Baseline)
 			}
 		}
-		s.track.Place(axisPoint(f.Axis, main, cross))
+		t.spans[i].off = axisPoint(f.Axis, main, cross)
+		s.track.Place(t.spans[i].off)
 		main += axisMain(s.dims.Size, f.Axis)
 		if i < n-1 {
 			main += f.Gap
@@ -213,6 +235,7 @@ type wrapItem struct {
 	// track holds what the item registered, shifted once its position
 	// is known.
 	track ChildTracker
+	z     int
 }
 
 // wrapLine is one run of items that fit within the main axis.
@@ -231,7 +254,7 @@ type wrapLine struct {
 // space cannot be redistributed after a child has already been laid
 // out once, so Justify only spaces items apart (as it already does
 // for rigid children without wrap), it does not grow them.
-func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, children []Element, axis layout.Axis, mainMax int) layout.Dimensions {
+func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, children []Element, axis layout.Axis, mainMax int, zs *[]zPaint) layout.Dimensions {
 	gap := int(st.Gap)
 
 	// A container that hugs the main axis has no leftover space to
@@ -276,7 +299,7 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 		dims := el.Layout(cgtx)
 		ops := macro.Stop()
 		track.End()
-		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis), track: track}
+		it := wrapItem{ops: ops, main: axisMain(dims.Size, axis), cross: axisCross(dims.Size, axis), track: track, z: zIndexOf(child)}
 		items = append(items, it)
 	}
 
@@ -334,9 +357,13 @@ func (b *BoxElement) layoutFlexWrap(gtx layout.Context, st styles.Styles, childr
 			crossPos := alignOffset(st.Align, ln.thickness, it.cross)
 			pos := axisPoint(axis, mainOffset, crossOffset+crossPos)
 			it.track.Place(pos)
-			off := op.Offset(pos).Push(gtx.Ops)
-			it.ops.Add(gtx.Ops)
-			off.Pop()
+			if zs != nil {
+				*zs = append(*zs, zPaint{call: it.ops, off: pos, size: axisPoint(axis, it.main, it.cross), z: it.z, track: it.track})
+			} else {
+				off := op.Offset(pos).Push(gtx.Ops)
+				it.ops.Add(gtx.Ops)
+				off.Pop()
+			}
 			mainOffset += it.main
 			if i < len(ln.items)-1 {
 				mainOffset += gap + between

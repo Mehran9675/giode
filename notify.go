@@ -4,6 +4,8 @@ import (
 	"sync"
 
 	"gioui.org/x/notify"
+
+	"github.com/mehran9675/giode/internal/bridge"
 )
 
 var (
@@ -22,6 +24,9 @@ var (
 func (a *App) Notify(title, body string) error {
 	notifierOnce.Do(func() {
 		notifier, notifierErr = notify.NewNotifier()
+		if bridge.AfterNotifier != nil {
+			bridge.AfterNotifier()
+		}
 	})
 	if notifierErr != nil {
 		return notifierErr

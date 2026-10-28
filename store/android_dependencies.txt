@@ -1,0 +1,2 @@
+# Google Play Billing, for giode/store.
+com.android.billingclient:billing:7.1.1

@@ -36,10 +36,17 @@ func (s Styles) Px(m unit.Metric) Styles {
 	s.BorderRadius = properties.BorderRadius(dp(int(s.BorderRadius)))
 	c := s.BorderRadii
 	s.BorderRadii = properties.Corners{TopLeft: dp(c.TopLeft), TopRight: dp(c.TopRight), BottomRight: dp(c.BottomRight), BottomLeft: dp(c.BottomLeft)}
-	s.Top = properties.Top(dp(int(s.Top)))
-	s.Right = properties.Right(dp(int(s.Right)))
-	s.Bottom = properties.Bottom(dp(int(s.Bottom)))
-	s.Left = properties.Left(dp(int(s.Left)))
+	// Flush (an explicit 0) stays as it is.
+	edge := func(v int) int {
+		if v == properties.Flush {
+			return v
+		}
+		return dp(v)
+	}
+	s.Top = properties.Top(edge(int(s.Top)))
+	s.Right = properties.Right(edge(int(s.Right)))
+	s.Bottom = properties.Bottom(edge(int(s.Bottom)))
+	s.Left = properties.Left(edge(int(s.Left)))
 	s.MinWidth = properties.MinWidth(dp(int(s.MinWidth)))
 	s.MaxWidth = properties.MaxWidth(dp(int(s.MaxWidth)))
 	s.MinHeight = properties.MinHeight(dp(int(s.MinHeight)))
