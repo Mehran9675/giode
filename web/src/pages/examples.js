@@ -151,7 +151,7 @@ function downloadFallback(p, os, releases, reason) {
 	const sys = os ? PLATFORM_NAMES[os] : "your system";
 	return `<div class="dl-primary">
 		<a class="btn btn-primary btn-lg" href="${releases}" target="_blank" rel="noopener">${os ? platformIcon(os) : ""}<span>Get ${escapeHtml(p.name)} for ${sys}<small>From the releases on GitHub</small></span></a>
-		<div class="dl-note">${reason} Builds are on the project's releases page; or build it from source with <code>giode build</code>.</div>
+		<div class="dl-note"><span>${reason} Builds are on the project's releases page; or build it from source with <code>giode build</code>.</span></div>
 	</div>`;
 }
 
