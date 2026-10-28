@@ -128,6 +128,7 @@ func (a *App) runLoop(view func() Element) error {
 			a.handleConfig(e.Config)
 		case app.FrameEvent:
 			start := time.Now()
+			a.frameGeom.Store(&frameGeom{pxPerDp: e.Metric.PxPerDp, size: e.Size})
 			a.runUICalls()
 			gtx := a.frameContext(&ops, e)
 			a.applyHideKeyboard(gtx)

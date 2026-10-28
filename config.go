@@ -170,10 +170,17 @@ type Config struct {
 	// application runs.
 	SingleInstanceLock *SingleInstanceLock
 	// OnFileDrop runs with the paths of files dropped onto the window
-	// from the file manager, on the UI goroutine. It works when the app
-	// runs as administrator too. Windows only for now; elsewhere a
-	// warning is logged once.
+	// from the file manager, on the UI goroutine. It works on Windows
+	// (when the app runs as administrator too), macOS, and on Linux on
+	// X11 and Wayland when an up to date giode CLI builds the app: its
+	// Gio patches receive the drops. Elsewhere a warning is logged once.
 	OnFileDrop func(paths []string)
+	// OnFileDrag runs on the UI goroutine as files are dragged over
+	// the window - entering, moving, leaving, dropped - for
+	// highlighting where they can go; App.FileDrag reports the same
+	// during layout. Setting it accepts drops as OnFileDrop does. On
+	// Windows, an app running as administrator gets only the drop.
+	OnFileDrag func(FileDrag)
 	// MCP starts a Model Context Protocol server alongside the window,
 	// so AI agents can see and drive the running app: inspect the UI,
 	// click, type, take screenshots, read and set named state - plus
@@ -201,6 +208,15 @@ type Config struct {
 	// OpenGL set Renderer to RendererOpenGL. It needs giode's patched
 	// Gio (giode build and giode run); without it Run returns an error.
 	Underlay func(target GPUTarget)
+	// UnderlayRelease runs on the render thread with the GPU context
+	// still current, just before Gio releases its GPU resources: when
+	// the window closes or its view goes away (Android leaving the
+	// screen), or the context is lost and made again, after which
+	// Underlay runs in the new one. Free the engine's GPU resources
+	// here (for libmpv, mpv_render_context_free). It needs an up to
+	// date giode CLI (the giode_gio2 patches); with older ones Run
+	// returns an error.
+	UnderlayRelease func()
 	// Renderer selects the window's GPU API; see RendererOpenGL.
 	Renderer Renderer
 }
@@ -268,12 +284,17 @@ type App struct {
 
 	winState   atomic.Int32
 	winFocused atomic.Bool
+	// The last frame's size and scale, for Screen and the window
+	// position in dp.
+	frameGeom atomic.Pointer[frameGeom]
+	topMost   atomic.Bool
 
 	clip clipboardState
 
 	viewMu     sync.Mutex
 	view       app.ViewEvent
 	dropWarned bool
+	drag       fileDragState
 
 	// The system bar colors last applied; see updateSystemBars.
 	barsApplied bool
@@ -363,6 +384,7 @@ func New(cfg Config) *App {
 		opts = append(opts, cfg.Orientation.option())
 	}
 	a := &App{cfg: cfg, themeCheck: make(chan struct{}, 1)}
+	a.topMost.Store(cfg.AlwaysOnTop)
 	currentApp.Store(a)
 	a.platformInit()
 	if cfg.Locale != "" {
@@ -385,6 +407,7 @@ func New(cfg Config) *App {
 		a.secondInstance = a.instance.Running()
 	}
 	a.rendererErr = setupRenderer(cfg)
+	installFileDrag(a)
 	a.window = new(app.Window)
 	a.window.Option(opts...)
 	a.explorer = explorer.NewExplorer(a.window)

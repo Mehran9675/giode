@@ -14,6 +14,7 @@ func (a *App) handleViewEvent(ev app.ViewEvent) {
 	a.viewMu.Unlock()
 	a.platformView(ev)
 	a.trayView(ev)
+	a.placementView(ev)
 }
 
 // NativeView returns the platform view event Gio reported for the

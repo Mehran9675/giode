@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gioui.org/gpu/headless"
@@ -74,6 +75,34 @@ type mcpBridge struct {
 	winSize    image.Point
 	headless   *headless.Window
 	headlessSz image.Point
+
+	// An underlay's frames, read back on the render thread: offscreen
+	// rendering of the UI alone would leave the underlay out.
+	underlayGL  atomic.Bool // an OpenGL underlay is drawing
+	wantCapture atomic.Bool // the next frame is to be read back
+	captured    *image.RGBA // the frame read back, guarded by mu
+}
+
+// captureUnderlay reads back a frame drawn over an underlay when a
+// screenshot asked for one. It runs on the render thread.
+func (b *mcpBridge) captureUnderlay(t GPUTarget) {
+	b.underlayGL.Store(t.API == GPUOpenGL)
+	if t.API != GPUOpenGL || !b.wantCapture.Swap(false) {
+		return
+	}
+	img := readFramebuffer(t)
+	b.mu.Lock()
+	b.captured = img
+	b.mu.Unlock()
+}
+
+// takeCapture returns the frame captureUnderlay read back, if any.
+func (b *mcpBridge) takeCapture() *image.RGBA {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	img := b.captured
+	b.captured = nil
+	return img
 }
 
 // MCPTool registers a custom tool with the app's MCP server. Use
@@ -410,6 +439,10 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 				data []byte
 				serr error
 			)
+			if b.underlayGL.Load() {
+				b.takeCapture()
+				b.wantCapture.Store(true)
+			}
 			if err := b.afterFrame(ctx, a, func(ops *op.Ops, size image.Point) {
 				area := image.Rectangle{Max: size}
 				if in.ID != "" {
@@ -425,10 +458,13 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 						return
 					}
 				}
-				img, err := b.screenshot(ops, size)
-				if err != nil {
-					serr = err
-					return
+				img := b.takeCapture()
+				if img == nil || img.Rect.Size() != size {
+					var err error
+					if img, err = b.screenshot(ops, size); err != nil {
+						serr = err
+						return
+					}
 				}
 				data, serr = encodePNG(img.SubImage(area))
 			}); err != nil {
@@ -487,6 +523,8 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 	if b.opts.ReadOnly {
 		return
 	}
+
+	b.registerInputTools(a)
 
 	b.srv.AddTool(mcp.Func("ui_scroll", "Scrolls a scroll area by an amount, or until a node is fully visible. "+
 		"Without id it scrolls the main scroll area (the largest one not inside another). "+
