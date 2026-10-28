@@ -1,6 +1,8 @@
 package giode
 
 import (
+	"github.com/mehran9675/giode/host"
+
 	"image"
 	"image/color"
 	"net/url"
@@ -247,9 +249,8 @@ type App struct {
 	icon        image.Image
 	iconApplied bool
 
-	instanceLockPath string
-	instanceLock     *instanceLock
-	secondInstance   bool
+	instance       *host.InstanceLock
+	secondInstance bool
 
 	winState   atomic.Int32
 	winFocused atomic.Bool
@@ -362,11 +363,12 @@ func New(cfg Config) *App {
 	})
 	if cfg.SingleInstanceLock == nil {
 		// Restarted by an update: let the old process finish first.
-		waitForUpdatedInstance()
+		host.WaitForUpdate()
 	}
 	a.setIconBytes(cfg.Icon)
 	if cfg.SingleInstanceLock != nil {
-		a.secondInstance, a.instanceLockPath, a.instanceLock = acquireInstanceLock(cfg.SingleInstanceLock.UniqueID)
+		a.instance = host.LockInstance(cfg.SingleInstanceLock.UniqueID)
+		a.secondInstance = a.instance.Running()
 	}
 	a.window = new(app.Window)
 	a.window.Option(opts...)

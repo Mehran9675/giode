@@ -1,6 +1,8 @@
 package giode
 
 import (
+	"github.com/mehran9675/giode/host"
+
 	"context"
 	"errors"
 	"io"
@@ -14,7 +16,7 @@ import (
 var ErrCanceled = errors.New("giode: canceled by the user")
 
 // ErrNotSupported is returned by features the current platform lacks.
-var ErrNotSupported = errors.New("giode: not supported on this platform")
+var ErrNotSupported = host.ErrNotSupported
 
 // FileFilter limits the files OpenFile and OpenFiles offer.
 type FileFilter struct {

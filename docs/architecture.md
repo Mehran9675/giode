@@ -4,9 +4,13 @@
 
 ```
 giode.go / app.go / config.go / drag.go / reexport.go
-    Root package: App, Config, Run, re-exports.
-    singleinstance*.go  Single-instance lock (per-platform process check)
+    Root package: App, Config, Run, and re-exports generated from ui
+    (go generate; internal/cmd/reexport).
     icon*.go            Runtime window icon (Windows)
+ui/
+    The re-exported names and Frame, without App or gioui.org/app: for custom hosts
+host/
+    Window-free platform services: KeepScreenOn, KeepAwake, LockInstance, ServeClipboard
 styles/
     styles.go        Styles aggregate
     merge.go         Merge(base, over)
