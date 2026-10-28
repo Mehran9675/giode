@@ -40,6 +40,8 @@ type Tooltip struct {
 	trigger elements.Element
 	content string
 	st      styles.Styles
+	// placement is the side of the trigger the panel goes.
+	placement elements.Placement
 
 	// hovered is set while a mouse is over the trigger.
 	hovered bool
@@ -60,6 +62,14 @@ func New(trigger elements.Element, content string, st ...styles.Styles) *Tooltip
 	if len(st) > 0 {
 		t.st = st[0]
 	}
+	return t
+}
+
+// Placement chooses the side of the trigger the tooltip shows on:
+// elements.PlaceAuto (the default) shows it below, or above when it
+// wouldn't fit below; PlaceBelow and PlaceAbove keep it on one side.
+func (t *Tooltip) Placement(p elements.Placement) *Tooltip {
+	t.placement = p
 	return t
 }
 
@@ -142,7 +152,7 @@ func (t *Tooltip) update(gtx layout.Context) {
 }
 
 // Layout lays out the trigger and, while hovered or long-pressed,
-// queues the tooltip panel as a portal anchored just below it.
+// queues the tooltip panel as a portal beside it (see Placement).
 func (t *Tooltip) Layout(gtx layout.Context) layout.Dimensions {
 	t.update(gtx)
 	dims := t.trigger.Layout(gtx)
@@ -156,8 +166,9 @@ func (t *Tooltip) Layout(gtx layout.Context) layout.Dimensions {
 	ps.Pop()
 
 	if t.Visible() {
-		anchor := elements.AbsolutePosition().Add(image.Pt(0, dims.Size.Y+6))
-		elements.RegisterPortal(gtx, anchor, func() elements.Element {
+		at := elements.AbsolutePosition()
+		trigger := image.Rectangle{Min: at, Max: at.Add(dims.Size)}
+		elements.RegisterPortalAround(gtx, trigger, gtx.Dp(6), t.placement, func() elements.Element {
 			return elements.Raw(t.panel)
 		})
 	}

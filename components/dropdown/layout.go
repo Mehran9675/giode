@@ -83,8 +83,9 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 			return fieldDims
 		}
 		fieldWidth := fieldDims.Size.X
-		anchor := elements.AbsolutePosition().Add(image.Pt(0, fieldDims.Size.Y+4))
-		elements.RegisterPortal(gtx, anchor, func() elements.Element {
+		at := elements.AbsolutePosition()
+		trigger := image.Rectangle{Min: at, Max: at.Add(fieldDims.Size)}
+		elements.RegisterPortalAround(gtx, trigger, 4, elements.PlaceAuto, func() elements.Element {
 			return elements.Raw(func(gtx layout.Context) layout.Dimensions {
 				return s.dropdown(gtx, st, fieldWidth)
 			})

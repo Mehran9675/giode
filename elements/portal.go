@@ -24,7 +24,26 @@ type portalEntry struct {
 	// overlay marks a full-window overlay (RegisterOverlay): laid out
 	// at the window's origin, never clamped or moved.
 	overlay bool
+	// around, when set, is the trigger's rectangle relative to anchor
+	// (RegisterPortalAround): the content goes gap pixels below or
+	// above it, per place, rather than at the anchor.
+	around    image.Rectangle
+	hasAround bool
+	gap       int
+	place     Placement
 }
+
+// Placement says on which side of its trigger a portal goes.
+type Placement int
+
+const (
+	// PlaceAuto puts the portal below its trigger, or above it when
+	// it wouldn't fit below.
+	PlaceAuto Placement = iota
+	// PlaceBelow and PlaceAbove keep it on one side.
+	PlaceBelow
+	PlaceAbove
+)
 
 var portalQueue []portalEntry
 
@@ -82,6 +101,19 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 	portalQueue = append(portalQueue, portalEntry{anchor: anchor, size: dims.Size, win: win, build: build})
 }
 
+// RegisterPortalAround queues build like RegisterPortal, placed next to
+// trigger, a window-absolute rectangle (AbsolutePosition() and the
+// trigger's size): gap pixels below it or above it, per place. Unlike
+// RegisterPortal's flip, which only knows a point, flipping around the
+// rectangle never covers the trigger - a tooltip on a control bar at
+// the bottom of the window goes above its button.
+func RegisterPortalAround(gtx layout.Context, trigger image.Rectangle, gap int, place Placement, build func() Element) {
+	RegisterPortal(gtx, trigger.Min, build)
+	e := &portalQueue[len(portalQueue)-1]
+	e.around = trigger.Sub(trigger.Min)
+	e.hasAround, e.gap, e.place = true, gap, place
+}
+
 // RegisterOverlay queues build to be laid out over the whole window,
 // above the rest of the view, like a portal anchored at the window's
 // origin that's neither measured nor clamped: build gets the window's
@@ -102,6 +134,9 @@ func WindowSize() image.Point {
 func (e portalEntry) pos() image.Point {
 	if e.overlay {
 		return image.Point{}
+	}
+	if e.hasAround {
+		return e.aroundPos()
 	}
 	winF := f32.Pt(float32(e.win.X), float32(e.win.Y))
 	size := f32.Pt(float32(e.size.X), float32(e.size.Y))
@@ -135,4 +170,29 @@ func DrainPortals(gtx layout.Context) {
 			off.Pop()
 		}
 	}
+}
+
+// aroundPos places a RegisterPortalAround entry beside its trigger.
+func (e portalEntry) aroundPos() image.Point {
+	m := int(kit.Margin)
+	r := e.around.Add(e.anchor)
+	below := r.Max.Y + e.gap
+	above := r.Min.Y - e.gap - e.size.Y
+	fitsBelow := below+e.size.Y+m <= e.win.Y
+	fitsAbove := above >= m
+	y := below
+	switch e.place {
+	case PlaceAbove:
+		y = above
+	case PlaceAuto:
+		if !fitsBelow && (fitsAbove || r.Min.Y > e.win.Y-r.Max.Y) {
+			y = above
+		}
+	}
+	// Keep it in the window: along the side it's on, it may then
+	// overlap the trigger, but only when the window is too small for
+	// either side.
+	y = max(m, min(y, e.win.Y-e.size.Y-m))
+	x := max(m, min(r.Min.X, e.win.X-e.size.X-m))
+	return image.Pt(x, y)
 }

@@ -119,10 +119,13 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 		}
 		// Once the shared width is known the label fills the leftover
 		// space, pushing a submenu chevron to the right edge; while
-		// measuring it must hug its text.
-		labelSt := styles.Styles{FlexGrow: 1}
+		// measuring it must hug its text - and must not grow, since a
+		// no-wrap row with a growing child takes all the width it's
+		// offered, which would make every panel as wide as the window.
+		var labelSt styles.Styles
 		if r.width > 0 {
 			labelSt.Width = -1
+			labelSt.FlexGrow = 1
 		}
 		children = append(children, elements.Box(labelSt, elements.Text(item.label, styles.Styles{Color: r.st.Color})))
 		if item.submenu != nil {
