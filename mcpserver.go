@@ -421,7 +421,7 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 				})
 			}
 			return map[string]any{
-				"window": map[string]any{"title": a.cfg.Title, "width": size.X, "height": size.Y, "theme": string(properties.CurrentMode())},
+				"window": map[string]any{"title": a.Title(), "width": size.X, "height": size.Y, "theme": string(properties.CurrentMode())},
 				"nodes":  out,
 			}, nil
 		})
@@ -525,6 +525,7 @@ func (b *mcpBridge) registerBuiltins(a *App) {
 	}
 
 	b.registerInputTools(a)
+	b.registerFileDragTool(a)
 
 	b.srv.AddTool(mcp.Func("ui_scroll", "Scrolls a scroll area by an amount, or until a node is fully visible. "+
 		"Without id it scrolls the main scroll area (the largest one not inside another). "+

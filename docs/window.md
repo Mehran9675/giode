@@ -65,6 +65,7 @@ app.Raise()
 app.Close()
 app.SetSize(400, 840) // in dp; widens Min/Max bounds when needed
 app.SetAlwaysOnTop(true) // app.AlwaysOnTop() reports it
+app.SetTitle("Playing: movie.mkv") // Config.Title is the first; app.Title() reads it
 ```
 
 `app.Window()` returns the underlying `*app.Window` for anything not covered here.

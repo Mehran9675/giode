@@ -158,6 +158,78 @@ func (b *mcpBridge) registerInputTools(a *App) {
 		}))
 }
 
+// registerFileDragTool adds ui_file_drag, which drags files from the
+// file manager over the window: the events a real drag delivers, to
+// OnFileDrag, App.FileDrag and OnFileDrop.
+func (b *mcpBridge) registerFileDragTool(a *App) {
+	var mu sync.Mutex
+	var pos f32.Point
+	b.srv.AddTool(mcp.Func("ui_file_drag", "Drags files over the window as from the file manager: enter, move, leave, or drop "+
+		"with their paths, at a node from ui_snapshot (its center) or at window coordinates in pixels. "+
+		"Tests drop targets and their highlight while files are over them; drop alone does enter, move and drop.",
+		func(ctx context.Context, in struct {
+			Action string   `json:"action" description:"enter, move, leave or drop"`
+			ID     string   `json:"id,omitempty" description:"Node id from ui_snapshot to drag over (its center)"`
+			X      *float32 `json:"x,omitempty" description:"Window x in pixels, when there's no id (default: where the drag is)"`
+			Y      *float32 `json:"y,omitempty" description:"Window y in pixels"`
+			Paths  []string `json:"paths,omitempty" description:"Drop: the files' paths"`
+		}) (any, error) {
+			if !a.fileDragWanted() {
+				return nil, errors.New("the app takes no file drops: it sets neither Config.OnFileDrop nor OnFileDrag")
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			p := pos
+			switch {
+			case in.ID != "":
+				n, ok := b.node(in.ID)
+				if !ok {
+					return nil, fmt.Errorf("no node %q in the last snapshot; call ui_snapshot again", in.ID)
+				}
+				c := n.Bounds.Min.Add(n.Bounds.Max).Div(2)
+				p = f32.Pt(float32(c.X), float32(c.Y))
+			case in.X != nil || in.Y != nil:
+				if in.X != nil {
+					p.X = *in.X
+				}
+				if in.Y != nil {
+					p.Y = *in.Y
+				}
+			}
+			_, dragging := a.FileDrag()
+			switch in.Action {
+			case "enter":
+				a.deliverFileDrag(FileDragEnter, p)
+			case "move":
+				if !dragging {
+					a.deliverFileDrag(FileDragEnter, p)
+				}
+				a.deliverFileDrag(FileDragOver, p)
+			case "leave":
+				a.deliverFileDrag(FileDragLeave, p)
+			case "drop":
+				if len(in.Paths) == 0 {
+					return nil, errors.New("give the dropped files' paths")
+				}
+				if !dragging {
+					a.deliverFileDrag(FileDragEnter, p)
+					a.deliverFileDrag(FileDragOver, p)
+				}
+				a.deliverFileDrop(in.Paths, p)
+			default:
+				return nil, fmt.Errorf("unknown action %q: use enter, move, leave or drop", in.Action)
+			}
+			pos = p
+			ctx, cancel := context.WithTimeout(ctx, b.opts.Timeout)
+			defer cancel()
+			if err := b.afterFrame(ctx, a, func(*op.Ops, image.Point) {}); err != nil {
+				return nil, err
+			}
+			_, dragging = a.FileDrag()
+			return map[string]any{"action": in.Action, "position": [2]int{int(p.X), int(p.Y)}, "dragging": dragging}, nil
+		}))
+}
+
 // inject delivers events and waits for the frame that handles them.
 func (b *mcpBridge) inject(ctx context.Context, a *App, evs ...event.Event) error {
 	ctx, cancel := context.WithTimeout(ctx, b.opts.Timeout)
