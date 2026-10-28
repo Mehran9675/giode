@@ -1,0 +1,2 @@
+# Google Play In-App Review, for giode/review.
+com.google.android.play:review:2.0.2

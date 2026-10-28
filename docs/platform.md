@@ -262,6 +262,81 @@ the app and Go versions and the platform; `Send` posts it as JSON, and the newes
 kept. Crashes in Java (Android) or Objective-C (Apple) threads aren't Go's and aren't
 recorded.
 
+## Push notifications
+
+The `push` package receives remote notifications: Firebase Cloud Messaging on Android,
+APNs on iOS and macOS.
+
+```go
+import "github.com/mehran9675/giode/push"
+
+func main() {
+	app := giode.New(giode.Config{Title: "Chat"})
+	push.Listen(app, push.Handlers{
+		Token:   func(t string) { sendTokenToServer(t) },  // a new or rotated token
+		Message: func(m push.Message) { app.Post(func() { showBanner(m) }) },
+		Open:    func(m push.Message) { app.Post(func() { openChat(m.Data["chat"]) }) },
+	})
+	go func() {
+		push.RequestPermission(ctx, app) // iOS, macOS, Android 13+
+		if t, err := push.Token(ctx); err == nil {
+			sendTokenToServer(t)
+		}
+	}()
+	app.Run(view)
+}
+```
+
+Messages arriving in the background are shown by the system; tapping one opens the app
+and calls `Open`, also when it launched the app (events from before `Listen` are kept
+for it). Messages arriving while the app runs, and data-only messages, go to `Message`,
+and nothing is shown unless the app shows it. Handlers run on their own goroutine.
+
+Setup in `giode.toml`:
+
+- Android: `android.google_services = "google-services.json"`, the file from the Firebase
+  console for the app's id. The CLI adds Firebase Messaging and the package's service.
+- iOS: `ios.push = "production"` (or `"development"`), with push enabled for the app id
+  and in its provisioning profile. Silent pushes (`content-available`) wake the app.
+- macOS: `macos.push`, which needs `macos.profile`, a provisioning profile.
+
+On Android, a tap on a notification while the app is still running in the background
+brings it forward without calling `Open`; only launches carry the message.
+
+## In-app purchases
+
+The `store` package sells products and subscriptions through Google Play Billing and the
+App Store:
+
+```go
+import "github.com/mehran9675/giode/store"
+
+store.OnUpdate(func(p store.Purchase) { grant(p) }) // early: purchases finishing later
+products, err := store.Products(ctx, "pro", "coins_100")
+p, err := store.Buy(ctx, app, products[0])
+switch {
+case errors.Is(err, store.ErrCanceled):
+case err == nil && !p.Pending:
+	// Verify p.Receipt (and p.Signature, on Google Play) on the server, grant, then:
+	store.Finish(ctx, p, false) // true consumes it, so it can be bought again
+}
+```
+
+`Product` has the localized `Price`, `PriceMicros` and `Currency`, and for subscriptions
+the billing `Period` (ISO 8601, `P1M`). `Owned` lists what the user holds, for restoring
+purchases on a new device; on the App Store it may ask the user to sign in, so call it
+from a "Restore purchases" button. Google Play refunds purchases not finished within three
+days; the App Store redelivers them through `OnUpdate` on every launch. Pending purchases
+(paid in cash later, or waiting for a parent's approval) arrive through `OnUpdate` once
+paid. The Apple side uses StoreKit's original API, which Objective-C can call.
+
+## Rating prompt
+
+`review.Request(ctx, app)` shows the store's rating prompt: Play's in-app review on
+Android, the App Store's on iOS and macOS. The stores decide whether it appears (the App
+Store at most three times a year) and don't say what the user did, so ask after the user
+finished something worthwhile, not from a button.
+
 ## Languages and right-to-left layout
 
 The `i18n` package translates the app's text:
