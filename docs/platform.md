@@ -289,3 +289,20 @@ it at runtime and the UI redraws. In a right-to-left locale (Arabic, Persian, He
 columns align to the right, and text aligns from the right. Absolutely positioned boxes
 keep their physical `Left` and `Right`. Load a font with the script's glyphs (see
 [styles.md](styles.md)): the bundled fonts cover Latin, Greek and Cyrillic.
+
+## Open-source notices
+
+Apps must show the licenses of the code they include. `giode licenses` (in the CLI) writes
+the licenses of every Go module the app is built from, on any platform, plus Go's own, to
+`assets/licenses.json`; set `app.licenses` in `giode.toml` and every build refreshes it.
+Show it with `LicensesView`, a list of modules that expand to their license text:
+
+```go
+//go:embed assets/licenses.json
+var licensesJSON []byte
+
+var licenses = giode.LicensesView(licensesJSON)
+
+// In an "Open-source licenses" screen:
+licenses
+```

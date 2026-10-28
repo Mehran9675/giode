@@ -19,6 +19,7 @@ import (
 	"github.com/mehran9675/giode/components/input"
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/components/lazylist"
+	"github.com/mehran9675/giode/components/licenses"
 	"github.com/mehran9675/giode/components/markdown"
 	"github.com/mehran9675/giode/components/menu"
 	"github.com/mehran9675/giode/components/pagination"
@@ -557,6 +558,12 @@ const (
 	ScrollAlignCenter  = virtuallist.AlignCenter
 	ScrollAlignEnd     = virtuallist.AlignEnd
 )
+
+// --- Licenses ---------------------------------------------------------------
+
+// LicensesView lists the open-source licenses of the app's modules, from
+// the JSON giode licenses writes; a row per module expands to its text.
+var LicensesView = licenses.New
 
 // --- Lazy list ------------------------------------------------------------------
 
