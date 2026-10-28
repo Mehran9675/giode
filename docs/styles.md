@@ -68,7 +68,7 @@ Styles compose with `Merge(base, overrides...)` or the method form
 | `Padding` / `Margin` | Inset | dp per side | `UniformInset(v)`, `SymmetricInset(h, v)` or `giode.Inset{Top, Right, Bottom, Left}`. |
 | `Position` | string | `PositionStatic` (default), `PositionRelative`, `PositionAbsolute` | Absolute removes the element from the flow; see below. |
 | `Top` / `Right` / `Bottom` / `Left` | int | dp | Offsets of absolute children. |
-| `ZIndex` | int | any | Stacking order of siblings. |
+| `ZIndex` | int | any | Stacking order of siblings, flow and positioned alike. |
 | `Overflow` | string | `OverflowVisible` (default), `OverflowHidden` | Hidden clips content to the padding box, following rounded corners. |
 | `ScrollBar` | struct | — | Customizes the scrollbar a `Scroll` draws: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`; `Hidden`, `HiddenMaxWidth` (dp, window width) and `HiddenOn` (breakpoint names) hide it, see [scroll.md](components/scroll.md#hiding-the-scrollbar). |
 
@@ -130,10 +130,28 @@ giode.Box(giode.Styles{}, content,
 )
 ```
 
+Offsets are in dp, and **0 means "not set"**. To pin a box flush to an edge, use
+`giode.Flush`, an explicit zero:
+
+```go
+// A composer pinned to the bottom, spanning the full width.
+giode.Box(giode.Styles{
+	Position: giode.PositionAbsolute,
+	Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,
+}, composer)
+```
+
+`Left` wins over `Right` and `Top` over `Bottom`. With both of a pair set, a box without its
+own `Width` (or `Height`) stretches between them, as in CSS. Negative offsets move a box
+past the edge.
+
 Notes:
 
-- `ZIndex` sorts siblings: higher values paint above and receive input first. Unlike CSS it
-  also affects layout order in flex containers.
+- `ZIndex` orders siblings: higher values paint above and receive input first. It applies to
+  flow and positioned children alike, so a normal-flow child with `ZIndex: 2` paints above a
+  positioned one with `ZIndex: 1`. At equal z-index, positioned children paint above flow
+  children; otherwise children paint in document order. It doesn't change where children
+  are laid out.
 - Absolute positioning applies to `Box` children; wrap other elements in a `Box`.
 
 ## Not supported (by design)

@@ -18,6 +18,7 @@ import (
 	"github.com/mehran9675/giode/components/imageutil"
 	"github.com/mehran9675/giode/components/input"
 	"github.com/mehran9675/giode/components/kit"
+	"github.com/mehran9675/giode/components/lazylist"
 	"github.com/mehran9675/giode/components/markdown"
 	"github.com/mehran9675/giode/components/menu"
 	"github.com/mehran9675/giode/components/pagination"
@@ -36,7 +37,6 @@ import (
 	"github.com/mehran9675/giode/components/tooltip"
 	"github.com/mehran9675/giode/components/transition"
 	"github.com/mehran9675/giode/components/treeview"
-	"github.com/mehran9675/giode/components/lazylist"
 	"github.com/mehran9675/giode/components/virtuallist"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
@@ -714,6 +714,10 @@ const (
 	PositionStatic   = properties.PositionStatic
 	PositionRelative = properties.PositionRelative
 	PositionAbsolute = properties.PositionAbsolute
+	// Flush is an explicit zero offset for Top, Right, Bottom and Left,
+	// whose zero value means unset: Bottom: giode.Flush pins a box to
+	// the bottom edge.
+	Flush = properties.Flush
 
 	TextDecorationNone        = properties.TextDecorationNone
 	TextDecorationUnderline   = properties.TextDecorationUnderline

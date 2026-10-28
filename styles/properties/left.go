@@ -1,5 +1,6 @@
 package properties
 
-// Left is the offset from the left edge of the parent box for
-// absolutely positioned elements, in pixels.
+// Left is the offset in dp from the left edge of the parent's content
+// box for absolutely positioned elements. 0 means unset; use Flush for
+// an offset of zero.
 type Left int
