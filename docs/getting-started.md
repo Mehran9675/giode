@@ -1,15 +1,108 @@
 # Getting started
 
-## Install
+Giode apps are plain Go programs. This page takes you from nothing to a running app on
+your computer, then on a phone, in about five minutes.
+
+> Giode is in **beta**. The API is settling but can still change between releases; pin a
+> version in `go.mod` and read the release notes when you upgrade.
+
+## 1. Install Go
+
+Giode needs **Go 1.26 or later**. Get it from [go.dev/dl](https://go.dev/dl), then check:
 
 ```sh
-go get github.com/mehran9675/giode
+go version
 ```
 
-Requires Go 1.26+. Windows, macOS, Linux and Android are supported through Gio; see
-[mobile.md](mobile.md) for Android builds.
+On Linux, Gio (which Giode draws with) also needs a C compiler and the Wayland/X11
+development headers:
 
-## Hello world
+```sh tab="Debian / Ubuntu"
+sudo apt install gcc pkg-config libwayland-dev libx11-dev libx11-xcb-dev libxkbcommon-x11-dev libgles2-mesa-dev libegl1-mesa-dev libffi-dev libxcursor-dev libvulkan-dev
+```
+
+```sh tab="Fedora"
+sudo dnf install gcc pkg-config wayland-devel libX11-devel libxkbcommon-x11-devel mesa-libGLES-devel mesa-libEGL-devel libXcursor-devel vulkan-headers
+```
+
+```sh tab="Arch"
+sudo pacman -S gcc pkgconf wayland libx11 libxkbcommon-x11 mesa libxcursor vulkan-headers
+```
+
+## 2. Install the giode CLI
+
+The [giode CLI](cli/index.md) creates projects, runs them on your computer, a phone, a
+simulator or the browser, and builds signed packages and installers.
+
+```sh tab="macOS / Linux"
+curl -fsSL https://raw.githubusercontent.com/Mehran9675/giode-cli/main/install.sh | sh
+```
+
+```powershell tab="Windows"
+irm https://raw.githubusercontent.com/Mehran9675/giode-cli/main/install.ps1 | iex
+```
+
+```sh tab="With Go"
+go install github.com/mehran9675/giode-cli/cmd/giode@latest
+```
+
+Then let it check your computer:
+
+```sh
+giode doctor
+```
+
+It lists what's installed and, for each platform, what's missing with the command to
+install it. Android needs the Android SDK, NDK and a JDK; iOS and macOS builds need a Mac
+with Xcode.
+
+## 3. Create an app
+
+```sh
+giode new
+```
+
+`giode new` asks a few questions. First, which platforms the app is for: every platform
+is listed, whether or not this computer can build it. Move with the arrow keys, check
+with **Space**, continue with **Enter**:
+
+```text
+? Which platforms is the app for?
+  ↑/↓ move · space check · a all · enter continue
+  [ ] Windows  builds anywhere; NSIS for the setup program
+  [x] macOS  builds on a Mac with Xcode
+  [ ] Linux  builds on Linux
+❯ [x] Android  needs the Android SDK and NDK
+  [ ] iOS  builds on a Mac with Xcode
+  [ ] Web  builds anywhere (WebAssembly)
+```
+
+Then the folder, app name, app ID, version, Go module path, publisher, description and
+website, each with a suggestion in parentheses that **Enter** accepts:
+
+```text
+? App name (Notes)
+? App ID (reverse-DNS, can't change after publishing) (com.example.notes) com.acme.notes
+? Version (0.1.0)
+```
+
+You get a counter app in `main.go`, `go.mod` with the latest Giode, `giode.toml` set up
+for the platforms you picked, a placeholder icon and a README. Skip the questions with
+`giode new -y -platforms android,ios notes`.
+
+## 4. Run it
+
+```sh
+cd notes
+giode run              # on this computer
+giode run android      # on a connected phone or emulator: builds, installs, launches, shows the log
+giode run ios-sim      # in the iOS simulator (macOS)
+giode run web          # in the browser
+```
+
+## 5. Read the code
+
+`main.go` is a complete app. Here's the same idea in its smallest form:
 
 ```go
 package main
@@ -55,6 +148,37 @@ func main() {
 	}
 }
 ```
+
+Everything on screen is an `Element`, built from Go functions and styled with CSS-like
+`Styles`. The view function runs every frame; plain Go variables are your state.
+
+## 6. Build for release
+
+```sh
+giode build                       # every platform in giode.toml this computer can build
+giode build -release android aab  # signed APK and Play bundle
+giode build windows-installer dmg deb
+```
+
+Packages land in `dist/<platform>`. [Distribution](cli/distribution.md) covers signing,
+installers and store uploads; `giode ci` writes a GitHub Actions workflow that builds and
+publishes them for every tag.
+
+## Without the CLI
+
+The CLI is optional on the desktop. In any Go module:
+
+```sh
+go get github.com/mehran9675/giode@latest
+go run .
+```
+
+## Where next
+
+- [Recipes](recipes.md): the different ways to write components with Giode.
+- [Elements](elements.md) and [Style properties](styles.md): the building blocks.
+- [Components](components/README.md): buttons, inputs, lists, dialogs, menus and more.
+- [Examples](#/examples): apps built with Giode.
 
 ## The two kinds of elements
 

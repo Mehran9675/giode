@@ -43,6 +43,31 @@ function docsPlugin() {
 	};
 }
 
+// snippetsPlugin serves "virtual:snippets": the samples in
+// snippets/home/main.go, by the name in the "// NAME" comment before
+// each, so the home page shows code that compiles.
+function snippetsPlugin() {
+	const id = "virtual:snippets";
+	const file = path.resolve(import.meta.dirname, "snippets/home/main.go");
+	return {
+		name: "giode-snippets",
+		resolveId(src) {
+			return src === id ? "\0" + id : null;
+		},
+		load(src) {
+			if (src !== "\0" + id) return null;
+			this.addWatchFile(file);
+			const text = fs.readFileSync(file, "utf8");
+			const out = {};
+			const parts = text.split(/^\/\/ ([A-Z]+)\n/m);
+			for (let i = 1; i < parts.length; i += 2) {
+				out[parts[i].toLowerCase()] = parts[i + 1].replace(/\nvar _ = [\s\S]*$/, "").replace(/\nfunc fetchUser[\s\S]*$/, "").trim();
+			}
+			return "export default " + JSON.stringify(out) + ";";
+		},
+	};
+}
+
 function copyMd(src, dst) {
 	for (const e of fs.readdirSync(src, { withFileTypes: true })) {
 		const s = path.join(src, e.name);
@@ -60,5 +85,5 @@ export default defineConfig({
 	// Relative asset URLs so the build works when served from a
 	// subpath, as on GitHub Pages.
 	base: "./",
-	plugins: [docsPlugin()],
+	plugins: [docsPlugin(), snippetsPlugin()],
 });

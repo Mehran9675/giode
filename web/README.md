@@ -1,47 +1,46 @@
-# Documentation site (Vite)
+# Website (Vite)
 
-The front-end for the Giode documentation. It renders the Markdown in [`../docs`](../docs)
-— no runtime dependencies, no framework.
+Giode's website: the home page, the examples pages and the documentation, which renders
+the Markdown in [`../docs`](../docs). Plain JavaScript, no framework, no runtime
+dependencies.
 
 ## Run it
 
 ```sh
 npm install
 npm run dev       # http://localhost:5173
+npm run build     # dist/, with the docs copied in
+npm run preview   # serves dist/
 ```
 
-Production build:
+## Layout
 
-```sh
-npm run build     # outputs dist/, with the docs copied in
-npm run preview   # serves dist/ locally
-```
+| File | What it is |
+| --- | --- |
+| `index.html` | The shell: top bar, footer, theme bootstrap. |
+| `src/main.js` | The hash router (`#/`, `#/docs/<page>`, `#/examples/<slug>`), theme toggle, copy buttons and tabs. Old links like `#/styles` redirect to `#/docs/styles`. |
+| `src/pages/home.js` | The home page. Its code samples come from `snippets/home/main.go`. |
+| `src/pages/docs.js` | Docs: navigation, search, table of contents, previous/next, edit links. |
+| `src/pages/examples.js` | The examples list and each app's page with its downloads. |
+| `src/nav.js` | The docs' navigation. |
+| `src/projects.js` | The apps on the examples pages. |
+| `src/download.js` | Detects the visitor's system and picks the right file from the app's latest GitHub release. |
+| `src/markdown.js` | The Markdown renderer and syntax highlighter. |
+| `src/style.css` | The design: tokens for dark and light, then each page. |
+| `public/` | The favicon and the examples' icons and screenshots. |
+| `snippets/` | Go programs holding the code the site shows (home page, recipes), so `go vet ./...` keeps it compiling. |
 
-## How it works
+## Adding an example app
 
-- `index.html` — the page shell (sidebar, search, content).
-- `src/app.js` — fetches `/docs/*.md`, renders them with a small built-in Markdown
-  renderer, and routes via the URL hash (`#/styles`, `#/components/menu`).
-- `src/style.css` — the site theme.
-- `vite.config.js` — serves `../docs` at `/docs/` in dev and copies the Markdown into
-  `dist/docs` on build (both handled by a tiny inline plugin).
-
-Every page has a stable URL: share links directly. The sidebar, mobile menu, code-block
-copy buttons and full-text search are included.
+Add an entry to `src/projects.js` and put a 256px square `icon.png` (and screenshots, as
+`.webp`) in `public/examples/<slug>/`. Downloads need nothing more: the app's page reads
+the repository's latest release and offers the file for the visitor's system, matching
+file names (`.dmg`, `-setup.exe`, `.msix`, `.AppImage`, `.deb`, `.rpm`, `.apk`, and
+archives named for a system).
 
 ## Deploy to GitHub Pages
 
-A workflow at `.github/workflows/deploy-pages.yml` builds `web/` and deploys it to
-GitHub Pages when a **release is published** (or the workflow is dispatched manually).
-Enable it once:
-
-1. Repo → **Settings → Pages** → **Source: GitHub Actions**.
-2. Publish a release; the deploy takes a minute or two.
-3. The site appears at `https://<user>.github.io/giode/`.
-
-The build uses relative URLs, so it works from the repo subpath.
-
-## Adding a page
-
-1. Create the Markdown file in `../docs`.
-2. Add an entry to the `NAV` array in `src/app.js`.
+`.github/workflows/deploy-pages.yml` builds `web/` and deploys it when a release is
+published (or on a manual run). Enable it once in **Settings → Pages → Source: GitHub
+Actions**; the site appears at `https://<user>.github.io/giode/`. The build uses relative
+URLs, so it works from the repository's subpath.
