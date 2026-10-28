@@ -288,6 +288,7 @@ type App struct {
 	// position in dp.
 	frameGeom atomic.Pointer[frameGeom]
 	topMost   atomic.Bool
+	title     atomic.Pointer[string]
 
 	clip clipboardState
 
@@ -385,6 +386,7 @@ func New(cfg Config) *App {
 	}
 	a := &App{cfg: cfg, themeCheck: make(chan struct{}, 1)}
 	a.topMost.Store(cfg.AlwaysOnTop)
+	a.title.Store(&cfg.Title)
 	currentApp.Store(a)
 	a.platformInit()
 	if cfg.Locale != "" {
@@ -436,6 +438,23 @@ func (a *App) SetFullscreen(v bool) {
 	} else {
 		a.window.Option(app.Windowed.Option())
 	}
+}
+
+// SetTitle changes the window's title, shown in its title bar, the
+// taskbar and the window switcher - the playing file's name, say.
+// Config.Title is the first. Safe to call from any goroutine.
+func (a *App) SetTitle(title string) {
+	a.title.Store(&title)
+	a.window.Option(app.Title(title))
+}
+
+// Title returns the window's title, as set by Config.Title or
+// SetTitle.
+func (a *App) Title() string {
+	if t := a.title.Load(); t != nil {
+		return *t
+	}
+	return a.cfg.Title
 }
 
 // Minimize minimizes the window.
