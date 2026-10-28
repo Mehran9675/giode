@@ -303,6 +303,14 @@ Linux support needs changes in Gio itself. macOS support needs AppKit drag regis
 which is not implemented yet. Drag enter/leave events (for highlighting a drop zone) aren't
 available yet either; they need Windows' COM `IDropTarget` instead of `WM_DROPFILES`.
 
+## Files opened with the app
+
+With `[[file_types]]` in `giode.toml`, the giode CLI puts the app in the desktop's "Open
+with" for those files. A file opened that way arrives as a `file://` URL through
+`Config.OnOpenURL` on macOS, and as the program's argument (`os.Args`) on Windows and
+Linux; with a single-instance lock, a second launch's arguments reach the running instance
+through `SingleInstanceLock.OnLaunchArgs`.
+
 ## Drawing video or 3D under the UI
 
 `Config.Underlay` draws caller-rendered GPU content into each frame before the UI, without
