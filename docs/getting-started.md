@@ -3,7 +3,7 @@
 Giode apps are plain Go programs. This page takes you from nothing to a running app on
 your computer, then on a phone, in about five minutes.
 
-> Giode is in **beta**. The API is settling but can still change between releases; pin a
+> Giode is in **alpha**. The API is still taking shape and will change between releases; pin a
 > version in `go.mod` and read the release notes when you upgrade.
 
 ## 1. Install Go
