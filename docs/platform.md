@@ -232,3 +232,32 @@ SHA-256 the feed lists.
 The app restarts with the same arguments; the old version is deleted on the next start.
 Apps installed by a package manager or store (`.deb`, `.rpm`, Flatpak, Snap, MSIX, the Mac
 App Store) are updated by it: `Check` returns `update.ErrManaged`.
+
+## Crash reports
+
+The `crash` package records the app's crashes and hands them back on the next start, on
+every platform:
+
+```go
+import "github.com/mehran9675/giode/crash"
+
+func main() {
+	crash.Init(crash.Options{Version: "1.4.0"})
+	if reports := crash.Reports(); len(reports) > 0 {
+		// Offer to send them; then:
+		for _, r := range reports {
+			if r.Send(ctx, "https://example.com/api/crashes") == nil {
+				r.Delete()
+			}
+		}
+	}
+	...
+}
+```
+
+A crash is an unrecovered panic or a fatal error on any goroutine, including background
+ones: the Go runtime writes the message and every goroutine's stack to the crash file as
+the app dies (`runtime/debug.SetCrashOutput`). A `Report` has the message, the full trace,
+the app and Go versions and the platform; `Send` posts it as JSON, and the newest ten are
+kept. Crashes in Java (Android) or Objective-C (Apple) threads aren't Go's and aren't
+recorded.
