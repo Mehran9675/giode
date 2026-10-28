@@ -63,6 +63,9 @@ type Menu struct {
 	// shut; it only changes when a sibling submenu item is hovered, or
 	// this menu closes.
 	openSubmenu int
+	// parent is the menu a submenu opens from (nil for a root menu):
+	// choosing an item in a submenu closes the whole menu.
+	parent *Menu
 	// isSubmenu marks a Menu opened via SubMenu rather than
 	// SetContextMenu/OpenAt/Trigger: its visibility is driven entirely
 	// by the parent row's hover (openSubmenu above), so it skips its
@@ -71,7 +74,17 @@ type Menu struct {
 	// the parent panel's own (much smaller) layout constraints.
 	isSubmenu bool
 
-	scrim widget.Clickable
+	// scrim is the tag of the window-wide area that closes the menu on
+	// a press of any button outside it.
+	scrim bool
+}
+
+// root returns the menu at the top of a chain of submenus.
+func (m *Menu) root() *Menu {
+	for m.parent != nil {
+		m = m.parent
+	}
+	return m
 }
 
 // New returns an empty menu. The styles argument is optional:
@@ -170,6 +183,7 @@ func (m *Menu) Separator() *Menu {
 // state is its only way of opening. It returns m for chaining.
 func (m *Menu) SubMenu(label string, submenu *Menu) *Menu {
 	submenu.isSubmenu = true
+	submenu.parent = m
 	m.items = append(m.items, Item{
 		label:   label,
 		click:   new(widget.Clickable),
