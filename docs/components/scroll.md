@@ -75,10 +75,26 @@ view, and "reached bottom" is a one-off trigger, not a per-frame read.
 | Property | Role |
 | --- | --- |
 | `Background` | Container fill. |
-| `ScrollBar` | Scrollbar customization: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`, and `Hidden`, `HiddenMaxWidth`, `HiddenOn` (below). |
+| `ScrollBar` | Scrollbar customization: `Width`, `TrackColor`, `ThumbColor`, `Radius`, `MinThumbLength`, `Inset`, `AutoHide`, and `Hidden`, `HiddenMaxWidth`, `HiddenOn` (below). |
 
 Interactive children inside the content keep receiving events. For very long lists use
 [VirtualList](virtuallist.md) or [LazyList](lazylist.md).
+
+## A quieter scrollbar
+
+```go
+giode.Styles{ScrollBar: giode.ScrollBar{
+	Width:      6,
+	ThumbColor: "#ffffff88",
+	TrackColor: "transparent", // no track: the thumb alone
+	Inset:      4,             // 4dp in from the right edge, and from the top and bottom
+	AutoHide:   true,          // shown while scrolling, hovered or dragged; fades out after
+}}
+```
+
+An unset `TrackColor` draws the default track; any color with zero alpha draws none.
+With `AutoHide` the bar appears when the content scrolls or the pointer is over the bar,
+stays a second after, and fades out over 300ms, as macOS, Windows 11 and browsers do.
 
 ## Hiding the scrollbar
 

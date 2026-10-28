@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"strings"
+	"time"
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
@@ -29,12 +30,26 @@ type Scrollbar struct {
 	hover gesture.Hover
 	dragY float32
 
+	// For AutoHide: the pointer over the whole track, the offset at
+	// the last layout, and when the bar was last in use.
+	trackHover   gesture.Hover
+	trackHovered bool
+	lastOff      float32
+	lastActive   time.Time
+
 	// hovered, and the geometry of the last layout, for Update.
 	hovered     bool
 	shown       bool
 	maxOff      float32
 	maxThumbOff int
 }
+
+// AutoHide timing: how long the bar stays after its last use, and how
+// long it takes to fade out.
+const (
+	scrollbarLinger = time.Second
+	scrollbarFade   = 300 * time.Millisecond
+)
 
 // Update handles thumb drags and hover with the geometry of the last
 // Layout, applying drags to *offset, and reports whether anything
@@ -43,14 +58,15 @@ func (s *Scrollbar) Update(gtx layout.Context, offset *float32) bool {
 	if !s.shown {
 		return false
 	}
-	h, d, o := s.hovered, s.drag.Dragging(), *offset
+	h, th, d, o := s.hovered, s.trackHovered, s.drag.Dragging(), *offset
 	s.handle(gtx, offset)
-	return h != s.hovered || d != s.drag.Dragging() || o != *offset
+	return h != s.hovered || th != s.trackHovered || d != s.drag.Dragging() || o != *offset
 }
 
 // handle processes the thumb's events.
 func (s *Scrollbar) handle(gtx layout.Context, offset *float32) {
 	s.hovered = s.hover.Update(gtx.Source)
+	s.trackHovered = s.trackHover.Update(gtx.Source)
 	for {
 		ev, ok := s.drag.Update(gtx.Metric, gtx.Source, gesture.Both)
 		if !ok {
@@ -103,21 +119,34 @@ func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH in
 	if sb.Radius <= 0 {
 		radius = barWidth / 2
 	}
-	trackColor := properties.CalcColor(sb.TrackColor)
-	if trackColor.A == 0 {
-		trackColor = defaultScrollTrack
+	trackColor := defaultScrollTrack
+	if sb.TrackColor != "" {
+		trackColor = properties.CalcColor(sb.TrackColor)
 	}
+	inset := gtx.Dp(unit.Dp(sb.Inset))
 	thumb := sb.ThumbColor
 	if thumb == "" {
 		thumb = defaultScrollThumb
 	}
 	maxOff := float32(contentH - viewH)
 
-	x := viewport.X - barWidth
-	trackH := viewH
-	thumbH := max(minThumb, trackH*trackH/contentH)
+	x := viewport.X - barWidth - inset
+	trackH := viewH - 2*inset
+	if trackH <= 0 {
+		s.shown = false
+		return
+	}
+	defer op.Offset(image.Pt(0, inset)).Push(gtx.Ops).Pop()
+	thumbH := min(trackH, max(minThumb, trackH*viewH/contentH))
 	maxThumbOff := trackH - thumbH
 	thumbOff := int(*offset) * maxThumbOff / max(contentH-viewH, 1)
+
+	if sb.AutoHide {
+		// The whole track shows the bar when the pointer is over it.
+		tr := clip.Rect(image.Rect(x, 0, x+barWidth, trackH)).Push(gtx.Ops)
+		s.trackHover.Add(gtx.Ops)
+		tr.Pop()
+	}
 
 	thumbRect := image.Rect(x, thumbOff, x+barWidth, min(thumbOff+thumbH, trackH))
 	thumbClip := clip.Rect(thumbRect).Push(gtx.Ops)
@@ -138,15 +167,52 @@ func (s *Scrollbar) Layout(gtx layout.Context, viewport image.Point, contentH in
 	}
 	thumbClip.Pop()
 
+	if sb.AutoHide {
+		alpha := s.autoHideAlpha(gtx, *offset)
+		if alpha <= 0 {
+			return
+		}
+		if alpha < 1 {
+			defer paint.PushOpacity(gtx.Ops, alpha).Pop()
+		}
+	}
 	barOff := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
-	trackClip := clip.UniformRRect(image.Rect(0, 0, barWidth, trackH), radius).Push(gtx.Ops)
-	paint.Fill(gtx.Ops, trackColor)
-	trackClip.Pop()
+	if trackColor.A != 0 {
+		trackClip := clip.UniformRRect(image.Rect(0, 0, barWidth, trackH), radius).Push(gtx.Ops)
+		paint.Fill(gtx.Ops, trackColor)
+		trackClip.Pop()
+	}
 	thumbOff = int(*offset) * maxThumbOff / max(contentH-viewH, 1)
 	tc := clip.UniformRRect(image.Rect(0, thumbOff, barWidth, thumbOff+thumbH), radius).Push(gtx.Ops)
 	paint.Fill(gtx.Ops, properties.CalcColor(thumb))
 	tc.Pop()
 	barOff.Pop()
+}
+
+// autoHideAlpha is an AutoHide bar's opacity: whole while the content
+// scrolls, the pointer is over the bar or it's dragged and for
+// scrollbarLinger after, then fading to nothing over scrollbarFade. It
+// asks for the frames the fade needs.
+func (s *Scrollbar) autoHideAlpha(gtx layout.Context, offset float32) float32 {
+	if offset != s.lastOff || s.hovered || s.trackHovered || s.drag.Dragging() {
+		s.lastActive = gtx.Now
+	}
+	s.lastOff = offset
+	idle := gtx.Now.Sub(s.lastActive)
+	switch {
+	case s.lastActive.IsZero() || idle >= scrollbarLinger+scrollbarFade:
+		return 0
+	case idle < scrollbarLinger:
+		// Laid out again when it's time to fade, not replayed from a
+		// cache.
+		MarkLive()
+		gtx.Execute(op.InvalidateCmd{At: s.lastActive.Add(scrollbarLinger)})
+		return 1
+	default:
+		MarkLive()
+		gtx.Execute(op.InvalidateCmd{})
+		return 1 - float32(idle-scrollbarLinger)/float32(scrollbarFade)
+	}
 }
 
 // Screen reports the window's width in pixels and the name of the
