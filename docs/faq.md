@@ -10,9 +10,9 @@ that packages it all.
 
 ## Is it ready for production?
 
-Giode is in **beta**. The apps on the [examples page](#/examples) ship on it, but the API
-can still change between releases. Pin a version in `go.mod` and read the release notes
-when you upgrade.
+Giode is in **alpha**. The apps on the [examples page](#/examples) ship on it, but the API
+will still change between releases, sometimes in breaking ways. Pin a version in `go.mod`
+and read the release notes when you upgrade.
 
 ## How is it different from Gio?
 

@@ -161,7 +161,7 @@ h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 0.5em; }
 .logo-gio:hover { filter: brightness(1.25); text-decoration: none; }
 .logo-de { color: var(--text); }
 .logo.small { font-size: 20px; }
-.beta-tag {
+.alpha-tag {
 	margin-left: 8px;
 	font-size: 10px;
 	font-weight: 700;
@@ -268,7 +268,7 @@ h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 0.5em; }
 .hero h1 { font-size: clamp(2.5rem, 5vw, 4.2rem); font-weight: 800; letter-spacing: -0.04em; margin: 22px 0 20px; }
 .hero .lead a { color: var(--gio); font-weight: 600; }
 
-.beta-pill {
+.alpha-pill {
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
@@ -281,8 +281,8 @@ h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 0.5em; }
 	text-decoration: none !important;
 	transition: border-color 0.2s, color 0.2s;
 }
-.beta-pill:hover { border-color: var(--warn); color: var(--text); }
-.beta-pill b { color: var(--bg); background: var(--warn); padding: 1px 8px; border-radius: 999px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+.alpha-pill:hover { border-color: var(--warn); color: var(--text); }
+.alpha-pill b { color: var(--bg); background: var(--warn); padding: 1px 8px; border-radius: 999px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
 
 @keyframes ping {
 	0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 70%, transparent); }
@@ -519,7 +519,7 @@ ul.checks li::before {
 .aurora.small { inset: -40% -10%; height: auto; opacity: 0.35; }
 .aurora.small i:nth-child(1) { left: 0; top: 10%; }
 .aurora.small i:nth-child(2) { right: 0; top: 20%; }
-.beta-note { font-size: 14px !important; color: var(--faint) !important; margin-top: 8px; }
+.alpha-note { font-size: 14px !important; color: var(--faint) !important; margin-top: 8px; }
 
 /* Reveal on scroll */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s ease; transition-delay: calc(var(--i, 0) * 70ms); }
@@ -786,7 +786,7 @@ ul.checks li::before {
 .callout { margin: 1.4em 0; padding: 14px 18px; border-radius: 12px; border: 1px solid; }
 .callout p { margin: 0.3em 0; }
 .callout-note { border-color: color-mix(in srgb, var(--brand) 35%, transparent); background: color-mix(in srgb, var(--brand) 8%, transparent); }
-.callout-beta, .callout-warning { border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.callout-alpha, .callout-warning { border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .callout-tip { border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 8%, transparent); }
 
 .doc-foot { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 14px; }
@@ -866,7 +866,7 @@ body[data-page="docs"] .footer { display: none; }
 	.prevnext { grid-template-columns: 1fr; }
 	.dl-others li a { grid-template-columns: 18px 1fr auto; }
 	.dl-others code { display: none; }
-	.beta-pill { font-size: 13px; }
+	.alpha-pill { font-size: 13px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

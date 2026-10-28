@@ -17,7 +17,7 @@ inside `components/README.md`); the site resolves them, including `#section` anc
 
 Headings (with anchor IDs and a table of contents from `##` and `###`), fenced code with
 highlighting for Go, shell, TOML, JSON and YAML, tables, lists, block quotes (shown as
-callouts; one mentioning "beta" gets the beta style), horizontal rules, links, inline
+callouts; one mentioning "alpha" gets the alpha style), horizontal rules, links, inline
 code, bold and italic.
 
 Consecutive code blocks with a `tab` label become tabs, and the one matching the reader's

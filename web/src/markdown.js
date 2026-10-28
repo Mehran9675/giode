@@ -252,8 +252,8 @@ function blocks(text) {
 				i++;
 			}
 			const first = buf[0] || "";
-			const kind = /^\*\*(note|warning|tip|beta)\b/i.test(first) ? first.match(/^\*\*(\w+)/)[1].toLowerCase()
-				: /\bbeta\b/i.test(first) ? "beta" : "note";
+			const kind = /^\*\*(note|warning|tip|alpha)\b/i.test(first) ? first.match(/^\*\*(\w+)/)[1].toLowerCase()
+				: /\balpha\b/i.test(first) ? "alpha" : "note";
 			out.push(`<blockquote class="callout callout-${kind}">${blocks(buf.join("\n")).html}</blockquote>`);
 			continue;
 		}

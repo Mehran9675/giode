@@ -45,8 +45,8 @@ export function renderHome(view) {
 		<div class="grid-bg" aria-hidden="true"></div>
 		<div class="container hero-inner">
 			<div class="hero-copy">
-				<a class="beta-pill" href="#/docs/faq#is-it-ready-for-production">
-					<b>Beta</b> Giode is in public beta - APIs may still change <span aria-hidden="true">→</span>
+				<a class="alpha-pill" href="#/docs/faq#is-it-ready-for-production">
+					<b>Alpha</b> Giode is in alpha - expect breaking changes <span aria-hidden="true">→</span>
 				</a>
 				<h1>Native apps<br>in <span class="grad">pure Go</span>,<br>for every screen.</h1>
 				<p class="lead">Giode brings the ease of retained-mode UI to <a href="https://gioui.org" target="_blank" rel="noopener">Gio</a>'s immediate-mode speed. Compose elements, style them like CSS, and ship one codebase to desktop, mobile and the web - no webview, no JavaScript.</p>
@@ -164,7 +164,7 @@ export function renderHome(view) {
 				<a class="btn btn-primary btn-lg" href="#/docs/getting-started">Get started ${icon("arrow", 18)}</a>
 				<a class="btn btn-ghost btn-lg" href="https://github.com/Mehran9675/giode" target="_blank" rel="noopener">Star on GitHub</a>
 			</div>
-			<p class="beta-note">Giode is in beta: it's used in real apps, but the API may still change before 1.0.</p>
+			<p class="alpha-note">Giode is in alpha: it's used in real apps, but the API will change before 1.0.</p>
 		</div>
 	</section>`;
 
