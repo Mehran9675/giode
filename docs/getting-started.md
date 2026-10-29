@@ -155,7 +155,7 @@ Everything on screen is an `Element`, built from Go functions and styled with CS
 ## 6. Build for release
 
 ```sh
-giode build                       # every platform in giode.toml this computer can build
+giode build                       # this computer's platform
 giode build -release android aab  # signed APK and Play bundle
 giode build windows-installer dmg deb
 ```
