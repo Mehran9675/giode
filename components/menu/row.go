@@ -184,11 +184,44 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 	if item.submenu != nil && r.menu.openSubmenu == r.index && gtx.Source.Enabled() {
 		// Shift up by the submenu's top padding so its first row lines
 		// up with this one.
-		anchor := elements.AbsolutePosition().Add(image.Pt(dims.Size.X, -gtx.Dp(unit.Dp(item.submenu.panelPaddingTop()))))
+		pos := elements.AbsolutePosition()
+		anchor := image.Pt(r.menu.submenuX(gtx, item.submenu, pos.X+dims.Size.X), pos.Y-gtx.Dp(unit.Dp(item.submenu.panelPaddingTop())))
 		item.submenu.OpenAt(f32.Pt(float32(anchor.X), float32(anchor.Y)))
 		item.submenu.Layout(gtx)
 	}
 	return dims
+}
+
+// submenuX places a submenu beside this menu, as Windows and macOS do:
+// to the right of the row (rowRight, in window pixels) when it fits,
+// otherwise with its right edge at this panel's left edge, rather than
+// moved over this menu's rows. A cascade keeps the direction it took:
+// a submenu that opened to the left opens its own to the left first.
+// When neither side fits it takes the preferred side and the window
+// keeps it on screen.
+func (m *Menu) submenuX(gtx layout.Context, sub *Menu, rowRight int) int {
+	win := elements.WindowSize()
+	if win == (image.Point{}) {
+		win = gtx.Constraints.Max
+	}
+	mgtx := gtx
+	mgtx.Constraints = layout.Constraints{Max: win}
+	w := elements.Measure(mgtx, elements.Raw(sub.panel)).Size.X
+	margin := gtx.Dp(unit.Dp(kit.Margin))
+	right, left := rowRight, m.panelLeft-w
+	fitsRight, fitsLeft := right+w <= win.X-margin, left >= margin
+	toLeft := m.opensLeft
+	switch {
+	case toLeft && !fitsLeft && fitsRight:
+		toLeft = false
+	case !toLeft && !fitsRight && fitsLeft:
+		toLeft = true
+	}
+	sub.opensLeft = toLeft
+	if toLeft {
+		return left
+	}
+	return right
 }
 
 // radioDot is a selected radio item's indicator: a dot in the 16dp

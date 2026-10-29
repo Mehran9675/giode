@@ -66,6 +66,11 @@ type Menu struct {
 	// parent is the menu a submenu opens from (nil for a root menu):
 	// choosing an item in a submenu closes the whole menu.
 	parent *Menu
+	// panelLeft is the left edge of the panel in the frame being laid
+	// out, in window pixels; opensLeft records that a submenu opened to
+	// the left of its parent, which its own submenus then prefer too.
+	panelLeft int
+	opensLeft bool
 	// isSubmenu marks a Menu opened via SubMenu rather than
 	// SetContextMenu/OpenAt/Trigger: its visibility is driven entirely
 	// by the parent row's hover (openSubmenu above), so it skips its
