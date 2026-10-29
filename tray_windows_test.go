@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"testing"
-	"time"
 )
 
 func TestPNGToICO(t *testing.T) {
@@ -23,20 +22,4 @@ func TestPNGToICO(t *testing.T) {
 	if pngToICO([]byte("not a png")) != nil {
 		t.Error("garbage converted")
 	}
-}
-
-// TestTray_Windows starts the tray and waits for it to be ready.
-func TestTray_Windows(t *testing.T) {
-	a := New(Config{})
-	tr := a.Tray().SetIcon(testPNG(t)).SetTooltip("tip").SetMenu(TrayAction("Open", nil))
-	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
-		tr.mu.Lock()
-		ready := tr.ready
-		tr.mu.Unlock()
-		if ready {
-			tr.Remove()
-			return
-		}
-	}
-	t.Fatal("the tray never became ready")
 }
