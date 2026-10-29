@@ -1,0 +1,9 @@
+# Keep LF line endings in checkouts on Windows too: generated files
+# are compared byte for byte, and the CLI copies files from here.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.ico binary
