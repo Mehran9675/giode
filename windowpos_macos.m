@@ -56,13 +56,29 @@ void giodeWatchPlacement(uintptr_t view) {
 		}
 		placementWatched = YES;
 		NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
+		// The blocks hold the window weakly and are removed when it
+		// closes: Gio ends the app when the window's view is freed, and
+		// a block holding the window would keep it, and the app, alive
+		// after Quit.
+		__weak NSWindow *weak = w;
 		void (^update)(NSNotification *) = ^(NSNotification *n) {
-			updatePlacement(w);
+			updatePlacement(weak);
 		};
+		NSMutableArray *observers = [NSMutableArray array];
 		for (NSNotificationName name in @[NSWindowDidMoveNotification, NSWindowDidResizeNotification, NSWindowDidChangeScreenNotification]) {
-			[nc addObserverForName:name object:w queue:nil usingBlock:update];
+			[observers addObject:[nc addObserverForName:name object:w queue:nil usingBlock:update]];
 		}
-		[nc addObserverForName:NSApplicationDidChangeScreenParametersNotification object:nil queue:nil usingBlock:update];
+		[observers addObject:[nc addObserverForName:NSApplicationDidChangeScreenParametersNotification object:nil queue:nil usingBlock:update]];
+		__block id closing = nil;
+		closing = [nc addObserverForName:NSWindowWillCloseNotification object:w queue:nil usingBlock:^(NSNotification *n) {
+			for (id o in observers) {
+				[nc removeObserver:o];
+			}
+			[observers removeAllObjects];
+			[nc removeObserver:closing];
+			closing = nil;
+			placementWatched = NO;
+		}];
 	});
 }
 
