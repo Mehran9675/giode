@@ -41,6 +41,9 @@ func (m *Menu) panel(gtx layout.Context) layout.Dimensions {
 	gtx.Constraints.Max.Y = win.Y - 2*margin
 
 	width := m.measureWidth(gtx, st)
+	if gtx.Source.Enabled() {
+		m.panelLeft = elements.AbsolutePosition().X
+	}
 
 	rows := make([]elements.Element, 0, len(m.items))
 	for i := range m.items {
