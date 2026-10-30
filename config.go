@@ -134,8 +134,12 @@ type Config struct {
 	OnWindowStateChange func(WindowState)
 	// Locale is the app's locale ("fa", "pt-BR") for the i18n package
 	// and the layout's reading direction; the system's by default. Change
-	// it later with i18n.SetLocale.
+	// it later with SetLocale.
 	Locale string
+	// Intl, when set, turns on translations: giode loads the message
+	// files (<locale>.json) from a folder at startup, and Intl(key,
+	// data) reads them. Nil leaves translation off.
+	Intl *IntlOptions
 	// OnOpenURL runs on the UI goroutine with a link that opened the
 	// app or reached it while running: a URL scheme it registered
 	// (giode.toml's app.schemes) or one of its universal links / Android
@@ -270,7 +274,9 @@ type SingleInstanceLock struct {
 
 // App owns a window and its render loop.
 type App struct {
-	cfg        Config
+	cfg Config
+	// mcpBound is the MCP server's listen address once it listens.
+	mcpBound   atomic.Pointer[string]
 	window     *app.Window
 	winPointer windowPointer
 	ctxMenu    *menu.Menu
@@ -393,6 +399,11 @@ func New(cfg Config) *App {
 		i18n.SetLocale(cfg.Locale)
 	} else {
 		i18n.SetLocale(i18n.SystemLocale())
+	}
+	if cfg.Intl != nil {
+		if err := cfg.Intl.load(); err != nil {
+			a.logf(LogLevelError, "giode: translations: %v", err)
+		}
 	}
 	i18n.OnChange(func() {
 		// New text and maybe a new reading direction.

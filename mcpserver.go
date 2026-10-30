@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/png"
 	"math"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -29,11 +30,19 @@ import (
 // Config.MCP. The zero value serves Streamable HTTP on
 // 127.0.0.1:7600 at /mcp with every built-in tool.
 type MCPOptions struct {
-	// Addr is the HTTP listen address. Defaults to "127.0.0.1:7600"
-	// (override at run time with the GIODE_MCP_ADDR environment
-	// variable). Binding beyond loopback exposes the app to the
-	// network: set Token when doing so.
+	// Addr is the HTTP listen address, "127.0.0.1:7600" by default.
+	// Host and Port, when set, replace its parts; port 0 in Addr
+	// ("127.0.0.1:0") picks any free port (see App.MCPAddress). At run
+	// time the GIODE_MCP_ADDR, GIODE_MCP_HOST and GIODE_MCP_PORT
+	// environment variables override all three. Binding beyond
+	// loopback ("0.0.0.0") exposes the app to the network: set Token
+	// when doing so.
 	Addr string
+	// Host is the address to listen on: "127.0.0.1" by default,
+	// "0.0.0.0" for every interface.
+	Host string
+	// Port is the TCP port, 7600 by default.
+	Port int
 	// Token, when set, is required from clients as a bearer token.
 	Token string
 	// Stdio serves the protocol on stdin/stdout instead of HTTP, for
@@ -61,6 +70,48 @@ type MCPOptions struct {
 }
 
 const defaultMCPAddr = "127.0.0.1:7600"
+
+// mcpAddr resolves the MCP listen address from the options and the
+// environment.
+func mcpAddr(o MCPOptions, getenv func(string) string) (string, error) {
+	addr := o.Addr
+	if env := getenv("GIODE_MCP_ADDR"); env != "" {
+		addr = env
+	}
+	if addr == "" {
+		addr = defaultMCPAddr
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", fmt.Errorf("listen address %q: %w", addr, err)
+	}
+	if o.Host != "" {
+		host = o.Host
+	}
+	if o.Port != 0 {
+		port = strconv.Itoa(o.Port)
+	}
+	if env := getenv("GIODE_MCP_HOST"); env != "" {
+		host = env
+	}
+	if env := getenv("GIODE_MCP_PORT"); env != "" {
+		port = env
+	}
+	if n, err := strconv.Atoi(port); err != nil || n < 0 || n > 65535 {
+		return "", fmt.Errorf("port %q isn't a TCP port", port)
+	}
+	return net.JoinHostPort(host, port), nil
+}
+
+// MCPAddress returns the address the MCP server listens on
+// ("127.0.0.1:7600"), once it does; "" before that, without Config.MCP,
+// or on stdio. With port 0 it's the port the system picked.
+func (a *App) MCPAddress() string {
+	if p := a.mcpBound.Load(); p != nil {
+		return *p
+	}
+	return ""
+}
 
 // mcpBridge connects MCP tool handlers, which run on server
 // goroutines, with the UI goroutine that owns the widget tree.
@@ -221,15 +272,14 @@ func (b *mcpBridge) start(ctx context.Context, a *App) {
 		a.logf(LogLevelInfo, "giode: mcp server on stdio")
 		return
 	}
-	addr := b.opts.Addr
-	if env := os.Getenv("GIODE_MCP_ADDR"); env != "" {
-		addr = env
-	}
-	if addr == "" {
-		addr = defaultMCPAddr
+	addr, err := mcpAddr(b.opts, os.Getenv)
+	if err != nil {
+		a.logf(LogLevelError, "giode: mcp server: %v", err)
+		return
 	}
 	go func() {
 		err := b.srv.ListenAndServe(ctx, addr, func(bound string) {
+			a.mcpBound.Store(&bound)
 			a.logf(LogLevelInfo, "giode: mcp server listening on http://%s/mcp", bound)
 		})
 		if err != nil {
