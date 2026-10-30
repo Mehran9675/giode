@@ -12,7 +12,7 @@ dialog := giode.Dialog(open, func() giode.Element {
 
 *open = true  // or false
 
-// in the view, last so it renders above the UI:
+// in the view, anywhere: it takes no space and paints over the window
 giode.Stack(giode.Styles{}, page, dialog)
 ```
 
@@ -23,6 +23,10 @@ giode.Stack(giode.Styles{}, page, dialog)
 | `Dialog(open *bool, content func() Element, st ...Styles) *Dialog` | Creates the dialog; styles apply to the panel. |
 | `Opened() bool` | Whether the dialog is open. |
 | `Dismissible(on bool) *Dialog` | Whether the scrim, Back and Escape close it (on by default). |
+
+The dialog takes no space where it's placed, and a box's `Gap` leaves it out: while it's
+open it paints over the whole window as an overlay, centered in the window rather than
+in its parent.
 
 Clicking the scrim, pressing Escape or pressing the system Back button (Android) sets
 `*open` to false. Turn this off with `Dismissible(false)` for a dialog the user must

@@ -17,6 +17,9 @@ File dialogs, sharing, the Back button and background/foreground callbacks are i
 | `KeepAlive` | manifest entry (see below) | ~30 s | ✓ | ✓ | ✓ (logind) | – |
 | `SecureStore` | Keystore | Keychain | Keychain | DPAPI | Secret Service | – |
 | `PickFiles` | ✓ | ✓ | ✓ | ✓ | ✓ (portal) | ✓ |
+| `PickedFile.Path` | – | – | ✓ | ✓ | ✓ | – |
+| `PickFolder` | – | – | ✓ | ✓ | ✓ (portal, zenity, kdialog) | – |
+| `RestartElevated` | – | – | admin prompt | UAC | pkexec | – |
 | `PickPhoto` library / camera | ✓ / ✓ | ✓ / Info.plist key | file / – | file / – | file / – | file / – |
 | `Dictate` | ✓ | Info.plist keys | – | – | – | – |
 | `Share` | share sheet | share sheet | reveal / clipboard | reveal / clipboard | reveal / clipboard | – |
@@ -122,7 +125,9 @@ photo, err := app.PickPhoto(ctx, giode.PhotoOptions{Source: giode.PhotoLibrary, 
 ```
 
 `PickedFile` is an `io.ReadCloser` with `Name`, `MIME` (from the extension, or sniffed from
-the content) and `Size` (-1 when unknown). `PickPhoto` returns an upright JPEG scaled to
+the content) and `Size` (-1 when unknown). On desktops `Path` is the file's absolute path,
+for work that needs the file rather than a stream (a disk image read at random offsets);
+it's empty on Android, iOS and the web. `PickPhoto` returns an upright JPEG scaled to
 `MaxSide`: Android's photo picker (Android 13+, the image picker before) or camera, and
 PHPicker on iOS 14+, decode HEIC on the device, so HEIC never reaches the app. On desktops
 it picks an image file (JPEG, PNG, GIF, WebP). The iOS camera needs
@@ -131,6 +136,37 @@ without it `PickPhoto` returns an error wrapping `ErrNotSupported` rather than l
 end the app. Like `OpenFile`, these block: call them from a goroutine.
 
 Reading an image from the clipboard isn't supported yet.
+
+`PickFolder` asks for a folder and returns its path: a destination for exported or
+recovered files.
+
+```go
+dir, err := app.PickFolder(ctx, giode.FolderOptions{Title: "Where should recovered files go?"})
+if errors.Is(err, giode.ErrCanceled) {
+	return
+}
+```
+
+It uses IFileOpenDialog on Windows, NSOpenPanel on macOS and the XDG desktop portal on
+Linux, falling back to zenity, qarma or kdialog when no portal runs. Android, iOS and the
+web return `ErrNotSupported`: apps there get no plain paths to the user's folders.
+
+## Administrator rights
+
+`giode.IsElevated()` reports whether the app runs elevated (UAC on Windows, root on Linux
+and macOS). `app.RestartElevated(args...)` asks the user for administrator rights, starts a
+new copy of the app with them (with `args`, or this launch's arguments when nil) and quits
+this one; it returns `ErrDeclined` when the user refuses, leaving this copy running.
+
+```go
+if !giode.IsElevated() {
+	err := app.RestartElevated() // UAC, pkexec or the macOS password prompt
+}
+```
+
+With a `SingleInstanceLock`, the new copy waits for this one to exit and takes the lock
+over. Running the whole UI elevated is what some disk tools need; when the work allows, a
+small elevated helper process is the safer design.
 
 ## Dictation
 

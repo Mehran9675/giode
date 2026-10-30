@@ -2,6 +2,7 @@ package i18n
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"gioui.org/io/system"
@@ -71,7 +72,16 @@ func TestSystemLocale(t *testing.T) {
 	t.Setenv("LC_ALL", "")
 	t.Setenv("LC_MESSAGES", "")
 	t.Setenv("LANG", "de_DE.UTF-8")
-	if got := SystemLocale(); got != "de-de" && got != "en" {
-		t.Errorf("SystemLocale = %q", got)
+	got := SystemLocale()
+	switch runtime.GOOS {
+	case "darwin", "windows", "ios", "android", "js":
+		// These read the system's language setting, not $LANG.
+		if got == "" || got != normalize(got) {
+			t.Errorf("SystemLocale = %q, not a normalized tag", got)
+		}
+	default:
+		if got != "de-de" && got != "en" {
+			t.Errorf("SystemLocale = %q", got)
+		}
 	}
 }

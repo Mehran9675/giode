@@ -71,11 +71,12 @@ void giodeWatchPlacement(uintptr_t view) {
 		[observers addObject:[nc addObserverForName:NSApplicationDidChangeScreenParametersNotification object:nil queue:nil usingBlock:update]];
 		__block id closing = nil;
 		closing = [nc addObserverForName:NSWindowWillCloseNotification object:w queue:nil usingBlock:^(NSNotification *n) {
+			NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
 			for (id o in observers) {
-				[nc removeObserver:o];
+				[center removeObserver:o];
 			}
 			[observers removeAllObjects];
-			[nc removeObserver:closing];
+			[center removeObserver:closing];
 			closing = nil;
 			placementWatched = NO;
 		}];

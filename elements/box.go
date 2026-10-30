@@ -110,7 +110,7 @@ func zIndexOf(el Element) int {
 // z-index - then the children are painted in z order (see zPaint)
 // rather than as laid out. Absolute positioning applies to Box
 // children.
-func (b *BoxElement) split() (flow, absolute []Element, ordered bool) {
+func (b *BoxElement) split() (flow, absolute, outside []Element, ordered bool) {
 	// Fast path, the overwhelmingly common case: no absolute children
 	// and no z-index, so the children are used as they are without
 	// allocating.
@@ -122,19 +122,33 @@ func (b *BoxElement) split() (flow, absolute []Element, ordered bool) {
 		if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {
 			simple = false
 		}
+		if _, ok := child.(OutOfFlow); ok {
+			simple = false
+		}
 	}
 	if simple {
-		return b.children, nil, false
+		return b.children, nil, nil, false
 	}
 	flow = make([]Element, 0, len(b.children))
 	for _, child := range b.children {
-		if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {
+		if _, ok := child.(OutOfFlow); ok {
+			outside = append(outside, child)
+		} else if box, ok := child.(*BoxElement); ok && box.st.Position.Mode() == properties.PositionAbsolute {
 			absolute = append(absolute, child)
 		} else {
 			flow = append(flow, child)
 		}
 	}
-	return flow, absolute, ordered
+	return flow, absolute, outside, ordered
+}
+
+// OutOfFlow is implemented by elements that paint over the window and
+// take no space where they're placed: Dialog, Sheet and Drawer. A box
+// lays them out apart from its other children, so its Gap and Justify
+// leave them out.
+type OutOfFlow interface {
+	Element
+	OutOfFlow()
 }
 
 // zPaint is a child's recorded drawing and where it goes, painted once

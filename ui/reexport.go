@@ -92,6 +92,37 @@ type (
 	SemanticNode = elements.SemanticNode
 	SemanticKind = elements.SemanticKind
 )
+
+// Style value and element types, for declaring variables and
+// helpers that take them.
+type (
+	Align           = properties.Align
+	BackgroundFit   = properties.BackgroundFit
+	BackgroundImage = properties.BackgroundImage
+	Cursor          = properties.Cursor
+	FlexDirection   = properties.FlexDirection
+	FontStyle       = properties.FontStyle
+	FontWeight      = properties.FontWeight
+	Justify         = properties.Justify
+	MaxLines        = properties.MaxLines
+	Overflow        = properties.Overflow
+	Position        = properties.Position
+	TabWidth        = properties.TabWidth
+	TextAlign       = properties.TextAlign
+	TextDecoration  = properties.TextDecoration
+	Wrap            = properties.Wrap
+	Fit             = properties.Fit
+
+	BoxElement      = elements.BoxElement
+	TextElement     = elements.TextElement
+	RichTextElement = elements.RichTextElement
+	DividerElement  = elements.DividerElement
+	RawFunc         = elements.RawFunc
+	Painter         = elements.Painter
+	CanvasPath      = elements.Path
+	OutOfFlow       = elements.OutOfFlow
+)
+
 type Tab = tabs.Tab
 type Side = drawer.Side
 
@@ -170,6 +201,9 @@ var (
 	Stack = elements.Stack
 	Text  = elements.Text
 	Raw   = elements.Raw
+	// Canvas is an element drawn with a Painter: shapes, arcs, rings,
+	// sectors and paths in dp; see elements.Canvas.
+	Canvas = elements.Canvas
 
 	Divider = elements.Divider
 	// RichText lays out differently styled spans as one wrapping

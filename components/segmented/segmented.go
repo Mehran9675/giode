@@ -22,6 +22,10 @@ import (
 
 const animDuration = 160 * time.Millisecond
 
+// trackColor is the default track: a faint tint of the text, mixed
+// opaque so it stays faint on dark themes.
+var trackColor = properties.Mix("theme.text", "theme.background", 0.08)
+
 // Control is a stateful segmented control. Create it once with New and
 // lay it out every frame.
 type Control struct {
@@ -42,7 +46,8 @@ type Control struct {
 // The styles argument is optional: Background is the track (default a
 // faint tint of the text), BorderColor the selected segment (default
 // theme.surface), Color the labels (default theme.text), FontSize, and
-// Width -1 to fill the row with equal segments.
+// Width: -1 to fill the row with equal segments, or a fixed width they
+// share equally.
 func New(options ...string) *Control {
 	return &Control{options: options, clicks: make([]widget.Clickable, len(options))}
 }
@@ -144,7 +149,7 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 		kit.RequestFrame(gtx)
 	}
 
-	st := styles.Merge(styles.Styles{Background: "theme.text/0.08", BorderColor: "theme.surface", Color: "theme.text", FontSize: 14}, c.st)
+	st := styles.Merge(styles.Styles{Background: trackColor, BorderColor: "theme.surface", Color: "theme.text", FontSize: 14}, c.st)
 	pad := gtx.Dp(3)
 	segment := func(i int) elements.Element {
 		var kids []elements.Element
@@ -170,8 +175,11 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 		d := elements.Measure(mgtx, segment(i))
 		segW, segH = max(segW, d.Size.X), max(segH, d.Size.Y)
 	}
-	if c.st.Width == -1 {
+	switch w := c.st.Px(gtx.Metric).Width; {
+	case w == -1:
 		segW = (gtx.Constraints.Max.X - 2*pad) / n
+	case w > 0:
+		segW = max(0, min(int(w), gtx.Constraints.Max.X)-2*pad) / n
 	}
 	segH = max(segH, gtx.Dp(32))
 	size := image.Pt(segW*n+2*pad, segH+2*pad)

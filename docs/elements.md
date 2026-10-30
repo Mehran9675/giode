@@ -198,6 +198,36 @@ giode.Raw(func(gtx layout.Context) layout.Dimensions {
 })
 ```
 
+## Canvas
+
+Custom drawing - progress rings, gauges, charts, maps - without raw Gio ops. The canvas
+is sized like a Box (`Width`/`Height`, -1 to fill; without a size it takes what its parent
+offers) and its function runs every frame with a `*giode.Painter`:
+
+```go
+giode.Canvas(giode.Styles{Width: 96, Height: 96}, func(p *giode.Painter) {
+	c := p.Width() / 2
+	p.Arc(c, c, c-6, 8, 0, 360, "theme.border")              // track
+	p.Arc(c, c, c-6, 8, 0, 360*progress, "theme.primary")    // progress, round ends
+	p.Sector(c, c, 20, 30, 90, 45, "#e5484d")                 // a donut segment
+})
+```
+
+Coordinates and lengths are in dp from the top-left corner; angles are degrees clockwise
+from 12 o'clock. Colors are any `Color`, theme tokens included (`""` is the inherited text
+color), so a canvas follows light/dark switches.
+
+| Painter method | Draws |
+| --- | --- |
+| `Rect(x, y, w, h, radius, fill)` | a rectangle, rounded |
+| `Circle(cx, cy, r, fill)` | a filled circle |
+| `Line(x1, y1, x2, y2, width, color)` | a straight line |
+| `Arc(cx, cy, r, width, start, sweep, color)` | a stroked arc with round ends; a sweep of 360 is a ring |
+| `Sector(cx, cy, inner, outer, start, sweep, fill)` | a pie slice (inner 0) or donut segment |
+| `Path()` | a `*giode.CanvasPath`: `MoveTo`, `LineTo`, `QuadTo`, `CubeTo`, `ArcAround`, `Close`, then `Fill(color)` or `Stroke(width, color)` |
+| `Width()`, `Height()` | the canvas size in dp |
+| `Context()` | the Gio context, for raw drawing in pixels |
+
 ## Responsive
 
 Simplified media queries: renders different views depending on the available width.
@@ -227,6 +257,8 @@ if giode.ActiveBreakpoint() == "medium" { ... }
 if giode.Compact() { ... } // the innermost Responsive matched a breakpoint named "compact"
 ```
 
-Both answer for the innermost enclosing `Responsive` and return `""`/`false` outside one.
+Both answer for the innermost enclosing `Responsive`. Outside one, `ActiveBreakpoint`
+returns `""` and `Compact` reports whether the window is narrower than
+`giode.CompactWidth` (600 dp).
 Like `AbsolutePosition`, they're only meaningful while the view is being laid out. A
 `Memo` inside the view rebuilds when the active breakpoint changes.

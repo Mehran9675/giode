@@ -118,6 +118,23 @@ also built on `ubuntu-24.04-arm`, and Windows ones cross-built for arm64 (or, wi
 arch = ["amd64", "arm64"]   # default ["amd64"]
 ```
 
+The workflow builds the platforms in `app.platforms` (without it, all but iOS). An iOS job
+builds an IPA when the repository has the `IOS_CERT_BASE64`, `IOS_CERT_PASS` and
+`IOS_PROFILE_BASE64` secrets (`IOS_TEAM_ID` sets `ios.team_id`), and checks the simulator
+build otherwise; the profile reaches the build through `$GIODE_IOS_PROFILE`, so giode.toml
+needn't name it. A test job runs first and stops the release when it fails. Change what it
+runs, or turn it off, with `test`. `trigger = "release"` builds when a GitHub release is
+published, adding the files to it, instead of on a pushed tag:
+
+```toml
+[ci]
+trigger = "release"                    # default "tag"
+test = "go vet ./... && go test ./..." # default "go test ./..."; "" runs none
+```
+
+Rerun `giode ci -f` after changing `[ci]` rather than editing the workflow: it's written
+from giode.toml and overwritten.
+
 Every package's name carries its CPU, so builds for two CPUs can share a release:
 `<App>-<version>-<arch>-setup.exe`, `<App>-<version>-<arch>.msix` and
 `<App>-<version>-universal.dmg` (or `-arm64`/`-amd64` with a single `-arch`).

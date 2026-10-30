@@ -31,6 +31,11 @@ type PickedFile struct {
 	MIME string
 	// Size is the length in bytes, or -1 when unknown.
 	Size int64
+	// Path is the file's absolute path on desktops, for work that
+	// needs the file itself rather than a stream (opening a disk image
+	// at random offsets, reopening it later). It's empty on Android,
+	// iOS and the web, whose pickers give content without a path.
+	Path string
 }
 
 // PickOptions configures PickFiles.
@@ -148,6 +153,9 @@ func describe(f io.ReadCloser) PickedFile {
 	switch v := f.(type) {
 	case *os.File:
 		p.Name = filepath.Base(v.Name())
+		if abs, err := filepath.Abs(v.Name()); err == nil {
+			p.Path = abs
+		}
 		if st, err := v.Stat(); err == nil {
 			p.Size = st.Size()
 		}

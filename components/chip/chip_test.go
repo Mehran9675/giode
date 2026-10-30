@@ -51,3 +51,17 @@ func TestBadgeOnKeepsTargetSize(t *testing.T) {
 		t.Errorf("badged element %v, want the target's 40x40", d.Size)
 	}
 }
+
+func TestSelectedKeepsItsColors(t *testing.T) {
+	c := New("Go", styles.Styles{Background: "#222222", Color: "#eeeeee", BorderColor: "#444444"})
+	if st := c.styles(); st.Background != "#222222" || st.Color != "#eeeeee" {
+		t.Errorf("unselected %q on %q, want the given colors", st.Color, st.Background)
+	}
+	st := c.Selected(true).styles()
+	if st.Background != "theme.primary" || st.Color != "theme.onprimary" || st.BorderColor != "theme.primary" {
+		t.Errorf("selected %q on %q, border %q: styles overrode the selected state", st.Color, st.Background, st.BorderColor)
+	}
+	if st := c.SelectedStyles(styles.Styles{Background: "#0000ff"}).styles(); st.Background != "#0000ff" || st.Color != "theme.onprimary" {
+		t.Errorf("SelectedStyles gave %q on %q", st.Color, st.Background)
+	}
+}

@@ -21,13 +21,15 @@ Mutually exclusive options in one rounded track, for switching views or modes:
 
 ```go
 mode := giode.Input.Segmented("Chat", "Deep research").OnChange(func(i int) { ... })
-mode.Styles(giode.Styles{Width: -1}) // fill the row with equal segments
+mode.Styles(giode.Styles{Width: -1}) // fill the row with equal segments (or Width: 240)
 mode.Icons(chatIcon, searchIcon)      // optional, before each label
 ```
 
 `Selected()`, `SetSelected(i)` (without calling OnChange), `Choose(i)`. The highlight
-slides to the picked option. Styles: `Background` the track, `BorderColor` the selected
-segment (default `theme.surface`), `Color`, `FontSize`.
+slides to the picked option. Styles: `Background` the track (default a faint tint of
+`theme.text`, mixed opaque so it stays faint in dark mode), `BorderColor` the selected
+segment (default `theme.surface`), `Color`, `FontSize`, and `Width`: -1 fills the row, a
+positive width is shared equally by the segments.
 
 ## Chip
 
@@ -40,7 +42,9 @@ tag := giode.Chip("draft").OnRemove(func() { removeTag("draft") })
 ```
 
 `Icon(el)` shows an icon before the label; `Selected(true)` draws it filled in
-`theme.primary`. A chip with `OnClick` or `OnRemove` holds press state, so create it once
+`theme.primary` with `theme.onprimary` text. The chip's styles apply to the unselected
+chip and don't override the selected colors; set those with
+`SelectedStyles(giode.Styles{Background: ..., Color: ...})`. A chip with `OnClick` or `OnRemove` holds press state, so create it once
 (or with `Keyed`).
 
 ## Badge

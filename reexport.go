@@ -74,6 +74,35 @@ type (
 	SemanticKind     = ui.SemanticKind
 )
 
+// Style value and element types, for declaring variables and
+// helpers that take them.
+type (
+	Align           = ui.Align
+	BackgroundFit   = ui.BackgroundFit
+	BackgroundImage = ui.BackgroundImage
+	Cursor          = ui.Cursor
+	FlexDirection   = ui.FlexDirection
+	FontStyle       = ui.FontStyle
+	FontWeight      = ui.FontWeight
+	Justify         = ui.Justify
+	MaxLines        = ui.MaxLines
+	Overflow        = ui.Overflow
+	Position        = ui.Position
+	TabWidth        = ui.TabWidth
+	TextAlign       = ui.TextAlign
+	TextDecoration  = ui.TextDecoration
+	Wrap            = ui.Wrap
+	Fit             = ui.Fit
+	BoxElement      = ui.BoxElement
+	TextElement     = ui.TextElement
+	RichTextElement = ui.RichTextElement
+	DividerElement  = ui.DividerElement
+	RawFunc         = ui.RawFunc
+	Painter         = ui.Painter
+	CanvasPath      = ui.CanvasPath
+	OutOfFlow       = ui.OutOfFlow
+)
+
 type Tab = ui.Tab
 
 type Side = ui.Side
@@ -150,11 +179,14 @@ type Router = ui.Router
 type Route = ui.Route
 
 var (
-	Box     = ui.Box
-	Row     = ui.Row
-	Stack   = ui.Stack
-	Text    = ui.Text
-	Raw     = ui.Raw
+	Box   = ui.Box
+	Row   = ui.Row
+	Stack = ui.Stack
+	Text  = ui.Text
+	Raw   = ui.Raw
+	// Canvas is an element drawn with a Painter: shapes, arcs, rings,
+	// sectors and paths in dp; see elements.Canvas.
+	Canvas  = ui.Canvas
 	Divider = ui.Divider
 	// RichText lays out differently styled spans as one wrapping
 	// paragraph; see elements.RichText.

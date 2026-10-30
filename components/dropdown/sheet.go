@@ -33,10 +33,6 @@ const (
 	SheetAlways
 )
 
-// compactWidth is the window width, in dp, under which SheetCompact
-// opens a sheet without a "compact" breakpoint.
-const compactWidth = 600
-
 // sheetState is what a Select needs while showing a sheet.
 type sheetState struct {
 	scrim, panel widget.Clickable
@@ -62,7 +58,7 @@ func (s *Select) useSheet() bool {
 			return true
 		}
 		w := elements.WindowSize().X
-		return w > 0 && elements.PxToDp(w) < compactWidth
+		return w > 0 && elements.PxToDp(w) < elements.CompactWidth
 	}
 	return false
 }

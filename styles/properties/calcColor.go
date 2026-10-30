@@ -42,12 +42,22 @@ const maxCachedColors = 4096
 // updates every element styled with that token, without editing each
 // one. A token may carry an alpha suffix: "theme.primary/0.5" or
 // "theme.primary/50%".
+//
+// "color-mix(in srgb, A p%, B)" mixes two colors as CSS does, A and B
+// being any of the above; see Mix.
 func CalcColor(c string) color.NRGBA {
 	if c == "" {
 		return color.NRGBA{}
 	}
 	if strings.HasPrefix(c, "theme.") {
 		return resolveThemeColor(c)
+	}
+	if themed(c) {
+		// A color-mix() of theme tokens changes with the palette.
+		if col, ok := parseColorMix(c); ok {
+			return col
+		}
+		return fallbackColor
 	}
 	if v, ok := colorCache.Load(c); ok {
 		return v.(color.NRGBA)
@@ -76,7 +86,7 @@ func resolveThemeColor(c string) color.NRGBA {
 		alpha = a
 	}
 	resolved, ok := themeToken(token)
-	if !ok || strings.HasPrefix(resolved, "theme.") {
+	if !ok || themed(resolved) {
 		return fallbackColor
 	}
 	col := CalcColor(resolved)

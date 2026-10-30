@@ -83,3 +83,18 @@ func TestLockInstance(t *testing.T) {
 		t.Fatal("no launch")
 	}
 }
+
+func TestTakeWaitArg(t *testing.T) {
+	saved := os.Args
+	defer func() { os.Args = saved }()
+	os.Args = []string{"app", WaitArg + "1234", "file.img"}
+	if pid := TakeWaitArg(); pid != 1234 {
+		t.Errorf("pid %d, want 1234", pid)
+	}
+	if len(os.Args) != 2 || os.Args[1] != "file.img" {
+		t.Errorf("os.Args = %q, want the wait argument removed", os.Args)
+	}
+	if pid := TakeWaitArg(); pid != 0 {
+		t.Errorf("second call gave %d", pid)
+	}
+}
