@@ -43,12 +43,12 @@ func TestDescribe(t *testing.T) {
 	f, _ := os.Open(path)
 	defer f.Close()
 	p := describe(f)
-	if p.Name != "notes.md" || p.Size != 4 || !strings.HasPrefix(p.MIME, "text/markdown") {
+	if p.Name != "notes.md" || p.Size != 4 || !strings.HasPrefix(p.MIME, "text/markdown") || p.Path != path {
 		t.Errorf("os.File: %+v", p)
 	}
 
 	p = describe(namedReader{Reader: strings.NewReader("%PDF-1.7 ..."), name: "content://x/Q3 report.pdf", size: 12})
-	if p.Name != "Q3 report.pdf" || p.Size != 12 || p.MIME != "application/pdf" {
+	if p.Name != "Q3 report.pdf" || p.Size != 12 || p.MIME != "application/pdf" || p.Path != "" {
 		t.Errorf("picker file: %+v", p)
 	}
 

@@ -130,13 +130,31 @@ func acquireInstanceLock(id string) (second bool, path string, owner *InstanceLo
 func WaitForUpdate() {
 	pid, err := strconv.Atoi(os.Getenv(update.WaitEnv))
 	if err != nil {
-		return
+		if pid = TakeWaitArg(); pid == 0 {
+			return
+		}
 	}
 	os.Unsetenv(update.WaitEnv)
 	for deadline := time.Now().Add(15 * time.Second); processAlive(pid) && time.Now().Before(deadline); {
 		time.Sleep(50 * time.Millisecond)
 	}
 	update.Cleanup()
+}
+
+// WaitArg is the argument an app restarted with other rights (see
+// giode's App.RestartElevated) gets before its own, naming the old
+// process to wait for: elevation (UAC, pkexec, an administrator prompt)
+// doesn't pass the environment on.
+const WaitArg = "--giode-wait-pid="
+
+// TakeWaitArg removes WaitArg from os.Args and returns its pid, or 0.
+func TakeWaitArg() int {
+	if len(os.Args) < 2 || !strings.HasPrefix(os.Args[1], WaitArg) {
+		return 0
+	}
+	pid, _ := strconv.Atoi(strings.TrimPrefix(os.Args[1], WaitArg))
+	os.Args = append(os.Args[:1], os.Args[2:]...)
+	return pid
 }
 
 // parseLock reads a lock file: pid, then port and token.

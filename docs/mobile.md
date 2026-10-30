@@ -105,6 +105,26 @@ Apps can't read or write the user's files by path. Use:
 Save anything the user would hate to lose in `Config.OnBackground`: Android may end a
 backgrounded app without warning, and `OnShutdown` doesn't run then.
 
+## Calling Java
+
+The `github.com/mehran9675/giode/android` package calls static Java methods through the
+app's class loader, so the app's own classes resolve as well as the SDK's. Put the compiled
+classes in a `.jar` in one of the app's packages (giode build adds it to the APK; with
+`android.java` in giode.toml it compiles the sources for you):
+
+```go
+import "github.com/mehran9675/giode/android"
+
+ok, err := android.CallBool("com/example/usb/Usb", "hasPermission",
+	"(Landroid/content/Context;Ljava/lang/String;)Z", android.Context(), deviceName)
+```
+
+`CallVoid`, `CallBool`, `CallInt`, `CallString` and `CallBytes` take Go strings, byte
+slices, numbers, bools and object references as arguments; `Java(class, fn)` runs `fn`
+with the JNI environment (from `git.wow.st/gmp/jni`) for anything else. Java calls back
+through `//export Java_<class>_<method>` functions, with `android.GoString` and
+`android.GoBytes` for their arguments. Elsewhere the calls return `errors.ErrUnsupported`.
+
 ## Touch and the Back button
 
 giode adapts to touch on its own: on a touch screen `Button`, `IconButton` and `Checkbox`
