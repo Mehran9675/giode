@@ -20,6 +20,7 @@ import (
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -196,13 +197,13 @@ func (m *editMenu) close() {
 func (m *editMenu) do(gtx layout.Context, in *Input, action string) {
 	ed := &in.editor
 	switch action {
-	case "Cut":
+	case "cut":
 		if t := ed.SelectedText(); t != "" && ed.Mask == 0 {
 			kit.WriteClipboard(gtx, t)
 			ed.Delete(1)
 		}
 		m.close()
-	case "Copy":
+	case "copy":
 		if t := ed.SelectedText(); t != "" && ed.Mask == 0 {
 			kit.WriteClipboard(gtx, t)
 		}
@@ -210,11 +211,11 @@ func (m *editMenu) do(gtx layout.Context, in *Input, action string) {
 		c := max(s, e)
 		ed.SetCaret(c, c)
 		m.close()
-	case "Paste":
+	case "paste":
 		// The editor inserts the clipboard's text when it arrives.
 		gtx.Execute(clipboard.ReadCmd{Tag: ed})
 		m.close()
-	case "Select all":
+	case "select_all":
 		ed.SetCaret(ed.Len(), 0)
 		// Stay open for Cut or Copy.
 	}
@@ -227,16 +228,16 @@ func (m *editMenu) actions(in *Input) []string {
 	var out []string
 	sel := ed.SelectionLen() > 0
 	if sel && !ed.ReadOnly && ed.Mask == 0 {
-		out = append(out, "Cut")
+		out = append(out, "cut")
 	}
 	if sel && ed.Mask == 0 {
-		out = append(out, "Copy")
+		out = append(out, "copy")
 	}
 	if !ed.ReadOnly {
-		out = append(out, "Paste")
+		out = append(out, "paste")
 	}
 	if n := ed.Len(); n > 0 && ed.SelectionLen() < n {
-		out = append(out, "Select all")
+		out = append(out, "select_all")
 	}
 	return out
 }
@@ -388,8 +389,8 @@ func (m *editMenu) layoutBar(gtx layout.Context, acts []string, sel image.Rectan
 					bg = "#374151"
 				}
 				return elements.Box(styles.Styles{Background: properties.Color(bg), BorderRadius: 6, Padding: properties.SymmetricInset(12, 8)},
-					elements.Text(action, styles.Styles{Color: "#f9fafb", FontSize: 14}))
-			}).Label(a).OnClick(func(elements.ClickEvent) { m.action = action })
+					elements.Text(i18n.T("giode."+action), styles.Styles{Color: "#f9fafb", FontSize: 14}))
+			}).Label(i18n.T("giode." + a)).OnClick(func(elements.ClickEvent) { m.action = action })
 			m.buttons[a] = btn
 		}
 		items = append(items, btn)

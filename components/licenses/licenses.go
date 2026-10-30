@@ -15,6 +15,7 @@ import (
 
 	"github.com/mehran9675/giode/components/lazylist"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -78,7 +79,7 @@ func (v *View) row(i int) elements.Element {
 			}
 			kind := l.Type
 			if kind == "" {
-				kind = "License"
+				kind = i18n.T("giode.license")
 			}
 			bg := properties.Color("")
 			if p.Hovered || p.Pressed {
@@ -99,7 +100,7 @@ func (v *View) row(i int) elements.Element {
 	}
 	text := l.Text
 	if text == "" {
-		text = "No license file was found in this module."
+		text = i18n.T("giode.no_license")
 	}
 	return elements.Box(styles.Styles{Width: -1, FlexDirection: properties.FlexDirectionColumn},
 		head,

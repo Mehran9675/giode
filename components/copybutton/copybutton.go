@@ -9,6 +9,7 @@ import (
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -39,7 +40,7 @@ type CopyButton struct {
 // argument is optional: Color (glyph and label, default theme.text),
 // Background, Padding, BorderRadius, FontSize.
 func New(text func() string, st ...styles.Styles) *CopyButton {
-	c := &CopyButton{text: text, label: "Copy", copied: "Copied", feedback: DefaultFeedback}
+	c := &CopyButton{text: text, label: builtinLabel, copied: builtinLabel, feedback: DefaultFeedback}
 	if len(st) > 0 {
 		c.st = st[0]
 	}
@@ -48,9 +49,12 @@ func New(text func() string, st ...styles.Styles) *CopyButton {
 			t := c.text()
 			c.pending = &t
 		}
-	}).Label("Copy")
+	}).Label(i18n.T("giode.copy"))
 	return c
 }
+
+// builtinLabel stands for giode's own, translated label.
+const builtinLabel = "\x00giode"
 
 // Labels sets the text shown before and after copying; empty strings
 // show the glyph alone. It returns c for chaining.
@@ -103,8 +107,14 @@ func (c *CopyButton) content(s elements.PressState) elements.Element {
 		st.Background = kit.Alpha(st.Color, 0.08)
 	}
 	glyph, label := kit.GlyphCopy, c.label
+	if label == builtinLabel {
+		label = i18n.T("giode.copy")
+	}
 	if c.showing {
 		glyph, label = kit.GlyphCheck, c.copied
+		if label == builtinLabel {
+			label = i18n.T("giode.copied")
+		}
 	}
 	children := []elements.Element{elements.Glyph(glyph, styles.Styles{Color: st.Color, Width: 14})}
 	if label != "" {

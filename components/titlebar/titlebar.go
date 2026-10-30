@@ -18,6 +18,7 @@ import (
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -249,14 +250,67 @@ func (t *TitleBar) Layout(gtx layout.Context) layout.Dimensions {
 	cl.Pop()
 	kit.DragArea(gtx, size)
 
-	titleText := elements.Text(t.title, styles.Styles{
-		Color: textColor, FontSize: st.FontSize, FontWeight: st.FontWeight,
-		TextOverflow: properties.TextOverflowEllipsis,
-	})
 	pad := st.Padding
 	if pad == (properties.Inset{}) {
 		pad = properties.SymmetricInset(12, 0)
 	}
+	// The window buttons sit flush with the right edge, outside the
+	// padding, as on Windows; the mac ones are part of the row.
+	bw := 0
+	if t.variant != VariantMac {
+		bw = t.windowsButtonsWidth(gtx)
+	}
+	rowW := max(0, size.X-bw)
+
+	// Everything but the title keeps its natural width; the title gets
+	// what's left and ends in an ellipsis, so a long one never pushes
+	// the menus under the window buttons.
+	gap := gtx.Dp(8)
+	mgtx := gtx
+	mgtx.Constraints = layout.Constraints{Max: image.Pt(rowW, h)}
+	measure := func(els []elements.Element) (w, n int) {
+		for _, el := range els {
+			if el == nil {
+				continue
+			}
+			w += elements.Measure(mgtx, el).Size.X
+			n++
+		}
+		return w, n
+	}
+	var left, right []elements.Element
+	if t.variant == VariantMac {
+		left = append(left, t.macButtons(focused))
+	}
+	if t.icon != nil {
+		left = append(left, t.icon)
+	}
+	left = append(left, t.leading...)
+	right = append(right, t.trailing...)
+	leftW, leftN := measure(left)
+	rightW, rightN := measure(right)
+	padX := gtx.Dp(unit.Dp(pad.Left)) + gtx.Dp(unit.Dp(pad.Right))
+
+	var titleMax int
+	if t.variant == VariantMac {
+		// Centered over the bar, clear of both sides.
+		side := max(gtx.Dp(unit.Dp(pad.Left))+leftW+leftN*gap, gtx.Dp(unit.Dp(pad.Right))+rightW+rightN*gap)
+		titleMax = max(0, size.X-2*side)
+	} else {
+		// The title, then the leading elements, a spacer and the
+		// trailing ones: one gap after each element but the last.
+		n := leftN + rightN + 2
+		titleMax = max(0, rowW-padX-leftW-rightW-(n-1)*gap-gtx.Dp(8))
+	}
+	titleText := elements.Text(t.title, styles.Styles{
+		Color: textColor, FontSize: st.FontSize, FontWeight: st.FontWeight,
+		TextOverflow: properties.TextOverflowEllipsis, MaxLines: 1,
+	})
+	titleBox := elements.Raw(func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = 0
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, titleMax)
+		return titleText.Layout(gtx)
+	})
 
 	var row []elements.Element
 	if t.variant == VariantMac {
@@ -271,7 +325,7 @@ func (t *TitleBar) Layout(gtx layout.Context) layout.Dimensions {
 		row = append(row, t.wrap(t.leading)...)
 		row = append(row, elements.Box(styles.Styles{FlexGrow: 1}))
 	} else {
-		row = append(row, elements.Box(styles.Styles{Padding: properties.Inset{Right: 8}}, titleText))
+		row = append(row, elements.Box(styles.Styles{Padding: properties.Inset{Right: 8}}, titleBox))
 		row = append(row, t.wrap(t.leading)...)
 		row = append(row, elements.Box(styles.Styles{FlexGrow: 1}))
 	}
@@ -287,21 +341,18 @@ func (t *TitleBar) Layout(gtx layout.Context) layout.Dimensions {
 		// Centered title, painted over the empty middle.
 		macro := op.Record(gtx.Ops)
 		tgtx := gtx
-		tgtx.Constraints = layout.Constraints{Max: image.Pt(size.X/2, h)}
-		td := titleText.Layout(tgtx)
+		tgtx.Constraints = layout.Constraints{Max: image.Pt(titleMax, h)}
+		td := titleBox.Layout(tgtx)
 		call := macro.Stop()
 		off := op.Offset(image.Pt((size.X-td.Size.X)/2, (h-td.Size.Y)/2)).Push(gtx.Ops)
 		call.Add(gtx.Ops)
 		off.Pop()
 	} else {
-		// Window buttons sit flush with the right edge, outside the
-		// padding, as on Windows.
-		bw := t.windowsButtonsWidth(gtx)
 		cgtx := gtx
-		cgtx.Constraints = layout.Exact(image.Pt(max(0, size.X-bw), h))
+		cgtx.Constraints = layout.Exact(image.Pt(rowW, h))
 		content.Layout(cgtx)
-		off := op.Offset(image.Pt(size.X-bw, 0)).Push(gtx.Ops)
-		pop := elements.PushOffset(image.Pt(size.X-bw, 0))
+		off := op.Offset(image.Pt(rowW, 0)).Push(gtx.Ops)
+		pop := elements.PushOffset(image.Pt(rowW, 0))
 		t.windowsButtons(gtx, h, textColor)
 		pop()
 		off.Pop()
@@ -410,14 +461,14 @@ func (t *TitleBar) glyphFor(b Button) kit.Glyph {
 func (t *TitleBar) buttonLabel(b Button) string {
 	switch b {
 	case ButtonMinimize:
-		return "Minimize"
+		return i18n.T("giode.minimize")
 	case ButtonMaximize:
 		if t.win.Maximized() {
-			return "Restore"
+			return i18n.T("giode.restore")
 		}
-		return "Maximize"
+		return i18n.T("giode.maximize")
 	default:
-		return "Close"
+		return i18n.T("giode.close")
 	}
 }
 
