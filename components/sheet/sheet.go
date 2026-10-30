@@ -384,3 +384,7 @@ func abs(v float32) float32 {
 	}
 	return v
 }
+
+// OutOfFlow marks the sheet as taking no space in a Box, so the box's
+// Gap leaves it out; see elements.OutOfFlow.
+func (s *Sheet) OutOfFlow() {}

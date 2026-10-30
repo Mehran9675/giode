@@ -29,3 +29,38 @@ func TestTabWidth(t *testing.T) {
 		}
 	}
 }
+
+func TestMixFollowsTheme(t *testing.T) {
+	defer SetMode(CurrentMode())
+	c := Mix("theme.text", "theme.background", 0.5)
+	SetMode(ModeLight)
+	light := CalcColor(c)
+	SetMode(ModeDark)
+	dark := CalcColor(c)
+	if light == dark {
+		t.Errorf("%s resolved to %v in both modes", c, light)
+	}
+	want := mixNRGBA(CalcColor("theme.text"), CalcColor("theme.background"), 0.5)
+	if dark != want {
+		t.Errorf("%s = %v in dark mode, want %v", c, dark, want)
+	}
+	if got := CalcColor(Mix(c, "#000000", 1)); got != dark {
+		t.Errorf("nested mix = %v, want %v", got, dark)
+	}
+}
+
+func TestColorMix(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"color-mix(in srgb, #ffffff 5%, #101115)", "#1C1D21FF"},
+		{"color-mix(in srgb, #ff0000, #0000ff 100%)", "#0000FFFF"},
+		{"color-mix(in srgb, rgb(255 0 0), #0000ff)", "#800080FF"},
+	} {
+		c, err := ParseColor(tc.in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := CalcColorReverse(c); got != tc.want {
+			t.Errorf("%s = %s, want %s", tc.in, got, tc.want)
+		}
+	}
+}

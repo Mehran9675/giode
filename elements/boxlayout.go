@@ -65,7 +65,7 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	applyPct(&gtx.Constraints, layout.Vertical, int(st.HeightPct))
 	applyAspect(&gtx.Constraints, st)
 
-	flow, absolute, ordered := b.split()
+	flow, absolute, outside, ordered := b.split()
 
 	// Lay the content out into a macro so the background can be
 	// painted underneath it once its size is known. Children's own
@@ -87,6 +87,9 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 		// record every child and paint them once all are placed, in z
 		// order, mirrored for right to left.
 		zs = new([]zPaint)
+	}
+	for _, el := range outside {
+		el.Layout(cgtx)
 	}
 	dims := b.layoutFlex(cgtx, st, flow, zs)
 	if len(absolute) > 0 {

@@ -177,3 +177,7 @@ func abs(v float32) float32 {
 func clamp01(v float32) float32 {
 	return max(0, min(1, v))
 }
+
+// OutOfFlow marks the drawer as taking no space in a Box, so the box's
+// Gap leaves it out; see elements.OutOfFlow.
+func (d *Drawer) OutOfFlow() {}

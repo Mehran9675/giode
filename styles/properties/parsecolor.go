@@ -30,6 +30,11 @@ func ParseColor(s string) (color.NRGBA, error) {
 		return parseRGBFunc(v, s)
 	case strings.HasPrefix(v, "hsl"):
 		return parseHSLFunc(v, s)
+	case strings.HasPrefix(v, "color-mix("):
+		if c, ok := parseColorMix(s); ok {
+			return c, nil
+		}
+		return color.NRGBA{}, fmt.Errorf("%w %q", ErrInvalidColor, s)
 	}
 	if hex, ok := namedColors[v]; ok {
 		return parseHex(hex[1:], s)

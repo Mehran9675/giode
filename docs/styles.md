@@ -40,9 +40,12 @@ physically correct but differs from browsers and design tools, which blend in sR
 faint overlay comes out much brighter than in CSS: `"#ffffff0d"` (5% white) over
 `"#101115"` renders close to `"#434344"`, where a browser shows about `"#1c1d21"`. For
 tints, hover and pressed shades, use an opaque color mixed in sRGB space instead:
-`giode.Mix("#ffffff", "#101115", 0.05)` returns `"#1C1D21FF"`. `Mix` resolves theme tokens
-when it's called, so call it in the view function (`giode.Mix("theme.text",
-"theme.background", 0.08)`) to follow theme changes.
+`giode.Mix("#ffffff", "#101115", 0.05)` returns `"#1C1D21FF"`. With a theme token on
+either side, `Mix` returns a CSS `color-mix()` value instead
+(`giode.Mix("theme.text", "theme.background", 0.08)` is
+`"color-mix(in srgb, theme.text 8%, theme.background)"`), which resolves against the
+palette whenever it's painted, so a mixed color made once, at construction, follows
+light/dark switches. `color-mix(in srgb, …)` can also be written by hand.
 
 **Inheritance.** Like CSS, a Box's `Color` is inherited: Text, icons and glyphs inside it
 that set no `Color` of their own use it, and the value `"currentColor"` refers to it

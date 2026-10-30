@@ -12,6 +12,10 @@ import (
 	"github.com/mehran9675/giode/styles/properties"
 )
 
+// chipColor is the default fill: a faint tint of the text, mixed opaque
+// so it stays faint on dark themes.
+var chipColor = properties.Mix("theme.text", "theme.background", 0.08)
+
 // Chip is a rounded label with an optional icon, a selected state and a
 // remove button. Without OnClick or OnRemove it's a plain element that
 // can be built every frame; with them, create it once (or with Keyed),
@@ -23,6 +27,7 @@ type Chip struct {
 	onClick  func()
 	onRemove func()
 	st       styles.Styles
+	selSt    styles.Styles
 
 	press      *elements.Pressable
 	remove     widget.Clickable
@@ -30,9 +35,10 @@ type Chip struct {
 }
 
 // New returns a chip. The styles argument is optional: Background
-// (default a faint tint of the text; theme.primary when selected),
-// Color (default theme.text; theme.onprimary when selected),
-// BorderColor, FontSize.
+// (default a faint tint of the text), Color (default theme.text),
+// BorderColor, FontSize. They style the unselected chip; a selected
+// chip keeps its theme.primary fill and theme.onprimary text unless
+// SelectedStyles sets others.
 func New(label string, st ...styles.Styles) *Chip {
 	c := &Chip{label: label}
 	if len(st) > 0 {
@@ -51,6 +57,14 @@ func (c *Chip) Icon(el elements.Element) *Chip {
 // chaining.
 func (c *Chip) Selected(on bool) *Chip {
 	c.selected = on
+	return c
+}
+
+// SelectedStyles sets the styles merged over st when the chip is
+// selected (default Background theme.primary, Color theme.onprimary,
+// BorderColor theme.primary). It returns c for chaining.
+func (c *Chip) SelectedStyles(st styles.Styles) *Chip {
+	c.selSt = st
 	return c
 }
 
@@ -77,18 +91,27 @@ func (c *Chip) Click() {
 	}
 }
 
-func (c *Chip) content(p elements.PressState) elements.Element {
-	bg, fg := "theme.text/0.08", properties.Color("theme.text")
-	if c.selected {
-		bg, fg = "theme.primary", "theme.onprimary"
-	}
+// styles returns the chip's styles for its selected state.
+func (c *Chip) styles() styles.Styles {
 	st := styles.Merge(styles.Styles{
-		Background: bg, Color: fg, FontSize: 13, BorderRadius: 999,
+		Background: chipColor, Color: "theme.text", FontSize: 13, BorderRadius: 999,
 		Padding: properties.SymmetricInset(12, 6), Align: properties.AlignCenter, Gap: 6,
 	}, c.st)
-	if c.st.BorderColor != "" && c.st.BorderWidth == 0 {
+	if c.selected {
+		st.Background, st.Color = "theme.primary", "theme.onprimary"
+		if st.BorderColor != "" {
+			st.BorderColor = "theme.primary"
+		}
+		st = styles.Merge(st, c.selSt)
+	}
+	if st.BorderColor != "" && st.BorderWidth == 0 {
 		st.BorderWidth = 1
 	}
+	return st
+}
+
+func (c *Chip) content(p elements.PressState) elements.Element {
+	st := c.styles()
 	if p.Pressed || p.Hovered {
 		st.Background = kit.Hovered(st.Background)
 	}
