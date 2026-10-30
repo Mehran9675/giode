@@ -32,6 +32,8 @@ notifications = true          # POST_NOTIFICATIONS for App.Notify (default true)
 queries = ["com.android.chrome"]
 manifest = '<uses-feature android:name="android.hardware.camera" android:required="false"/>'
 application = '<meta-data android:name="example" android:value="1"/>'
+application_attributes = { requestLegacyExternalStorage = "true" }  # on <application>
+java = ["android/java"]       # the app's own Java sources, compiled in (see giode/android)
 keystore = "release.keystore" # used by giode build -release
 keystore_pass_env = "GIODE_KEYSTORE_PASS"
 google_services = "google-services.json"   # from the Firebase console, for giode/push
