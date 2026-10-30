@@ -1,6 +1,7 @@
 package elements
 
 import (
+	"gioui.org/io/system"
 	"image"
 
 	"gioui.org/f32"
@@ -24,6 +25,9 @@ type portalEntry struct {
 	// overlay marks a full-window overlay (RegisterOverlay): laid out
 	// at the window's origin, never clamped or moved.
 	overlay bool
+	// alignEnd lines an around entry's right edge up with its
+	// trigger's, for right-to-left layouts.
+	alignEnd bool
 	// around, when set, is the trigger's rectangle relative to anchor
 	// (RegisterPortalAround): the content goes gap pixels below or
 	// above it, per place, rather than at the anchor.
@@ -107,11 +111,24 @@ func RegisterPortal(gtx layout.Context, anchor image.Point, build func() Element
 // RegisterPortal's flip, which only knows a point, flipping around the
 // rectangle never covers the trigger - a tooltip on a control bar at
 // the bottom of the window goes above its button.
+//
+// Its start edges line up with the trigger's: left edges, or right
+// edges when gtx reads right to left.
 func RegisterPortalAround(gtx layout.Context, trigger image.Rectangle, gap int, place Placement, build func() Element) {
 	RegisterPortal(gtx, trigger.Min, build)
 	e := &portalQueue[len(portalQueue)-1]
 	e.around = trigger.Sub(trigger.Min)
 	e.hasAround, e.gap, e.place = true, gap, place
+	e.alignEnd = gtx.Locale.Direction == system.RTL
+}
+
+// RegisterPortalEnd queues build like RegisterPortal with anchor as the
+// content's top-right corner rather than its top-left: a menu opened
+// at a point in a right-to-left layout extends to the left of it.
+func RegisterPortalEnd(gtx layout.Context, anchor image.Point, build func() Element) {
+	RegisterPortal(gtx, anchor, build)
+	e := &portalQueue[len(portalQueue)-1]
+	e.anchor.X -= e.size.X
 }
 
 // RegisterOverlay queues build to be laid out over the whole window,
@@ -193,6 +210,10 @@ func (e portalEntry) aroundPos() image.Point {
 	// overlap the trigger, but only when the window is too small for
 	// either side.
 	y = max(m, min(y, e.win.Y-e.size.Y-m))
-	x := max(m, min(r.Min.X, e.win.X-e.size.X-m))
+	x := r.Min.X
+	if e.alignEnd {
+		x = r.Max.X - e.size.X
+	}
+	x = max(m, min(x, e.win.X-e.size.X-m))
 	return image.Pt(x, y)
 }

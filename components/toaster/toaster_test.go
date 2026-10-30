@@ -174,3 +174,22 @@ func TestInsetKeepsToastsClearOfBars(t *testing.T) {
 		t.Errorf("toast bottom %d with Inset, %d without: want 60 px higher", inset, plain)
 	}
 }
+
+func TestPlacementFollowsDirection(t *testing.T) {
+	for _, c := range []struct {
+		p        Placement
+		rtl      bool
+		physical Placement
+	}{
+		{BottomEnd, false, BottomRight}, {BottomEnd, true, BottomLeft},
+		{TopStart, false, TopLeft}, {TopStart, true, TopRight},
+		{BottomRight, true, BottomRight}, {TopCenter, true, TopCenter},
+	} {
+		if got := c.p.physical(c.rtl); got != c.physical {
+			t.Errorf("%d rtl=%v: %d, want %d", c.p, c.rtl, got, c.physical)
+		}
+	}
+	if New().placement != BottomEnd {
+		t.Error("the default placement isn't BottomEnd")
+	}
+}

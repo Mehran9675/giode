@@ -411,6 +411,10 @@ const (
 const (
 	SideLeft  = drawer.Left
 	SideRight = drawer.Right
+	// SideStart and SideEnd follow the reading direction: left and
+	// right, swapped in a right-to-left locale.
+	SideStart = drawer.Start
+	SideEnd   = drawer.End
 )
 
 // --- Icons ----------------------------------------------------------------
@@ -584,6 +588,12 @@ const (
 	ToastTopRight     = toaster.TopRight
 	ToastTopLeft      = toaster.TopLeft
 	ToastTopCenter    = toaster.TopCenter
+	// ToastBottomEnd (the default), ToastBottomStart, ToastTopEnd and
+	// ToastTopStart follow the reading direction.
+	ToastBottomEnd   = toaster.BottomEnd
+	ToastBottomStart = toaster.BottomStart
+	ToastTopEnd      = toaster.TopEnd
+	ToastTopStart    = toaster.TopStart
 )
 
 // Placement is the side of its trigger a tooltip (or any portal placed

@@ -176,7 +176,11 @@ func (s *Switch) track(st styles.Styles) layout.Widget {
 			defer clip.UniformRRect(image.Rectangle{Max: size}, size.Y/2).Push(gtx.Ops).Pop()
 			paint.Fill(gtx.Ops, c)
 		}()
+		// Right to left, on is the knob at the left.
 		x := inset + int(float32(size.X-2*inset-knob)*s.pos)
+		if kit.RTL(gtx) {
+			x = size.X - x - knob
+		}
 		r := image.Rect(x, inset, x+knob, inset+knob)
 		defer clip.Ellipse(r).Push(gtx.Ops).Pop()
 		off, on := s.knobOff, s.knobOn

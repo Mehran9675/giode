@@ -67,6 +67,8 @@ func (p *ProgressElement) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	fillW := int(v * float32(size.X))
 	if fillW > height/2 {
+		// Right to left, the bar fills from the right.
+		defer kit.MirrorRTL(gtx, size.X)()
 		defer clip.UniformRRect(image.Rect(0, 0, fillW, height), height/2).Push(gtx.Ops).Pop()
 		paint.Fill(gtx.Ops, properties.CalcColor(fill))
 	}

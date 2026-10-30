@@ -54,9 +54,42 @@ const (
 	TopRight
 	TopLeft
 	TopCenter
+	// BottomEnd, BottomStart, TopEnd and TopStart follow the reading
+	// direction: BottomEnd is the bottom right, or the bottom left in a
+	// right-to-left locale. BottomEnd is the default.
+	BottomEnd
+	BottomStart
+	TopEnd
+	TopStart
 )
 
-func (p Placement) top() bool { return p >= TopRight }
+func (p Placement) top() bool {
+	switch p {
+	case TopRight, TopLeft, TopCenter, TopEnd, TopStart:
+		return true
+	}
+	return false
+}
+
+// physical resolves the start and end placements for a layout reading
+// right to left or not.
+func (p Placement) physical(rtl bool) Placement {
+	switch p {
+	case BottomEnd, BottomStart, TopEnd, TopStart:
+		end := p == BottomEnd || p == TopEnd
+		right := end != rtl
+		switch {
+		case p.top() && right:
+			return TopRight
+		case p.top():
+			return TopLeft
+		case right:
+			return BottomRight
+		}
+		return BottomLeft
+	}
+	return p
+}
 
 // DefaultDuration is how long a toast stays up, not counting time
 // spent hovered.
@@ -124,14 +157,15 @@ type toast struct {
 // BorderColor (default theme.border), BorderRadius, Width (dp, default
 // 340), FontSize.
 func New(st ...styles.Styles) *Toaster {
-	t := &Toaster{duration: DefaultDuration, max: 3, dismiss: map[int]bool{}}
+	t := &Toaster{duration: DefaultDuration, max: 3, dismiss: map[int]bool{}, placement: BottomEnd}
 	if len(st) > 0 {
 		t.st = st[0]
 	}
 	return t
 }
 
-// Placement sets where toasts appear (default BottomRight). It returns
+// Placement sets where toasts appear (default BottomEnd: the bottom
+// right, or bottom left right to left). It returns
 // t for chaining.
 func (t *Toaster) Placement(p Placement) *Toaster {
 	t.placement = p
@@ -305,7 +339,7 @@ func (t *Toaster) toastView(ts *toast) elements.Element {
 	if ts.act != nil {
 		children = append(children, ts.act)
 	}
-	children = append(children, elements.Box(styles.Styles{Padding: properties.Inset{Right: 8, Left: 4}}, ts.close))
+	children = append(children, elements.Box(styles.Styles{Padding: properties.Inset{End: 8, Start: 4}}, ts.close))
 	row := elements.Row(box, children...)
 	// The kind's accent stripe runs down the left edge at the toast's
 	// own height, painted once that height is known.
@@ -426,7 +460,7 @@ func (t *Toaster) layoutStack(gtx layout.Context) layout.Dimensions {
 	cgtx.Constraints = layout.Constraints{Max: image.Pt(w, max(0, win.Y-2*m-in.Min.Y-in.Max.Y))}
 	dims := elements.Measure(cgtx, stack)
 	var x, y int
-	switch t.placement {
+	switch t.placement.physical(kit.RTL(gtx)) {
 	case BottomLeft, TopLeft:
 		x = m + in.Min.X
 	case BottomCenter, TopCenter:

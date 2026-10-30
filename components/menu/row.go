@@ -151,7 +151,7 @@ func (r *menuRow) Layout(gtx layout.Context) layout.Dimensions {
 		if item.submenu != nil {
 			children = append(children,
 				elements.Box(styles.Styles{Width: 8}),
-				elements.Glyph(kit.GlyphChevronRight, styles.Styles{Color: r.st.Color, Width: 14}),
+				elements.Glyph(kit.GlyphChevronForward, styles.Styles{Color: r.st.Color, Width: 14}),
 			)
 		}
 		// Width -1 makes the row span the shared width, so the growing
@@ -210,7 +210,9 @@ func (m *Menu) submenuX(gtx layout.Context, sub *Menu, rowRight int) int {
 	margin := gtx.Dp(unit.Dp(kit.Margin))
 	right, left := rowRight, m.panelLeft-w
 	fitsRight, fitsLeft := right+w <= win.X-margin, left >= margin
-	toLeft := m.opensLeft
+	// A root menu's submenus open on its reading side: right, or left
+	// right to left; deeper ones keep the direction their parent took.
+	toLeft := m.opensLeft || (m.parent == nil && kit.RTL(gtx))
 	switch {
 	case toLeft && !fitsLeft && fitsRight:
 		toLeft = false

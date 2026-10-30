@@ -151,7 +151,7 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 
 	st := styles.Merge(styles.Styles{Background: trackColor, BorderColor: "theme.surface", Color: "theme.text", FontSize: 14}, c.st)
 	pad := gtx.Dp(3)
-	segment := func(i int) elements.Element {
+	segment := func(i int, fill bool) elements.Element {
 		var kids []elements.Element
 		if i < len(c.icons) && c.icons[i] != nil {
 			kids = append(kids, c.icons[i])
@@ -163,7 +163,11 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 			}
 			kids = append(kids, elements.Text(c.options[i], styles.Styles{Color: st.Color, FontSize: st.FontSize, FontWeight: w}))
 		}
-		return elements.Row(styles.Styles{Width: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter, Gap: 6, Padding: properties.SymmetricInset(14, 7), Color: st.Color}, kids...)
+		var w properties.Width
+		if fill {
+			w = -1
+		}
+		return elements.Row(styles.Styles{Width: w, Justify: properties.JustifyCenter, Align: properties.AlignCenter, Gap: 6, Padding: properties.SymmetricInset(14, 7), Color: st.Color}, kids...)
 	}
 
 	// Segments share the width equally: the widest one's natural
@@ -172,7 +176,7 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 	mgtx.Constraints.Min = image.Point{}
 	segW, segH := 0, 0
 	for i := range c.options {
-		d := elements.Measure(mgtx, segment(i))
+		d := elements.Measure(mgtx, segment(i, false))
 		segW, segH = max(segW, d.Size.X), max(segH, d.Size.Y)
 	}
 	switch w := c.st.Px(gtx.Metric).Width; {
@@ -189,14 +193,24 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 		defer clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops).Pop()
 		paint.Fill(gtx.Ops, properties.CalcColor(st.Background))
 	}()
-	hx := pad + int(c.pos*float32(segW))
+	// Right to left, the first option is the rightmost.
+	rtl := kit.RTL(gtx)
+	hpos := c.pos
+	if rtl {
+		hpos = float32(n-1) - c.pos
+	}
+	hx := pad + int(hpos*float32(segW))
 	func() {
 		defer clip.UniformRRect(image.Rect(hx, pad, hx+segW, pad+segH), radius-pad).Push(gtx.Ops).Pop()
 		paint.Fill(gtx.Ops, properties.CalcColor(st.BorderColor))
 	}()
 	for i := range c.options {
 		func() {
-			pos := image.Pt(pad+i*segW, pad)
+			slot := i
+			if rtl {
+				slot = n - 1 - i
+			}
+			pos := image.Pt(pad+slot*segW, pad)
 			defer op.Offset(pos).Push(gtx.Ops).Pop()
 			pop := elements.PushOffset(pos)
 			defer pop()
@@ -206,7 +220,7 @@ func (c *Control) Layout(gtx layout.Context) layout.Dimensions {
 				if c.clicks[i].Hovered() {
 					pointer.CursorPointer.Add(gtx.Ops)
 				}
-				return elements.Box(styles.Styles{Width: -1, Height: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter}, segment(i)).Layout(gtx)
+				return elements.Box(styles.Styles{Width: -1, Height: -1, Justify: properties.JustifyCenter, Align: properties.AlignCenter}, segment(i, true)).Layout(gtx)
 			}))
 			elements.RecordSemantic(gtx, elements.SemanticNode{Kind: elements.SemanticTab, Label: c.options[i], Value: boolString(i == c.selected), Target: &c.clicks[i]}, d.Size)
 		}()

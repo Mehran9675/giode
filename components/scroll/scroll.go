@@ -47,7 +47,10 @@ type Scroll struct {
 
 	axis Axis
 	// Horizontal scrolling: offset, sizes and scrollbar.
-	offsetX   float32
+	offsetX float32
+	// rtl records that the last layout read right to left, where
+	// offsetX counts from the right edge.
+	rtl       bool
 	scrollX   gesture.Scroll
 	gest      kit.ScrollGesture
 	gestX     kit.ScrollGesture
@@ -135,12 +138,15 @@ func (s *Scroll) Styles(st styles.Styles) *Scroll {
 	return s
 }
 
-// OffsetX returns the horizontal offset in pixels.
+// OffsetX returns the horizontal offset in pixels, from the start
+// edge: the left, or the right in a right-to-left locale, where a
+// horizontal Scroll starts at its right end as in a browser.
 func (s *Scroll) OffsetX() float32 {
 	return s.offsetX
 }
 
-// ScrollToX sets the horizontal offset in pixels.
+// ScrollToX sets the horizontal offset in pixels, from the start edge
+// (see OffsetX).
 func (s *Scroll) ScrollToX(v float32) {
 	s.offsetX = v
 }
@@ -287,6 +293,7 @@ func (s *Scroll) clamp(v float32) float32 {
 // Layout lays out the scrollable content.
 func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	s.pxPerDp = gtx.Metric.PxPerDp
+	s.rtl = kit.RTL(gtx)
 	vert, horiz := s.vertical(), s.horizontal()
 
 	// Lay the content out with unlimited room along the scrolling
@@ -403,7 +410,7 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	// The content was laid out before the offset was final: move what
 	// it registered (dropdown anchors, semantic nodes) with it.
-	off := image.Pt(-int(s.offsetX), -int(s.offset))
+	off := image.Pt(-int(s.viewLeft()), -int(s.offset))
 	track.Place(off)
 	offOp := op.Offset(off).Push(gtx.Ops)
 	contentOps.Add(gtx.Ops)
@@ -429,6 +436,10 @@ func (s *Scroll) Layout(gtx layout.Context) layout.Dimensions {
 // ui_scroll) scrolls.
 func (s *Scroll) ScrollBy(dx, dy float32) {
 	s.offset += dy
+	if s.rtl {
+		// The offset counts from the right edge.
+		dx = -dx
+	}
 	s.offsetX += dx
 	if dy < 0 {
 		s.following = false
@@ -464,10 +475,17 @@ func (s *Scroll) updateGestures(gtx layout.Context) (dist, distX int) {
 		}
 	}
 	if s.horizontal() {
-		rangeX := pointer.ScrollRange{Min: -int(s.offsetX), Max: s.maxOffsetX() - int(s.offsetX)}
+		// The gesture works in physical pixels from the left; right to
+		// left, offsetX counts from the right.
+		left := s.viewLeft()
+		rangeX := pointer.ScrollRange{Min: -int(left), Max: s.maxOffsetX() - int(left)}
 		distX = s.scrollX.Update(gtx.Metric, gtx.Source, gtx.Now, gesture.Horizontal, rangeX, pointer.ScrollRange{})
 		if distX != 0 {
-			s.offsetX = max(0, min(s.offsetX+float32(distX), float32(s.maxOffsetX())))
+			d := float32(distX)
+			if s.rtl {
+				d = -d
+			}
+			s.offsetX = max(0, min(s.offsetX+d, float32(s.maxOffsetX())))
 		}
 		s.gestX.Track(&s.scrollX, distX)
 	}
@@ -499,6 +517,9 @@ func (s *Scroll) notify() {
 // layoutScrollbarX draws the horizontal scrollbar along the bottom
 // edge: the vertical one, with the axes swapped.
 func (s *Scroll) layoutScrollbarX(gtx layout.Context, viewport image.Point) {
+	// Right to left, the thumb measures from the right edge, as the
+	// offset does.
+	defer kit.MirrorRTL(gtx, viewport.X)()
 	swap := f32.NewAffine2D(0, 1, 0, 1, 0, 0)
 	defer op.Affine(swap).Push(gtx.Ops).Pop()
 	sgtx := gtx
@@ -507,7 +528,18 @@ func (s *Scroll) layoutScrollbarX(gtx layout.Context, viewport image.Point) {
 }
 
 // layoutScrollbar draws the track and draggable thumb when the
-// content overflows, fully customized via st.ScrollBar.
+// content overflows, fully customized via st.ScrollBar: along the right
+// edge, or the left one right to left.
 func (s *Scroll) layoutScrollbar(gtx layout.Context, viewport image.Point) {
+	// Right to left, along the left edge, as browsers place it.
+	defer kit.MirrorRTL(gtx, viewport.X)()
 	s.bar.Layout(gtx, viewport, s.contentH, &s.offset, s.st.ScrollBar)
+}
+
+// viewLeft is the visible area's left edge in the content, in pixels.
+func (s *Scroll) viewLeft() float32 {
+	if s.rtl {
+		return float32(s.maxOffsetX()) - s.offsetX
+	}
+	return s.offsetX
 }

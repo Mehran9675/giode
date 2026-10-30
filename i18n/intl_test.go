@@ -73,3 +73,13 @@ func TestBuiltinStrings(t *testing.T) {
 		t.Errorf("app override: %q", got)
 	}
 }
+
+func TestRTLLocales(t *testing.T) {
+	defer SetLocale(Locale())
+	for loc, want := range map[string]bool{"ar": true, "fa-IR": true, "he": true, "ckb": true, "pa-Arab": true, "az-Arab-IR": true, "fa-Latn": false, "en": false, "pa": false, "ur-PK": true} {
+		SetLocale(loc)
+		if RTL() != want {
+			t.Errorf("%s: RTL %v, want %v", loc, RTL(), want)
+		}
+	}
+}

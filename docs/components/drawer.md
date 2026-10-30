@@ -24,7 +24,7 @@ whole window as an overlay, so it can sit anywhere in the tree.
 
 | Member | Description |
 | --- | --- |
-| `Drawer(open *bool, side Side, width int, content func() Element, st ...Styles) *Drawer` | Creates the drawer; `side` is `SideLeft` or `SideRight`. |
+| `Drawer(open *bool, side Side, width int, content func() Element, st ...Styles) *Drawer` | Creates the drawer; `side` is `SideLeft` or `SideRight`, or `SideStart`/`SideEnd`, which follow the reading direction (`SideStart` is the right in a right-to-left locale). |
 | `Opened() bool` | Whether the drawer is open. |
 | `Dismissible(on bool) *Drawer` | Whether the scrim, Back, Escape and dragging close it (on by default). |
 | `SwipeToOpen(on bool) *Drawer` | Drag from the window edge to open it (off by default). |

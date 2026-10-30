@@ -3,6 +3,7 @@
 package badge
 
 import (
+	"github.com/mehran9675/giode/components/kit"
 	"image"
 
 	"gioui.org/layout"
@@ -64,7 +65,12 @@ func (b *Badge) Layout(gtx layout.Context) layout.Dimensions {
 	bd := b.pill().Layout(mgtx)
 	call := macro.Stop()
 	track.End()
+	// On the target's top end corner: top-right, or top-left right to
+	// left.
 	pos := image.Pt(dims.Size.X-bd.Size.X*2/3, -bd.Size.Y/3)
+	if kit.RTL(gtx) {
+		pos.X = -bd.Size.X / 3
+	}
 	track.Place(pos)
 	defer op.Offset(pos).Push(gtx.Ops).Pop()
 	call.Add(gtx.Ops)

@@ -433,11 +433,42 @@ message files: `"giode.close"`, `"giode.minimize"`, `"giode.maximize"`, `"giode.
 locale (English) to the key itself.
 
 The locale is the system's unless `Config.Locale` says otherwise; `giode.SetLocale` switches
-it at runtime and the UI redraws. In a right-to-left locale (Arabic, Persian, Hebrew, Urdu,
-...) giode mirrors the layout as CSS does for `direction: rtl`: rows run from the right,
-columns align to the right, and text aligns from the right. Absolutely positioned boxes
-keep their physical `Left` and `Right`. Load a font with the script's glyphs (see
+it at runtime and the UI redraws. Load a font with the script's glyphs (see
 [styles.md](styles.md)): the bundled fonts cover Latin, Greek and Cyrillic.
+
+### Right-to-left languages
+
+In a right-to-left locale (Arabic, Persian, Hebrew, Urdu, Sorani Kurdish, Pashto, Sindhi,
+Uyghur, Yiddish, Dhivehi, and any locale written in Arabic or Hebrew script, such as `pa-Arab`) giode mirrors the UI, as CSS does for `direction: rtl`, with no code in the
+app:
+
+- Rows run from the right, columns align to the right, and text aligns from the right (and
+  mixes in left-to-right words correctly).
+- Sliders, progress bars and switches fill from the right; a switch is on with its knob at
+  the left.
+- Segmented controls, tabs and pagination start at the right, and chevrons that point
+  "forward" (submenus, accordion and tree rows) point left.
+- Menus open leftward from the pointer or their trigger's right edge, submenus open to the
+  left, and dropdowns align with their trigger's right edge.
+- The title bar's window buttons move to the left edge, close first, as Windows does; the
+  mac variant's traffic lights move to the right.
+- Scroll bars run along the left edge, and a horizontal `Scroll` starts at its right end
+  (`OffsetX` counts from there).
+- A badge pins to the top-left corner; swipeable rows reveal leading actions on the right.
+- The app shell's navbar is on the right and its aside on the left; drawers and toasts
+  placed with `SideStart`/`SideEnd` and `ToastBottomEnd` (the default)/`ToastTopStart`/...
+  follow the direction.
+
+Physical positions stay physical, as in CSS: `Left`/`Right` of absolutely positioned boxes,
+`SideLeft`/`SideRight`, `ToastBottomRight`. For padding and margins that follow the
+direction, use the logical sides of `Inset`: `giode.Inset{Start: 16}` is a left inset, or a
+right one right to left (like `padding-inline-start`); `End` is the other side.
+
+Custom components can check `kit.RTL(gtx)`, flip drawing that has no text with
+`kit.MirrorRTL(gtx, width)` (pointer positions flip with it), use `kit.GlyphChevronForward`
+and `GlyphChevronBack`, and open portals at a point with `elements.RegisterPortalEnd`.
+To try a layout right to left without changing the system language, set
+`Config.Locale: "ar"` or call `giode.SetLocale("fa")`.
 
 ## Open-source notices
 

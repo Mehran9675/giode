@@ -376,7 +376,7 @@ func (t *Tree) rowView(i int) elements.Element {
 			arrow = elements.Box(styles.Styles{Width: arrowBox, Justify: properties.JustifyCenter, Align: properties.AlignCenter},
 				spinner.Spinner(styles.Styles{Color: arrowColor, Width: 12}))
 		case hasKids:
-			g := kit.GlyphChevronRight
+			g := kit.GlyphChevronForward
 			if expanded {
 				g = kit.GlyphChevronDown
 			}
@@ -396,7 +396,7 @@ func (t *Tree) rowView(i int) elements.Element {
 		}
 		return elements.Row(styles.Styles{
 			Width: -1, Height: -1, Background: bg, Align: properties.AlignCenter, Wrap: properties.WrapNoWrap,
-			Padding: properties.Inset{Left: 4 + r.depth*indent, Right: 8}, Gap: 4,
+			Padding: properties.Inset{Start: 4 + r.depth*indent, End: 8}, Gap: 4,
 		}, arrow, elements.Box(styles.Styles{FlexGrow: 1}, content))
 	})
 	return w.row

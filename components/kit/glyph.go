@@ -32,6 +32,12 @@ const (
 	GlyphRestore
 	// GlyphCopy is a copy-to-clipboard indicator: two stacked pages.
 	GlyphCopy
+	// GlyphChevronForward points in the reading direction: right, or
+	// left in a right-to-left locale. Submenus, collapsed rows and
+	// "next" use it.
+	GlyphChevronForward
+	// GlyphChevronBack points against the reading direction.
+	GlyphChevronBack
 )
 
 // glyphLines holds each glyph as polylines on a 24x24 grid.
@@ -64,6 +70,12 @@ type glyphKey struct {
 // DrawGlyph paints g in col at size dp, with round caps and joins, and
 // returns its dimensions.
 func DrawGlyph(gtx layout.Context, g Glyph, size unit.Dp, col color.NRGBA) layout.Dimensions {
+	switch g {
+	case GlyphChevronForward:
+		g = GlyphForward(gtx)
+	case GlyphChevronBack:
+		g = GlyphBack(gtx)
+	}
 	px := gtx.Dp(size)
 	sz := gtx.Constraints.Constrain(image.Pt(px, px))
 	if sz.X <= 0 || sz.Y <= 0 {
