@@ -41,6 +41,7 @@ import (
 	"github.com/mehran9675/giode/components/virtuallist"
 	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/router"
 	"github.com/mehran9675/giode/state"
 	"github.com/mehran9675/giode/styles"
@@ -201,6 +202,18 @@ var (
 	Stack = elements.Stack
 	Text  = elements.Text
 	Raw   = elements.Raw
+	// Intl returns the translation of key in the app's locale with data
+	// filled into its {placeholders}: a map, a struct or name, value
+	// pairs; a "count" picks plural forms. Turn translations on with
+	// Config.Intl. See i18n.Intl.
+	Intl = i18n.Intl
+	// SetLocale switches the app's locale ("fa", "pt-BR"); the UI
+	// redraws in it.
+	SetLocale = i18n.SetLocale
+	// Locale returns the app's locale.
+	Locale = i18n.Locale
+	// Locales lists the locales with messages loaded.
+	Locales = i18n.Locales
 	// Canvas is an element drawn with a Painter: shapes, arcs, rings,
 	// sectors and paths in dp; see elements.Canvas.
 	Canvas = elements.Canvas

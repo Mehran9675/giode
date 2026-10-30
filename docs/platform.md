@@ -375,26 +375,54 @@ finished something worthwhile, not from a button.
 
 ## Languages and right-to-left layout
 
-The `i18n` package translates the app's text:
+Translations are opt-in. Set `Config.Intl` and giode loads the message files from a folder
+at startup; `giode.Intl(key, data)` reads them:
+
+```
+locales/
+  en.json   {"greeting": "Hello, {name}!",
+             "unread": {"one": "{count} message", "other": "{count} messages"}}
+  fa.json   {"greeting": "سلام {name}!", ...}
+```
 
 ```go
-import "github.com/mehran9675/giode/i18n"
+app := giode.New(giode.Config{
+	Intl: &giode.IntlOptions{Dir: "locales"}, // the default folder
+})
 
+giode.Text(giode.Intl("greeting", map[string]any{"name": user.Name})) // "Hello, Ana!"
+giode.Text(giode.Intl("greeting", user))                              // a struct: its fields
+giode.Text(giode.Intl("greeting", "name", user.Name))                 // name, value pairs
+giode.Text(giode.Intl("unread", map[string]any{"count": n}))          // plural form by count
+
+giode.SetLocale("fa") // the UI redraws in Persian, right to left
+```
+
+The data fills the message's `{placeholders}`: a map, a struct (fields by name, by `json`
+tag, or with a lower-case first letter) or name, value pairs. When the message has plural
+forms, a `count` (or `n`) value picks one. A missing key returns the key itself.
+
+A relative `Dir` is looked for in the working directory, next to the executable, then in a
+macOS app bundle's `Resources`. To ship the translations inside the executable, which
+Android, iOS and the web need since apps there have no folder beside them, embed the folder
+and pass it as `FS`:
+
+```go
 //go:embed locales
 var locales embed.FS
 
-i18n.Load(locales, "locales") // locales/en.json, locales/fa.json, ...
-
-giode.Text(i18n.T("greeting", "name", user.Name)) // "greeting": "Hello, {name}!"
-giode.Text(i18n.N("unread", count))               // "unread": {"one": "{n} message", "other": "{n} messages"}
+giode.Config{Intl: &giode.IntlOptions{FS: locales, Dir: "locales", Fallback: "en"}}
 ```
+
+The `i18n` package underneath has the same functions for code that doesn't import giode
+(`i18n.Intl`, `i18n.Load`, `i18n.LoadDir`, `i18n.T`, `i18n.N`).
 
 A message file maps keys to text or to plural forms (`zero`, `one`, `two`, `few`, `many`,
 `other`), chosen by the language's plural rules (English, French, Russian, Polish, Arabic,
 Hebrew and others are built in). Lookups fall back from `fa-IR` to `fa` to the fallback
 locale (English) to the key itself.
 
-The locale is the system's unless `Config.Locale` says otherwise; `i18n.SetLocale` switches
+The locale is the system's unless `Config.Locale` says otherwise; `giode.SetLocale` switches
 it at runtime and the UI redraws. In a right-to-left locale (Arabic, Persian, Hebrew, Urdu,
 ...) giode mirrors the layout as CSS does for `direction: rtl`: rows run from the right,
 columns align to the right, and text aligns from the right. Absolutely positioned boxes

@@ -19,7 +19,8 @@ claude mcp add --transport http my-app http://127.0.0.1:7600/mcp
 ```
 
 Setting the environment variable `GIODE_MCP=1` enables it in any Giode app without a code
-change; `GIODE_MCP_ADDR` overrides the address.
+change; `GIODE_MCP_ADDR` overrides the address, and `GIODE_MCP_HOST` and `GIODE_MCP_PORT`
+its parts.
 
 ## Built-in tools
 
@@ -84,7 +85,9 @@ Text-less controls should get a name: `IconButton(...).Label("Delete")`,
 
 ```go
 MCPOptions: giode.MCPOptions{
-	Addr:     "127.0.0.1:7600", // listen address
+	Host:     "127.0.0.1",      // address to listen on; "0.0.0.0" for every interface
+	Port:     7600,             // TCP port
+	// or both at once: Addr: "127.0.0.1:7600" ("127.0.0.1:0" for any free port)
 	Token:    "secret",         // require "Authorization: Bearer secret"
 	Stdio:    false,            // serve stdin/stdout instead, for clients that launch the app
 	ReadOnly: false,            // only snapshot/screenshot/state_list/frame_stats
@@ -92,6 +95,7 @@ MCPOptions: giode.MCPOptions{
 },
 ```
 
-The server binds to loopback by default and rejects browser requests from non-localhost
+`app.MCPAddress()` returns the address the server is listening on once it listens, which
+tells an app using port 0 which port it got. The server binds to loopback by default and rejects browser requests from non-localhost
 origins (DNS-rebinding protection). Set `Token` before binding to any other interface. The
 `mcp` package is independent of the UI and can serve tools on its own.

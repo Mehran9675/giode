@@ -184,6 +184,18 @@ var (
 	Stack = ui.Stack
 	Text  = ui.Text
 	Raw   = ui.Raw
+	// Intl returns the translation of key in the app's locale with data
+	// filled into its {placeholders}: a map, a struct or name, value
+	// pairs; a "count" picks plural forms. Turn translations on with
+	// Config.Intl. See i18n.Intl.
+	Intl = ui.Intl
+	// SetLocale switches the app's locale ("fa", "pt-BR"); the UI
+	// redraws in it.
+	SetLocale = ui.SetLocale
+	// Locale returns the app's locale.
+	Locale = ui.Locale
+	// Locales lists the locales with messages loaded.
+	Locales = ui.Locales
 	// Canvas is an element drawn with a Painter: shapes, arcs, rings,
 	// sectors and paths in dp; see elements.Canvas.
 	Canvas  = ui.Canvas
