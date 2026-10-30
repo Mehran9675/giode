@@ -61,9 +61,19 @@ type ClickEvent struct {
 	Modifiers key.Modifiers
 	// Source says how the click was produced.
 	Source ClickSource
-	// Position is where the pointer was, relative to the Pressable;
-	// zero for keyboard and programmatic clicks.
+	// Position is where the pointer was, relative to the Pressable,
+	// in pixels; zero for keyboard and programmatic clicks.
 	Position image.Point
+	// PositionDp is Position in dp, the unit of Styles.
+	PositionDp f32.Point
+}
+
+// toDp converts a pixel position to dp.
+func toDp(pt f32.Point, gtx layout.Context) f32.Point {
+	if s := gtx.Metric.PxPerDp; s > 0 {
+		return pt.Div(s)
+	}
+	return pt
 }
 
 // Ctrl reports whether Ctrl (or Command on macOS) was held.
@@ -345,7 +355,7 @@ func (p *Pressable) update(gtx layout.Context) (changed bool) {
 			p.lastClick, p.lastClickPos = gtx.Now, e.Position
 			p.fire(ClickEvent{
 				Clicks: p.clicks, Button: p.pressBtn, Modifiers: e.Modifiers,
-				Source: ClickPointer, Position: e.Position.Round(),
+				Source: ClickPointer, Position: e.Position.Round(), PositionDp: toDp(e.Position, gtx),
 			})
 		}
 	}
@@ -360,7 +370,7 @@ func (p *Pressable) update(gtx layout.Context) (changed bool) {
 				(*fn)()
 			}
 			p.fired++
-			p.onLongPress(ClickEvent{Clicks: 1, Source: ClickPointer, Position: p.pressPos.Round()})
+			p.onLongPress(ClickEvent{Clicks: 1, Source: ClickPointer, Position: p.pressPos.Round(), PositionDp: toDp(p.pressPos, gtx)})
 		default:
 			kit.RequestFrameAt(gtx, p.pressAt.Add(LongPressDuration))
 		}

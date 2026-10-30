@@ -96,7 +96,15 @@ func ActiveBreakpoint() string {
 
 // Compact reports whether the innermost enclosing Responsive matched a
 // breakpoint named "compact" - the conventional name for a phone
-// layout.
+// layout. Outside any Responsive, it reports whether the window is
+// narrower than CompactWidth.
 func Compact() bool {
+	if len(breakpointStack) == 0 {
+		return windowSize.X > 0 && PxToDp(windowSize.X) < CompactWidth
+	}
 	return ActiveBreakpoint() == "compact"
 }
+
+// CompactWidth is the window width, in dp, under which Compact reports
+// true outside any Responsive.
+const CompactWidth = 600
