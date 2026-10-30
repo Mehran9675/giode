@@ -60,6 +60,9 @@ func TestPluralRules(t *testing.T) {
 		{"en", 0, "other"}, {"en", 1, "one"}, {"fr", 0, "one"}, {"fr", 2, "other"},
 		{"ar", 0, "zero"}, {"ar", 2, "two"}, {"ar", 5, "few"}, {"ar", 15, "many"}, {"ar", 100, "other"},
 		{"pl", 22, "few"}, {"pl", 25, "many"}, {"ja", 1, "other"}, {"he", 2, "two"},
+		{"lv", 0, "zero"}, {"lv", 1, "one"}, {"lv", 2, "other"}, {"lv", 11, "zero"}, {"lv", 21, "one"}, {"lv", 30, "zero"}, {"lv", 111, "zero"},
+		{"sl", 1, "one"}, {"sl", 2, "two"}, {"sl", 3, "few"}, {"sl", 4, "few"}, {"sl", 5, "other"}, {"sl", 101, "one"}, {"sl", 102, "two"}, {"sl", 104, "few"}, {"sl", 11, "other"},
+		{"is", 21, "one"}, {"is", 11, "other"}, {"ga", 4, "few"}, {"ga", 8, "many"}, {"cy", 6, "many"}, {"mt", 13, "many"},
 	}
 	for _, c := range cases {
 		if got := pluralForm(c.lang, c.n); got != c.want {

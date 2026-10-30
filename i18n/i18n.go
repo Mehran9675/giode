@@ -226,13 +226,25 @@ func N(key string, n int, args ...any) string {
 	return fill(s, args)
 }
 
-// lookup finds key in the locale, its language, then the fallback.
+// lookup finds key in the locale and its language - the app's
+// messages, then giode's own - then in the fallback locale, then in
+// giode's English.
 func lookup(key string) (message, bool) {
 	mu.RLock()
 	defer mu.RUnlock()
-	for _, l := range []string{locale, language(locale), fallback, language(fallback)} {
-		if m, ok := catalogs[l][key]; ok {
-			return m, true
+	for _, step := range []struct {
+		cats map[string]map[string]message
+		locs []string
+	}{
+		{catalogs, []string{locale, language(locale)}},
+		{builtin, []string{locale, language(locale)}},
+		{catalogs, []string{fallback, language(fallback)}},
+		{builtin, []string{"en"}},
+	} {
+		for _, l := range step.locs {
+			if m, ok := step.cats[l][key]; ok {
+				return m, true
+			}
 		}
 	}
 	return message{}, false
@@ -366,6 +378,77 @@ func pluralForm(lang string, n int) string {
 			return "one"
 		case n10 >= 2 && (n100 < 11 || n100 > 19):
 			return "few"
+		}
+		return "other"
+	case "lv":
+		switch {
+		case n10 == 0 || (n100 >= 11 && n100 <= 19):
+			return "zero"
+		case n10 == 1 && n100 != 11:
+			return "one"
+		}
+		return "other"
+	case "sl":
+		switch {
+		case n100 == 1:
+			return "one"
+		case n100 == 2:
+			return "two"
+		case n100 == 3 || n100 == 4:
+			return "few"
+		}
+		return "other"
+	case "mk", "is":
+		if n10 == 1 && n100 != 11 {
+			return "one"
+		}
+		return "other"
+	case "ga":
+		switch {
+		case n == 1:
+			return "one"
+		case n == 2:
+			return "two"
+		case n >= 3 && n <= 6:
+			return "few"
+		case n >= 7 && n <= 10:
+			return "many"
+		}
+		return "other"
+	case "gd":
+		switch {
+		case n == 1 || n == 11:
+			return "one"
+		case n == 2 || n == 12:
+			return "two"
+		case (n >= 3 && n <= 10) || (n >= 13 && n <= 19):
+			return "few"
+		}
+		return "other"
+	case "cy":
+		switch n {
+		case 0:
+			return "zero"
+		case 1:
+			return "one"
+		case 2:
+			return "two"
+		case 3:
+			return "few"
+		case 6:
+			return "many"
+		}
+		return "other"
+	case "mt":
+		switch {
+		case n == 1:
+			return "one"
+		case n == 2:
+			return "two"
+		case n == 0 || (n100 >= 3 && n100 <= 10):
+			return "few"
+		case n100 >= 11 && n100 <= 19:
+			return "many"
 		}
 		return "other"
 	case "ro":

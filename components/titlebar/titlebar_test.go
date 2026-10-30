@@ -2,6 +2,7 @@ package titlebar
 
 import (
 	"image"
+	"strings"
 	"testing"
 
 	"gioui.org/f32"
@@ -12,6 +13,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/styles"
 )
 
@@ -155,5 +157,29 @@ func TestDragAreaCoversBarButNotButtons(t *testing.T) {
 	}
 	if isMove(400, 100) {
 		t.Error("area below the bar is draggable")
+	}
+}
+
+func TestLongTitleLeavesRoomForMenus(t *testing.T) {
+	fonts.UseGofont()
+	long := strings.Repeat("A very long document title ", 20)
+	for _, v := range []Variant{VariantWindows, VariantMac} {
+		bar := New(&fakeWindow{focused: true}, long).Variant(v).
+			Leading(elements.Text("FileMenu")).Trailing(elements.Text("Trailer"))
+		elements.BeginSemantics()
+		bar.Layout(gtxFor(600, 100, 1))
+		nodes := elements.EndSemantics()
+		bounds := map[string]image.Rectangle{}
+		for _, n := range nodes {
+			bounds[n.Label] = n.Bounds
+		}
+		limit := 600
+		if v == VariantWindows {
+			limit -= 3 * winButtonWidth
+		}
+		menu, trail := bounds["FileMenu"], bounds["Trailer"]
+		if menu.Empty() || trail.Empty() || menu.Max.X > limit || trail.Max.X > limit || trail.Min.X < menu.Max.X {
+			t.Errorf("%s: menu %v, trailing %v; both must fit before %d", v, menu, trail, limit)
+		}
 	}
 }

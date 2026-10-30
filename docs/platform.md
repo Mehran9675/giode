@@ -418,8 +418,18 @@ The `i18n` package underneath has the same functions for code that doesn't impor
 (`i18n.Intl`, `i18n.Load`, `i18n.LoadDir`, `i18n.T`, `i18n.N`).
 
 A message file maps keys to text or to plural forms (`zero`, `one`, `two`, `few`, `many`,
-`other`), chosen by the language's plural rules (English, French, Russian, Polish, Arabic,
-Hebrew and others are built in). Lookups fall back from `fa-IR` to `fa` to the fallback
+`other`), chosen by the language's plural rules (CLDR's, built in for English, French,
+Russian, Polish, Czech, Lithuanian, Latvian, Slovenian, Romanian, Arabic, Hebrew, Irish,
+Welsh and others; Latvian uses `zero` for 0, 10-20, 30, ..., and Slovenian `two` and
+`few` for 2 and 3-4, 102, 103-104, ...).
+
+giode's own text - the title bar's window buttons, the edit menu (Cut, Copy, Paste, Select
+all), the copy button, the toast's dismiss button, the licenses screen - follows the app's
+locale, with translations built in for about 40 languages. Translations work without
+`Config.Intl`. To change one, or to add a language that's missing, put its key in your own
+message files: `"giode.close"`, `"giode.minimize"`, `"giode.maximize"`, `"giode.restore"`,
+`"giode.cut"`, `"giode.copy"`, `"giode.paste"`, `"giode.select_all"`, `"giode.copied"`,
+`"giode.dismiss"`, `"giode.license"`, `"giode.no_license"`. Lookups fall back from `fa-IR` to `fa` to the fallback
 locale (English) to the key itself.
 
 The locale is the system's unless `Config.Locale` says otherwise; `giode.SetLocale` switches

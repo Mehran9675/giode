@@ -17,6 +17,7 @@ import (
 
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/fonts"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
 )
@@ -151,8 +152,8 @@ func newCopyAction() *copyAction {
 			bg = "#374151"
 		}
 		return Box(styles.Styles{Background: bg, BorderRadius: 8, Padding: properties.SymmetricInset(14, 8)},
-			Text("Copy", styles.Styles{Color: "#f9fafb", FontSize: 14}))
-	}).Label("Copy").OnClick(func(ClickEvent) { c.now = true })
+			Text(i18n.T("giode.copy"), styles.Styles{Color: "#f9fafb", FontSize: 14}))
+	}).Label(i18n.T("giode.copy")).OnClick(func(ClickEvent) { c.now = true })
 	return c
 }
 

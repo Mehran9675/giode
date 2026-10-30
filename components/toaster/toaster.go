@@ -15,6 +15,7 @@ import (
 	"github.com/mehran9675/giode/components/kit"
 	"github.com/mehran9675/giode/components/transition"
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/i18n"
 	"github.com/mehran9675/giode/state"
 	"github.com/mehran9675/giode/styles"
 	"github.com/mehran9675/giode/styles/properties"
@@ -251,7 +252,7 @@ func (t *Toaster) prepare(ts *toast) {
 			st.Background = "theme.border"
 		}
 		return elements.Box(st, elements.Glyph(kit.GlyphClose, styles.Styles{Width: 12}))
-	}).Label("Dismiss").OnClick(func(elements.ClickEvent) { t.leave(ts) })
+	}).Label(i18n.T("giode.dismiss")).OnClick(func(elements.ClickEvent) { t.leave(ts) })
 	if ts.label != "" {
 		ts.act = elements.NewPressable(func(s elements.PressState) elements.Element {
 			st := styles.Styles{Padding: properties.SymmetricInset(8, 4), BorderRadius: 4}

@@ -50,3 +50,26 @@ func TestIntl(t *testing.T) {
 		t.Error("a missing folder loaded")
 	}
 }
+
+func TestBuiltinStrings(t *testing.T) {
+	defer SetLocale(Locale())
+	for loc, want := range map[string]string{"en": "Close", "de-CH": "Schließen", "lv": "Aizvērt", "sl": "Zapri", "pt-BR": "Fechar", "zh-TW": "關閉", "xx": "Close"} {
+		SetLocale(loc)
+		if got := T("giode.close"); got != want {
+			t.Errorf("%s: giode.close = %q, want %q", loc, got, want)
+		}
+	}
+	for loc, texts := range builtinText {
+		for i, s := range texts {
+			if s == "" {
+				t.Errorf("%s lacks %s", loc, builtinKeys[i])
+			}
+		}
+	}
+	// The app's own messages win.
+	Add("de", map[string]any{"giode.close": "Zumachen"})
+	SetLocale("de")
+	if got := T("giode.close"); got != "Zumachen" {
+		t.Errorf("app override: %q", got)
+	}
+}
