@@ -5,6 +5,7 @@
 package appshell
 
 import (
+	"github.com/mehran9675/giode/components/kit"
 	"image"
 
 	"gioui.org/layout"
@@ -34,14 +35,14 @@ func Header(height int, content elements.Element, st ...styles.Styles) *Slot {
 
 // Navbar returns a Slot for Config.Navbar: a navbar width wide,
 // spanning the height between Header and Footer (if present), fixed
-// to the left.
+// to the left (the right in a right-to-left locale).
 func Navbar(width int, content elements.Element, st ...styles.Styles) *Slot {
 	return &Slot{content: content, size: width, st: first(st)}
 }
 
 // Aside returns a Slot for Config.Aside: an aside width wide,
 // spanning the height between Header and Footer (if present), fixed
-// to the right.
+// to the right (the left in a right-to-left locale).
 func Aside(width int, content elements.Element, st ...styles.Styles) *Slot {
 	return &Slot{content: content, size: width, st: first(st)}
 }
@@ -119,12 +120,19 @@ func New(cfg Config, st ...styles.Styles) elements.Element {
 			asideW = cfg.Aside.size
 		}
 
+		// Right to left, the navbar is on the right and the aside on
+		// the left.
+		rtl := kit.RTL(gtx)
+		startW, endW := navbarW, asideW
+		if rtl {
+			startW, endW = asideW, navbarW
+		}
 		children := []elements.Element{
 			elements.Box(styles.Styles{
 				Position: properties.PositionAbsolute,
 				Top:      properties.Top(headerH),
-				Left:     properties.Left(navbarW),
-				Right:    properties.Right(asideW),
+				Left:     properties.Left(startW),
+				Right:    properties.Right(endW),
 				Bottom:   properties.Bottom(footerH),
 			}, cfg.Main),
 		}
@@ -139,6 +147,9 @@ func New(cfg Config, st ...styles.Styles) elements.Element {
 			ns := styles.Merge(styles.Styles{Background: defaultChrome}, cfg.Navbar.st)
 			ns.Position = properties.PositionAbsolute
 			ns.Top, ns.Left = properties.Top(headerH), 0
+			if rtl {
+				ns.Left = properties.Left(size.X - cfg.Navbar.size)
+			}
 			ns.Width, ns.Height = properties.Width(cfg.Navbar.size), -1
 			ns.Bottom = properties.Bottom(footerH)
 			children = append(children, elements.Box(ns, cfg.Navbar.content))
@@ -159,6 +170,9 @@ func New(cfg Config, st ...styles.Styles) elements.Element {
 			// Flush to the right edge: computed here for the same
 			// reason Footer's Top is.
 			as.Top, as.Left = properties.Top(headerH), properties.Left(size.X-cfg.Aside.size)
+			if rtl {
+				as.Left = 0
+			}
 			as.Width, as.Height = properties.Width(cfg.Aside.size), -1
 			as.Bottom = properties.Bottom(footerH)
 			children = append(children, elements.Box(as, cfg.Aside.content))

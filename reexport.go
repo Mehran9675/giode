@@ -357,6 +357,10 @@ const (
 const (
 	SideLeft  = ui.SideLeft
 	SideRight = ui.SideRight
+	// SideStart and SideEnd follow the reading direction: left and
+	// right, swapped in a right-to-left locale.
+	SideStart = ui.SideStart
+	SideEnd   = ui.SideEnd
 )
 
 // Giode bundles no icon set: load the icons your app uses from SVG
@@ -510,6 +514,12 @@ const (
 	ToastTopRight     = ui.ToastTopRight
 	ToastTopLeft      = ui.ToastTopLeft
 	ToastTopCenter    = ui.ToastTopCenter
+	// ToastBottomEnd (the default), ToastBottomStart, ToastTopEnd and
+	// ToastTopStart follow the reading direction.
+	ToastBottomEnd   = ui.ToastBottomEnd
+	ToastBottomStart = ui.ToastBottomStart
+	ToastTopEnd      = ui.ToastTopEnd
+	ToastTopStart    = ui.ToastTopStart
 )
 
 // Placement is the side of its trigger a tooltip (or any portal placed

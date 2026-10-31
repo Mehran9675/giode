@@ -41,7 +41,7 @@ const animDuration = 180 * time.Millisecond
 
 // Swipeable is a row that slides sideways to reveal actions: leading
 // ones on the left when swiped right, trailing ones on the right when
-// swiped left. A swipe past half the actions' width opens the row; a
+// swiped left (the other way round in a right-to-left locale). A swipe past half the actions' width opens the row; a
 // tap on the row or an action closes it. Vertical drags still scroll
 // the list around it.
 //
@@ -160,21 +160,23 @@ func (s *Swipeable) update(gtx layout.Context, leadW, trailW float32) {
 
 func (s *Swipeable) Layout(gtx layout.Context) layout.Dimensions {
 	aw := gtx.Dp(unit.Dp(actionWidth))
-	leadW, trailW := float32(aw*len(s.leading)), float32(aw*len(s.trailing))
+	left, leftClicks, right, rightClicks := s.sides(gtx)
+	leftW, rightW := float32(aw*len(left)), float32(aw*len(right))
 	// SetActions may have changed the widths under an open row.
 	switch {
 	case s.target > 0:
-		s.target = leadW
+		s.target = leftW
 	case s.target < 0:
-		s.target = -trailW
+		s.target = -rightW
 	}
 
-	s.update(gtx, leadW, trailW)
+	s.update(gtx, leftW, rightW)
 	if s.pass == nil {
 		s.pass = func(gtx layout.Context) bool {
 			aw := gtx.Dp(unit.Dp(actionWidth))
+			left, _, right, _ := s.sides(gtx)
 			off, target := s.offset, s.target
-			s.update(gtx, float32(aw*len(s.leading)), float32(aw*len(s.trailing)))
+			s.update(gtx, float32(aw*len(left)), float32(aw*len(right)))
 			return s.offset != off || s.target != target
 		}
 	}
@@ -215,11 +217,12 @@ func (s *Swipeable) Layout(gtx layout.Context) layout.Dimensions {
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
 	s.drag.Add(gtx.Ops)
 
+	rtl := kit.RTL(gtx)
 	if s.offset > 0 {
-		s.layoutActions(gtx, s.leading, s.leadClicks, image.Rect(0, 0, int(s.offset), size.Y), 0, aw)
+		s.layoutActions(gtx, left, leftClicks, image.Rect(0, 0, int(s.offset), size.Y), 0, aw, rtl)
 	}
 	if s.offset < 0 {
-		s.layoutActions(gtx, s.trailing, s.trailClicks, image.Rect(size.X+int(s.offset), 0, size.X, size.Y), size.X-int(trailW), aw)
+		s.layoutActions(gtx, right, rightClicks, image.Rect(size.X+int(s.offset), 0, size.X, size.Y), size.X-int(rightW), aw, rtl)
 	}
 
 	track.Place(off)
@@ -244,9 +247,19 @@ func (s *Swipeable) tap(a Action) {
 	s.target = 0
 }
 
+// sides returns the actions revealed on the left (by swiping right)
+// and on the right: leading and trailing, swapped right to left, where
+// lines start at the right edge.
+func (s *Swipeable) sides(gtx layout.Context) (left []Action, leftClicks []widget.Clickable, right []Action, rightClicks []widget.Clickable) {
+	if kit.RTL(gtx) {
+		return s.trailing, s.trailClicks, s.leading, s.leadClicks
+	}
+	return s.leading, s.leadClicks, s.trailing, s.trailClicks
+}
+
 // layoutActions paints actions side by side from x0, clipped to the
-// revealed area.
-func (s *Swipeable) layoutActions(gtx layout.Context, actions []Action, clicks []widget.Clickable, revealed image.Rectangle, x0, aw int) {
+// revealed area; reversed, the first is the rightmost.
+func (s *Swipeable) layoutActions(gtx layout.Context, actions []Action, clicks []widget.Clickable, revealed image.Rectangle, x0, aw int, reversed bool) {
 	defer clip.Rect(revealed).Push(gtx.Ops).Pop()
 	for i, a := range actions {
 		bg, fg := a.Background, a.Color
@@ -265,7 +278,11 @@ func (s *Swipeable) layoutActions(gtx layout.Context, actions []Action, clicks [
 		}
 		box := elements.Stack(styles.Styles{Width: -1, Height: -1, Background: bg, Color: fg, Justify: properties.JustifyCenter, Align: properties.AlignCenter, Gap: 4}, kids...)
 		func() {
-			pos := image.Pt(x0+i*aw, 0)
+			slot := i
+			if reversed {
+				slot = len(actions) - 1 - i
+			}
+			pos := image.Pt(x0+slot*aw, 0)
 			defer op.Offset(pos).Push(gtx.Ops).Pop()
 			pop := elements.PushOffset(pos)
 			defer pop()

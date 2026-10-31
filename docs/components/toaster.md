@@ -3,7 +3,7 @@
 Small notifications that pop up in a corner of the window and disappear on their own.
 
 ```go
-toasts := giode.Toaster().Placement(giode.ToastBottomRight).Duration(4 * time.Second).Max(3)
+toasts := giode.Toaster().Placement(giode.ToastBottomEnd).Duration(4 * time.Second).Max(3)
 
 app.Run(func() giode.Element {
 	return giode.Stack(giode.Styles{Width: -1, Height: -1}, content(), toasts)
@@ -20,7 +20,7 @@ everything else, and only the toasts themselves take input.
 
 | Setting | Default | |
 | --- | --- | --- |
-| `Placement(p)` | `ToastBottomRight` | Also `ToastBottomLeft`, `ToastBottomCenter`, `ToastTopRight`, `ToastTopLeft`, `ToastTopCenter`. |
+| `Placement(p)` | `ToastBottomEnd` | The bottom right, or bottom left in a right-to-left locale. Also `ToastBottomStart`, `ToastTopEnd`, `ToastTopStart`, which follow the reading direction too, and the fixed `ToastBottomRight`, `ToastBottomLeft`, `ToastBottomCenter`, `ToastTopRight`, `ToastTopLeft`, `ToastTopCenter`. |
 | `Duration(d)` | 5s | Zero or less keeps toasts until dismissed. |
 | `Max(n)` | 3 | How many show at once; the rest wait their turn. |
 | `Inset(properties.Inset)` | none | Extra dp from each window edge, to keep toasts clear of a custom title bar or a control bar. |

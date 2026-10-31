@@ -32,6 +32,8 @@ type Select struct {
 
 	sheetMode SheetMode
 	sheet     sheetState
+	// outside is the target of presses outside the open list.
+	outside struct{}
 }
 
 // New returns a Select with the given styles and options: Background

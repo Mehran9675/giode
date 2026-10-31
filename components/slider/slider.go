@@ -116,6 +116,9 @@ func (s *Slider) Layout(gtx layout.Context) layout.Dimensions {
 	// otherwise they would span whatever outer area it is laid out in
 	// and steal events from siblings.
 	defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
+	// Right to left, the value grows leftward; the flip also mirrors
+	// the pointer positions the drag reports.
+	defer kit.MirrorRTL(gtx, size.X)()
 	// Keep the slider draggable even inside a frameless window's
 	// whole-window drag area (see the root package's layoutDrag):
 	// without this, dragging the thumb would be hijacked into a

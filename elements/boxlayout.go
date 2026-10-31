@@ -38,6 +38,9 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 	st = st.Px(gtx.Metric)
+	// Start and End sides follow the reading direction.
+	rtl := gtx.Locale.Direction == system.RTL
+	st.Padding, st.Margin = st.Padding.Physical(rtl), st.Margin.Physical(rtl)
 	if b.stretchX && st.Width == 0 && st.WidthPct == 0 {
 		st.Width = -1
 	}
@@ -81,7 +84,6 @@ func (b *BoxElement) layoutBody(gtx layout.Context) layout.Dimensions {
 	popAbs := PushOffset(contentOff)
 	popColor := PushColor(st.Color)
 	var zs *[]zPaint
-	rtl := gtx.Locale.Direction == system.RTL
 	if ordered || rtl {
 		// A child sets a z-index, or the locale reads right to left:
 		// record every child and paint them once all are placed, in z

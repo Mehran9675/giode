@@ -30,8 +30,8 @@ type menuTrigger struct {
 	click   *widget.Clickable
 	// origin is the trigger's position, exact once a frame's layout is
 	// done (see elements.TrackPosition).
-	origin image.Point
-	height int
+	origin        image.Point
+	height, width int
 }
 
 func (t *menuTrigger) Layout(gtx layout.Context) layout.Dimensions {
@@ -53,10 +53,14 @@ func (t *menuTrigger) Layout(gtx layout.Context) layout.Dimensions {
 		// is only final once the enclosing containers have placed the
 		// trigger), and recomputed every frame so the menu follows it.
 		p := t.origin.Add(image.Pt(0, t.height+4))
+		if kit.RTL(gtx) {
+			// The menu's right edge under the trigger's.
+			p.X += t.width
+		}
 		t.menu.pos = f32.Pt(float32(p.X), float32(p.Y))
 	}
 	elements.TrackPosition(&t.origin)
-	t.height = dims.Size.Y
+	t.height, t.width = dims.Size.Y, dims.Size.X
 	// Keep the trigger clickable even when an ancestor is a frameless
 	// window's whole-window drag area - see button.Layout's identical
 	// comment.

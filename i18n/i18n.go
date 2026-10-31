@@ -170,6 +170,16 @@ var rtlLanguages = map[string]bool{"ar": true, "fa": true, "he": true, "iw": tru
 // RTL reports whether the locale reads right to left.
 func RTL() bool {
 	l := Locale()
+	// A script subtag decides first: pa-arab and az-arab read right to
+	// left, fa-latn doesn't.
+	for _, part := range strings.Split(l, "-")[1:] {
+		switch part {
+		case "arab", "hebr", "thaa", "syrc", "nkoo", "adlm", "rohg":
+			return true
+		case "latn", "cyrl":
+			return false
+		}
+	}
 	return rtlLanguages[l] || rtlLanguages[language(l)]
 }
 

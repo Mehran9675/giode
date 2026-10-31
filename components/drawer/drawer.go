@@ -2,6 +2,8 @@
 package drawer
 
 import (
+	"gioui.org/layout"
+	"github.com/mehran9675/giode/components/kit"
 	"time"
 
 	"gioui.org/gesture"
@@ -19,7 +21,29 @@ const (
 	Left Side = iota
 	// Right slides in from the right edge.
 	Right
+	// Start slides in from the edge where lines start: left, or right
+	// in a right-to-left locale.
+	Start
+	// End slides in from the edge where lines end.
+	End
 )
+
+// edge resolves Start and End to the physical edge for gtx.
+func (d *Drawer) edge(gtx layout.Context) Side {
+	switch d.side {
+	case Start:
+		if kit.RTL(gtx) {
+			return Right
+		}
+		return Left
+	case End:
+		if kit.RTL(gtx) {
+			return Left
+		}
+		return Right
+	}
+	return d.side
+}
 
 var defaultBackground = "#1e293b"
 

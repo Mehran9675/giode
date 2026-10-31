@@ -52,7 +52,14 @@ func (m *Menu) Layout(gtx layout.Context) layout.Dimensions {
 		elements.HandleDismiss(m.Close)
 	}
 
-	elements.RegisterPortal(gtx, image.Pt(int(m.pos.X), int(m.pos.Y)), func() elements.Element {
+	register := elements.RegisterPortal
+	if !m.isSubmenu && kit.RTL(gtx) {
+		// Right to left, the menu extends leftward from where it opens
+		// (the pointer, or its trigger's right edge); submenus place
+		// themselves (see submenuX).
+		register = elements.RegisterPortalEnd
+	}
+	register(gtx, image.Pt(int(m.pos.X), int(m.pos.Y)), func() elements.Element {
 		return elements.Raw(m.panel)
 	})
 	return layout.Dimensions{Size: gtx.Constraints.Max}

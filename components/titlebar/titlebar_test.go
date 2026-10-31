@@ -183,3 +183,26 @@ func TestLongTitleLeavesRoomForMenus(t *testing.T) {
 		}
 	}
 }
+
+func TestRTLButtonsOnTheLeft(t *testing.T) {
+	fonts.UseGofont()
+	bar := New(&fakeWindow{focused: true}, "عنوان").Leading(elements.Text("File"))
+	gtx := gtxFor(600, 100, 1)
+	gtx.Locale = system.Locale{Direction: system.RTL}
+	elements.BeginSemantics()
+	bar.Layout(gtx)
+	b := map[string]image.Rectangle{}
+	for _, n := range elements.EndSemantics() {
+		b[n.Label] = n.Bounds
+	}
+	bw := 3 * winButtonWidth
+	if c := b["Close"]; c.Min.X != 0 {
+		t.Errorf("close at %v, want the left edge", c)
+	}
+	if m := b["Minimize"]; m.Max.X != bw {
+		t.Errorf("minimize at %v, want ending at %d", m, bw)
+	}
+	if f := b["File"]; f.Min.X < bw || f.Max.X > 600 {
+		t.Errorf("menu at %v, want right of the buttons", f)
+	}
+}

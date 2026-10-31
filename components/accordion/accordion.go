@@ -123,7 +123,7 @@ func (a *Accordion) header(it *item, st styles.Styles) elements.Element {
 				hst.Background = defaultHover
 				pointer.CursorPointer.Add(gtx.Ops)
 			}
-			chevron := kit.GlyphChevronRight
+			chevron := kit.GlyphChevronForward
 			if it.expanded {
 				chevron = kit.GlyphChevronDown
 			}

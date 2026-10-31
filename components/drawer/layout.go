@@ -78,7 +78,7 @@ func (d *Drawer) updateDrag(gtx layout.Context, width int) {
 		return
 	}
 	dir := float32(1)
-	if d.side == Right {
+	if d.edge(gtx) == Right {
 		dir = -1
 	}
 	for {
@@ -116,7 +116,7 @@ func (d *Drawer) layoutEdge(gtx layout.Context) layout.Dimensions {
 	width := d.panelWidth(gtx)
 	d.updateDrag(gtx, width)
 	strip := image.Rect(0, 0, gtx.Dp(edgeWidth), win.Y)
-	if d.side == Right {
+	if d.edge(gtx) == Right {
 		strip = image.Rect(win.X-gtx.Dp(edgeWidth), 0, win.X, win.Y)
 	}
 	defer pointer.PassOp{}.Push(gtx.Ops).Pop()
@@ -146,7 +146,7 @@ func (d *Drawer) layoutOverlay(gtx layout.Context) layout.Dimensions {
 	})
 
 	var x int
-	if d.side == Left {
+	if d.edge(gtx) == Left {
 		x = -width + int(float32(width)*d.progress)
 	} else {
 		x = win.X - int(float32(width)*d.progress)

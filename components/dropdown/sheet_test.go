@@ -11,6 +11,7 @@ import (
 	"gioui.org/op"
 
 	"github.com/mehran9675/giode/elements"
+	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/styles"
 )
 
@@ -76,5 +77,58 @@ func TestSelect_SheetCompactFollowsWindowWidth(t *testing.T) {
 	}
 	if New(styles.Styles{}, "a").useSheet() {
 		t.Error("sheet without Sheet()")
+	}
+}
+
+func TestSelect_PressOutsideCloses(t *testing.T) {
+	fonts.UseGofont()
+	defer elements.SetWindowSize(image.Point{})
+	var chosen []int
+	h := &sheetHarness{win: image.Pt(800, 600), s: New(styles.Styles{Width: 160}, "Small", "Medium", "Large").Sheet(SheetNever)}
+	h.s.OnChange(func(i int) { chosen = append(chosen, i) })
+	h.frame()
+	click := func(x, y int, btn pointer.Buttons) {
+		pos := f32.Pt(float32(x), float32(y))
+		h.r.Queue(
+			pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Position: pos, Buttons: btn},
+			pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: pos},
+		)
+		h.frame()
+		h.frame()
+	}
+	for _, btn := range []pointer.Buttons{pointer.ButtonPrimary, pointer.ButtonSecondary} {
+		click(20, 10, pointer.ButtonPrimary)
+		if !h.s.Opened() {
+			t.Fatal("clicking the field didn't open the list")
+		}
+		click(600, 500, btn)
+		if h.s.Opened() {
+			t.Errorf("a press (buttons %v) outside the list left it open", btn)
+		}
+	}
+	// Clicking the field again closes it too.
+	click(20, 10, pointer.ButtonPrimary)
+	click(20, 10, pointer.ButtonPrimary)
+	if h.s.Opened() {
+		t.Error("clicking the field of an open list didn't close it")
+	}
+	// Choosing still works.
+	click(20, 10, pointer.ButtonPrimary)
+	elements.BeginSemantics()
+	h.frame()
+	var medium image.Rectangle
+	nodes := elements.EndSemantics()
+	for _, n := range nodes {
+		if n.Label == "Medium" && n.Kind != elements.SemanticSelect {
+			medium = n.Bounds
+		}
+	}
+	if medium.Empty() {
+		t.Fatalf("no Medium option in the open list (open=%v): %+v", h.s.Opened(), nodes)
+	}
+	c := medium.Min.Add(medium.Max).Div(2)
+	click(c.X, c.Y, pointer.ButtonPrimary)
+	if h.s.Opened() || len(chosen) != 1 || chosen[0] != 1 {
+		t.Errorf("picking an option: open=%v chosen=%v", h.s.Opened(), chosen)
 	}
 }

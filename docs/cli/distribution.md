@@ -139,6 +139,25 @@ Every package's name carries its CPU, so builds for two CPUs can share a release
 `<App>-<version>-<arch>-setup.exe`, `<App>-<version>-<arch>.msix` and
 `<App>-<version>-universal.dmg` (or `-arm64`/`-amd64` with a single `-arch`).
 
+## Android icon
+
+Android 8 and later draw the launcher icon from two layers, each a 108dp square of which
+the launcher shows only the middle, cut to its own shape (a circle, a squircle, ...). Keep
+the artwork inside the middle 66dp. Without settings, giode builds them from `app.icon`: the
+icon shrunk into that safe zone on a transparent foreground, over the color around its edge
+(white for a transparent edge), so a square icon isn't clipped. To draw the layers
+yourself:
+
+```toml
+[android]
+icon_foreground = "assets/android-foreground.png" # the whole 108dp canvas, transparent around the artwork
+icon_background = "assets/android-background.png" # or a color: "#0f172a"
+icon_monochrome = "assets/android-monochrome.png" # optional: its shape is tinted for themed icons (Android 13+)
+```
+
+Without `icon_monochrome`, themed icons show the full-color icon. Android 7 and earlier
+use `app.icon` as is.
+
 ## Android libraries
 
 Android builds take libraries from Maven repositories, as Gradle would:

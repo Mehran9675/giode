@@ -34,6 +34,9 @@ manifest = '<uses-feature android:name="android.hardware.camera" android:require
 application = '<meta-data android:name="example" android:value="1"/>'
 application_attributes = { requestLegacyExternalStorage = "true" }  # on <application>
 java = ["android/java"]       # the app's own Java sources, compiled in (see giode/android)
+icon_foreground = "assets/android-foreground.png"  # adaptive icon layers (Android 8+): 108dp
+icon_background = "#0f172a"   # canvases, artwork in the middle 66dp; background a PNG or color
+icon_monochrome = "assets/android-monochrome.png" # themed icons (Android 13+), optional
 keystore = "release.keystore" # used by giode build -release
 keystore_pass_env = "GIODE_KEYSTORE_PASS"
 google_services = "google-services.json"   # from the Firebase console, for giode/push

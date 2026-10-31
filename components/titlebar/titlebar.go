@@ -6,6 +6,7 @@ package titlebar
 import (
 	"image"
 	"image/color"
+	"slices"
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
@@ -325,7 +326,7 @@ func (t *TitleBar) Layout(gtx layout.Context) layout.Dimensions {
 		row = append(row, t.wrap(t.leading)...)
 		row = append(row, elements.Box(styles.Styles{FlexGrow: 1}))
 	} else {
-		row = append(row, elements.Box(styles.Styles{Padding: properties.Inset{Right: 8}}, titleBox))
+		row = append(row, elements.Box(styles.Styles{Padding: properties.Inset{End: 8}}, titleBox))
 		row = append(row, t.wrap(t.leading)...)
 		row = append(row, elements.Box(styles.Styles{FlexGrow: 1}))
 	}
@@ -348,11 +349,22 @@ func (t *TitleBar) Layout(gtx layout.Context) layout.Dimensions {
 		call.Add(gtx.Ops)
 		off.Pop()
 	} else {
-		cgtx := gtx
-		cgtx.Constraints = layout.Exact(image.Pt(rowW, h))
-		content.Layout(cgtx)
-		off := op.Offset(image.Pt(rowW, 0)).Push(gtx.Ops)
-		pop := elements.PushOffset(image.Pt(rowW, 0))
+		// Right to left, the buttons sit at the left edge and the row
+		// (mirrored by its Box) fills the rest.
+		rowX, btnX := 0, rowW
+		if kit.RTL(gtx) {
+			rowX, btnX = bw, 0
+		}
+		func() {
+			off := op.Offset(image.Pt(rowX, 0)).Push(gtx.Ops)
+			defer off.Pop()
+			defer elements.PushOffset(image.Pt(rowX, 0))()
+			cgtx := gtx
+			cgtx.Constraints = layout.Exact(image.Pt(rowW, h))
+			content.Layout(cgtx)
+		}()
+		off := op.Offset(image.Pt(btnX, 0)).Push(gtx.Ops)
+		pop := elements.PushOffset(image.Pt(btnX, 0))
 		t.windowsButtons(gtx, h, textColor)
 		pop()
 		off.Pop()
@@ -399,7 +411,13 @@ func (t *TitleBar) windowsButtonsWidth(gtx layout.Context) int {
 func (t *TitleBar) windowsButtons(gtx layout.Context, h int, glyphColor properties.Color) {
 	w := gtx.Dp(winButtonWidth)
 	x := 0
-	for _, b := range t.visible() {
+	buttons := t.visible()
+	if kit.RTL(gtx) {
+		// Mirrored, as Windows does for right-to-left apps: close
+		// first, at the left edge.
+		slices.Reverse(buttons)
+	}
+	for _, b := range buttons {
 		off := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
 		pop := elements.PushOffset(image.Pt(x, 0))
 		click := &t.buttons[b]

@@ -8,9 +8,11 @@ import (
 	"gioui.org/f32"
 	"gioui.org/io/input"
 	"gioui.org/io/pointer"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 
+	"github.com/mehran9675/giode/elements"
 	"github.com/mehran9675/giode/fonts"
 	"github.com/mehran9675/giode/styles"
 )
@@ -43,5 +45,26 @@ func TestSegmented(t *testing.T) {
 	}
 	if c.pos != 2 {
 		t.Errorf("highlight at %v, want 2", c.pos)
+	}
+}
+
+func TestRTLOrder(t *testing.T) {
+	fonts.UseGofont()
+	c := New("One", "Two", "Three")
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Locale: system.Locale{Direction: system.RTL}, Constraints: layout.Constraints{Max: image.Pt(400, 100)}}
+	elements.BeginSemantics()
+	c.Layout(gtx)
+	b := map[string]image.Rectangle{}
+	for _, n := range elements.EndSemantics() {
+		if n.Kind == elements.SemanticTab {
+			b[n.Label] = n.Bounds
+		}
+	}
+	if !(b["One"].Min.X > b["Two"].Min.X && b["Two"].Min.X > b["Three"].Min.X) {
+		t.Errorf("right to left, One should be rightmost: %v", b)
+	}
+	if b["One"].Dx() >= 300 {
+		t.Errorf("a segment is %d px wide: the options should share the row", b["One"].Dx())
 	}
 }

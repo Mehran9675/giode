@@ -21,8 +21,8 @@ return it from the view, typically as the whole app's root element.
 | Constructor | Edge | Sized by |
 | --- | --- | --- |
 | `Header(height int, content Element, st ...Styles) *AppShellSlot` | Top, full width | height |
-| `Navbar(width int, content Element, st ...Styles) *AppShellSlot` | Left, between Header and Footer | width |
-| `Aside(width int, content Element, st ...Styles) *AppShellSlot` | Right, between Header and Footer | width |
+| `Navbar(width int, content Element, st ...Styles) *AppShellSlot` | Left (right in a right-to-left locale), between Header and Footer | width |
+| `Aside(width int, content Element, st ...Styles) *AppShellSlot` | Right (left in a right-to-left locale), between Header and Footer | width |
 | `Footer(height int, content Element, st ...Styles) *AppShellSlot` | Bottom, full width | height |
 | `Main(content Element, st ...Styles) Element` | Fills whatever the other four leave | - |
 

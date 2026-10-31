@@ -64,3 +64,13 @@ func TestColorMix(t *testing.T) {
 		}
 	}
 }
+
+func TestInsetPhysical(t *testing.T) {
+	in := Inset{Top: 1, Left: 2, Right: 3, Start: 10, End: 20}
+	if got := in.Physical(false); got != (Inset{Top: 1, Left: 12, Right: 23}) {
+		t.Errorf("ltr: %+v", got)
+	}
+	if got := in.Physical(true); got != (Inset{Top: 1, Left: 22, Right: 13}) {
+		t.Errorf("rtl: %+v", got)
+	}
+}
