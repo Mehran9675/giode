@@ -3,8 +3,10 @@ package dropdown
 import (
 	"image"
 
+	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 
 	"github.com/mehran9675/giode/components/kit"
@@ -82,6 +84,12 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 			})
 			return fieldDims
 		}
+		// A press of any button outside the list closes it, and goes
+		// no further, as for menus: the field itself included, so
+		// clicking it again closes rather than reopens.
+		elements.RegisterOverlay(func() elements.Element {
+			return elements.Raw(s.layoutOutside)
+		})
 		fieldWidth := fieldDims.Size.X
 		at := elements.AbsolutePosition()
 		trigger := image.Rectangle{Min: at, Max: at.Add(fieldDims.Size)}
@@ -92,4 +100,22 @@ func (s *Select) Layout(gtx layout.Context) layout.Dimensions {
 		})
 	}
 	return fieldDims
+}
+
+// layoutOutside covers the window under the open list and closes it on
+// a press there.
+func (s *Select) layoutOutside(gtx layout.Context) layout.Dimensions {
+	for {
+		ev, ok := gtx.Source.Event(pointer.Filter{Target: &s.outside, Kinds: pointer.Press})
+		if !ok {
+			break
+		}
+		if _, ok := ev.(pointer.Event); ok && s.open {
+			s.open = false
+			kit.RequestFrame(gtx)
+		}
+	}
+	defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
+	event.Op(gtx.Ops, &s.outside)
+	return layout.Dimensions{}
 }
